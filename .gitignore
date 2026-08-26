@@ -1,0 +1,35 @@
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+backend/configs/*.local.yaml
+
+# --- Go ---
+backend/bin/
+backend/coverage.out
+backend/coverage.html
+*.test
+*.out
+
+# --- Flutter / Dart ---
+mobile/.dart_tool/
+mobile/.flutter-plugins*
+mobile/.packages
+mobile/build/
+mobile/.idea/
+mobile/*.iml
+.flutter-plugins-dependencies
+
+# --- Node (tooling) ---
+node_modules/
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Local data ---
+/data/
+*.log

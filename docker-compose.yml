@@ -1,0 +1,71 @@
+name: athena
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: athena-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-athena}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-athena_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-athena}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-athena} -d ${POSTGRES_DB:-athena}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: athena-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: athena-api
+    command: ["/app/api"]
+    env_file: .env
+    environment:
+      ATHENA_HTTP_ADDR: ":8080"
+      ATHENA_DATABASE_URL: postgres://${POSTGRES_USER:-athena}:${POSTGRES_PASSWORD:-athena_dev_password}@postgres:5432/${POSTGRES_DB:-athena}?sslmode=disable
+      ATHENA_REDIS_ADDR: redis:6379
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles: ["app"]
+
+  migrate:
+    image: migrate/migrate:v4.18.1
+    container_name: athena-migrate
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://${POSTGRES_USER:-athena}:${POSTGRES_PASSWORD:-athena_dev_password}@postgres:5432/${POSTGRES_DB:-athena}?sslmode=disable"
+      - "up"
+    volumes:
+      - ./backend/migrations:/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["tools"]
+
+volumes:
+  postgres_data:
+  redis_data:
