@@ -17,11 +17,17 @@ import (
 	"github.com/riverqueue/river"
 	riverpgxv5 "github.com/riverqueue/river/riverdriver/riverpgxv5"
 
+	appai "athena/backend/internal/application/ai"
 	"athena/backend/internal/application/ingestion"
+	domainai "athena/backend/internal/domain/ai"
+	"athena/backend/internal/infrastructure/ai/openaicompat"
+	stubai "athena/backend/internal/infrastructure/ai/stub"
+	"athena/backend/internal/infrastructure/cache"
 	"athena/backend/internal/infrastructure/database"
 	arxivadapter "athena/backend/internal/infrastructure/providers/arxiv"
 	openalexadapter "athena/backend/internal/infrastructure/providers/openalex"
 	s2adapter "athena/backend/internal/infrastructure/providers/semanticscholar"
+	"athena/backend/internal/infrastructure/textextract"
 	"athena/backend/internal/infrastructure/workers"
 	"athena/backend/internal/platform/config"
 	"athena/backend/internal/platform/logger"
@@ -61,13 +67,38 @@ func main() {
 
 	store := database.NewPaperStore(pool, log)
 	service := ingestion.NewService(buildProviders(&cfg), store, database.NewRunLedger(pool), log)
+	// Fresh data must not sit behind stale cached queries (60s TTL is the
+	// ceiling; this makes it immediate).
+	if cfg.RedisAddr != "" {
+		service.Cache = cache.New(cfg.RedisAddr)
+	}
 
 	riverWorkers := river.NewWorkers()
 	workers.AddAll(riverWorkers, service, log)
 
+	// Phase 4: full-text RAG indexing when an LLM/embedding stack is set.
+	var ragService *appai.RAGService
+	if cfg.AIEnabled() {
+		var embedder domainai.EmbeddingProvider
+		if cfg.EmbeddingProviderName == "openai_compatible" {
+			embedder = openaicompat.NewEmbedder(openaicompat.Config{
+				BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey,
+				Model: cfg.EmbeddingModel,
+			})
+		} else {
+			embedder = stubai.NewEmbedder(cfg.EmbeddingDim)
+		}
+		paperStore := database.NewPaperStore(pool, log)
+		ragService = appai.NewRAGService(paperStore, database.NewAIStore(pool),
+			textextract.New(), embedder, appai.HTTPFetcher{}, log)
+		workers.AddAI(riverWorkers, ragService, log)
+		log.Info("rag indexing enabled", "embedding_model", embedder.Model())
+	}
+
 	clientOpts := &river.Config{
 		Queues: map[string]river.QueueConfig{
 			"ingestion": {MaxWorkers: cfg.WorkerConcurrency},
+			"ai":        {MaxWorkers: 1},
 		},
 		Workers: riverWorkers,
 		// Backfill attempts legitimately run for many minutes (River's
