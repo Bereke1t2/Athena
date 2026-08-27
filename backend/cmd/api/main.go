@@ -12,12 +12,31 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	riverpgxv5 "github.com/riverqueue/river/riverdriver/riverpgxv5"
 
+	appauth "athena/backend/internal/application/auth"
+	appbookmark "athena/backend/internal/application/bookmark"
+	appfeed "athena/backend/internal/application/feed"
+	appsearch "athena/backend/internal/application/search"
 	v1 "athena/backend/internal/delivery/http/v1"
+	"athena/backend/internal/infrastructure/cache"
 	"athena/backend/internal/infrastructure/database"
+	"athena/backend/internal/infrastructure/providers/arxiv"
+	"athena/backend/internal/infrastructure/providers/crossref"
+	"athena/backend/internal/infrastructure/providers/openalex"
+	"athena/backend/internal/infrastructure/providers/semanticscholar"
 	"athena/backend/internal/infrastructure/workers"
+
+	appai "athena/backend/internal/application/ai"
+	appchat "athena/backend/internal/application/chat"
+	discover "athena/backend/internal/application/discover"
+	domainai "athena/backend/internal/domain/ai"
+	"athena/backend/internal/infrastructure/ai/openaicompat"
+	stubai "athena/backend/internal/infrastructure/ai/stub"
+	authinfra "athena/backend/internal/infrastructure/auth"
+	"athena/backend/internal/infrastructure/textextract"
 	"athena/backend/internal/platform/config"
 	httpserver "athena/backend/internal/platform/httpserver"
 	"athena/backend/internal/platform/logger"
@@ -63,17 +82,109 @@ func run() error {
 	research := v1.NewResearchHandlers(store, log)
 	admin := v1.NewAdminHandlers(cfg.AdminToken, log)
 	admin.Queue = workers.NewQueueAdmin(riverClient)
+	if cfg.AIEnabled() {
+		admin.RagQueue = ragQueueAdapter{client: riverClient}
+	}
+
+	// Phase 2 discovery: FTS engine + optional Redis response cache.
+	engine := database.NewPgSearcher(pool)
+	var searchCache *cache.Cache
+	if cfg.RedisAddr != "" {
+		searchCache = cache.New(cfg.RedisAddr)
+	}
+	searchSvc := appsearch.NewService(engine, searchCache)
+
+	// Live federated search across every configured research provider.
+	liveProviders := []discover.ProviderSearcher{
+		arxiv.New(arxiv.Options{UserAgent: cfg.ArxivUserAgent}),
+		semanticscholar.New(semanticscholar.Options{APIKey: cfg.SemanticScholarAPIKey}),
+		openalex.New(openalex.Options{Mailto: cfg.OpenAlexMailto}),
+		crossref.New(crossref.Options{Mailto: cfg.OpenAlexMailto}),
+	}
+	discoverSvc := discover.NewService(liveProviders, store, searchCache, log)
+
+	feedSvc := appfeed.NewService(store) // PaperStore satisfies feed.Source
+	topics := v1.NewTopicsHandlers(database.NewTopicReader(pool), research, log)
+
+	// Phase 5 auth: password accounts with opaque bearer sessions. The user
+	// store implements both the account and session ports.
+	userStore := database.NewUserStore(pool)
+	authSvc := appauth.NewService(userStore, userStore, authinfra.NewHasher())
+	authHandlers := v1.NewAuthHandlers(authSvc, log)
+
+	// Phase 5 bookmarks: server-side saved papers (auth-guarded routes).
+	bookmarkHandlers := v1.NewBookmarksHandlers(
+		appbookmark.NewService(database.NewBookmarkStore(pool)), log)
+
+	// Phase 4 AI layer: only wired when an LLM provider is configured.
+	var aiHandlers *v1.AIHandlers
+	if cfg.AIEnabled() {
+		aiStore := database.NewAIStore(pool)
+		paperStore := database.NewPaperStore(pool, log)
+
+		var llm domainai.LLMProvider
+		switch cfg.LLMProvider {
+		case "stub":
+			llm = stubai.New()
+		default:
+			base := cfg.LLMBaseURL
+			if cfg.LLMOverrideBaseURL != "" {
+				base = cfg.LLMOverrideBaseURL
+			}
+			llm = openaicompat.NewClient(openaicompat.Config{
+				BaseURL: base, APIKey: cfg.LLMAPIKey, Model: cfg.LLMModel,
+			})
+		}
+
+		var embedder domainai.EmbeddingProvider
+		if cfg.EmbeddingProviderName == "openai_compatible" {
+			embedder = openaicompat.NewEmbedder(openaicompat.Config{
+				BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey,
+				Model: cfg.EmbeddingModel,
+			})
+		} else {
+			embedder = stubai.NewEmbedder(cfg.EmbeddingDim)
+		}
+
+		extractor := textextract.New()
+		rag := appai.NewRAGService(paperStore, aiStore, extractor, embedder,
+			appai.HTTPFetcher{}, log)
+		retrieval := appai.NewRetrievalService(embedder, aiStore)
+		summarySvc := appai.NewSummaryService(llm, aiStore, paperStore, aiStore, log)
+		summarySvc.Indexer = rag
+		chatSvc := appchat.NewService(llm, aiStore, retrieval, paperStore, log)
+		chatSvc.Indexer = rag
+
+		aiHandlers = v1.NewAIHandlers(summarySvc, chatSvc, log)
+		log.Info("ai layer enabled", "llm", cfg.LLMProvider, "model", cfg.LLMModel,
+			"embeddings", embedder.Model())
+	} else {
+		log.Info("ai layer disabled (set LLM_PROVIDER to enable)")
+	}
 
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpserver.New(httpserver.Deps{
 			Research: research,
-			Admin:    admin,
-			Logger:   log,
+			Search:   v1.NewSearchHandlersWithLive(searchSvc, discoverSvc, log), Feed: v1.NewFeedHandlers(feedSvc, log),
+			Topics:    topics,
+			Admin:     admin,
+			AI:        aiHandlers,
+			Auth:      authHandlers,
+			Bookmarks: bookmarkHandlers,
+			Logger:    log,
 			Ping: func() error {
 				cctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()
 				return pool.Ping(cctx)
+			},
+			RedisPing: func() error {
+				if searchCache == nil {
+					return nil
+				}
+				cctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				return searchCache.Ping(cctx)
 			},
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
@@ -103,4 +214,13 @@ func run() error {
 	pool.Close()
 	log.Info("athena api stopped")
 	return nil
+}
+
+// ragQueueAdapter adapts the River client to the admin RAG-index queue port.
+type ragQueueAdapter struct {
+	client *river.Client[pgx.Tx]
+}
+
+func (a ragQueueAdapter) EnqueueRagIndex(ctx context.Context, paperIDs []string) ([]string, error) {
+	return workers.EnqueueRagIndex(ctx, a.client, paperIDs)
 }
