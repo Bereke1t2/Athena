@@ -16,8 +16,11 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$SummaryState {
-  ExplanationLevel get level => throw _privateConstructorUsedError;
-  AsyncValue<PaperSummaryAI> get data => throw _privateConstructorUsedError;
+  ExplanationLevel get level =>
+      throw _privateConstructorUsedError; // null = not requested yet (idle). Generation is opt-in — no tokens are
+// spent until the user taps "Summarize", so the initial state must be
+// distinct from loading.
+  AsyncValue<PaperSummaryAI>? get data => throw _privateConstructorUsedError;
 
   /// Create a copy of SummaryState
   /// with the given fields replaced by the non-null parameter values.
@@ -32,7 +35,7 @@ abstract class $SummaryStateCopyWith<$Res> {
           SummaryState value, $Res Function(SummaryState) then) =
       _$SummaryStateCopyWithImpl<$Res, SummaryState>;
   @useResult
-  $Res call({ExplanationLevel level, AsyncValue<PaperSummaryAI> data});
+  $Res call({ExplanationLevel level, AsyncValue<PaperSummaryAI>? data});
 }
 
 /// @nodoc
@@ -51,17 +54,17 @@ class _$SummaryStateCopyWithImpl<$Res, $Val extends SummaryState>
   @override
   $Res call({
     Object? level = null,
-    Object? data = null,
+    Object? data = freezed,
   }) {
     return _then(_value.copyWith(
       level: null == level
           ? _value.level
           : level // ignore: cast_nullable_to_non_nullable
               as ExplanationLevel,
-      data: null == data
+      data: freezed == data
           ? _value.data
           : data // ignore: cast_nullable_to_non_nullable
-              as AsyncValue<PaperSummaryAI>,
+              as AsyncValue<PaperSummaryAI>?,
     ) as $Val);
   }
 }
@@ -74,7 +77,7 @@ abstract class _$$SummaryStateImplCopyWith<$Res>
       __$$SummaryStateImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({ExplanationLevel level, AsyncValue<PaperSummaryAI> data});
+  $Res call({ExplanationLevel level, AsyncValue<PaperSummaryAI>? data});
 }
 
 /// @nodoc
@@ -91,17 +94,17 @@ class __$$SummaryStateImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? level = null,
-    Object? data = null,
+    Object? data = freezed,
   }) {
     return _then(_$SummaryStateImpl(
       level: null == level
           ? _value.level
           : level // ignore: cast_nullable_to_non_nullable
               as ExplanationLevel,
-      data: null == data
+      data: freezed == data
           ? _value.data
           : data // ignore: cast_nullable_to_non_nullable
-              as AsyncValue<PaperSummaryAI>,
+              as AsyncValue<PaperSummaryAI>?,
     ));
   }
 }
@@ -110,15 +113,16 @@ class __$$SummaryStateImplCopyWithImpl<$Res>
 
 class _$SummaryStateImpl implements _SummaryState {
   const _$SummaryStateImpl(
-      {this.level = ExplanationLevel.intermediate,
-      this.data = const AsyncValue<PaperSummaryAI>.loading()});
+      {this.level = ExplanationLevel.intermediate, this.data});
 
   @override
   @JsonKey()
   final ExplanationLevel level;
+// null = not requested yet (idle). Generation is opt-in — no tokens are
+// spent until the user taps "Summarize", so the initial state must be
+// distinct from loading.
   @override
-  @JsonKey()
-  final AsyncValue<PaperSummaryAI> data;
+  final AsyncValue<PaperSummaryAI>? data;
 
   @override
   String toString() {
@@ -149,12 +153,15 @@ class _$SummaryStateImpl implements _SummaryState {
 abstract class _SummaryState implements SummaryState {
   const factory _SummaryState(
       {final ExplanationLevel level,
-      final AsyncValue<PaperSummaryAI> data}) = _$SummaryStateImpl;
+      final AsyncValue<PaperSummaryAI>? data}) = _$SummaryStateImpl;
 
   @override
-  ExplanationLevel get level;
+  ExplanationLevel
+      get level; // null = not requested yet (idle). Generation is opt-in — no tokens are
+// spent until the user taps "Summarize", so the initial state must be
+// distinct from loading.
   @override
-  AsyncValue<PaperSummaryAI> get data;
+  AsyncValue<PaperSummaryAI>? get data;
 
   /// Create a copy of SummaryState
   /// with the given fields replaced by the non-null parameter values.

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/papers/domain/paper.dart';
+import '../theme/app_theme.dart';
 import 'state_views.dart';
 
 /// Card tile for a paper summary; used by feed/search/topic lists.
@@ -22,100 +23,162 @@ class PaperCard extends StatelessWidget {
         ? paper.publicationType.replaceAll('_', ' ')
         : paper.venueName;
 
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isDark ? const Color(0xFF282D3B) : const Color(0xFFE5E7EB),
+          width: 1.2,
+        ),
+      ),
+      color: isDark ? const Color(0xFF161922) : Colors.white,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Top Metadata Header: Venue & Badges
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      paper.title,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
-                        letterSpacing: -0.2,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF222736) : const Color(0xFFF1F3F7),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          venue,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF374151),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  if (badge != null) ...[const SizedBox(width: 8), badge!],
+                  const SizedBox(width: 8),
+                  if (paper.isOpenAccess) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF7675).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'OA',
+                        style: TextStyle(
+                          color: Color(0xFFFF7675),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 9.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  _Meta(
+                    icon: Icons.format_quote_rounded,
+                    label: _count(paper.citedByCount),
+                  ),
                 ],
               ),
+
+              const SizedBox(height: 10),
+
+              // Paper Title
+              Text(
+                paper.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  height: 1.25,
+                  letterSpacing: -0.3,
+                  fontSize: 15.5,
+                  color: isDark ? Colors.white : const Color(0xFF141416),
+                ),
+              ),
+
               if (abstractText != null && abstractText.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   abstractText,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.9),
+                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                     height: 1.4,
+                    fontSize: 12,
                   ),
                 ),
               ],
-              const SizedBox(height: 14),
+
+              const SizedBox(height: 12),
+
+              // Bottom Action & Info Row
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.auto_stories_rounded,
+                        size: 13,
+                        color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                       ),
-                      child: Text(
-                        venue,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w700,
+                      const SizedBox(width: 4),
+                      Text(
+                        '${paper.year} · ~${((abstractText?.split(' ').length ?? 150) / 130).clamp(4, 18).round()}m digest',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  _Meta(icon: Icons.calendar_today_outlined, label: '${paper.year}'),
-                  const SizedBox(width: 10),
-                  _Meta(icon: Icons.format_quote_rounded, label: _count(paper.citedByCount)),
-                  if (paper.isOpenAccess) ...[
-                    const SizedBox(width: 10),
+                  if (badge != null)
+                    badge!
+                  else
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(999),
+                        color: isDark ? const Color(0xFF222736) : const Color(0xFFF1F3F7),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.lock_open_rounded,
-                            size: 11,
-                            color: theme.colorScheme.onTertiaryContainer,
-                          ),
-                          const SizedBox(width: 3),
                           Text(
-                            'OA',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onTertiaryContainer,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 10,
+                            'Read',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
                             ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 12,
+                            color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
                           ),
                         ],
                       ),
                     ),
-                  ],
                 ],
               ),
             ],

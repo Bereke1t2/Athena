@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/paper_card.dart';
 import '../domain/search.dart';
 import 'search_notifier.dart';
@@ -40,28 +41,31 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search'),
+        title: const Text(
+          'Search',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+        ),
         centerTitle: false,
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
             child: SearchBar(
               controller: _controller,
               focusNode: _focus,
-              hintText: 'Search all research sources…',
+              hintText: 'Search papers, DOIs, arXiv IDs, authors…',
               textInputAction: TextInputAction.search,
               onSubmitted: (q) {
                 _focus.unfocus();
                 notifier.submit(q);
               },
               elevation: const WidgetStatePropertyAll(0),
-              leading: const Icon(Icons.search),
+              leading: const Icon(Icons.search_rounded),
               trailing: [
                 if (_controller.text.isNotEmpty)
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close, size: 18),
                     onPressed: () {
                       _controller.clear();
                       setState(() {});
@@ -74,7 +78,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
           if (state.submitted) ...[
             SizedBox(
-              height: 44,
+              height: 40,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -106,7 +110,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ],
               ),
             ),
-            Divider(height: 1, color: theme.colorScheme.outlineVariant),
+            const SizedBox(height: 6),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
           ],
           Expanded(child: _results(context, state)),
         ],
@@ -123,33 +128,44 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _results(BuildContext context, SearchState state) {
     final notifier = ref.read(searchNotifierProvider.notifier);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     if (!state.submitted) {
       return Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  color: isDark ? const Color(0xFF20242E) : const Color(0xFFF3F4F6),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.travel_explore,
-                    size: 44, color: theme.colorScheme.onPrimaryContainer),
+                child: Icon(
+                  Icons.travel_explore_rounded,
+                  size: 40,
+                  color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               Text(
                 'Search every source at once',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
                 'One query fans out to arXiv, Semantic Scholar,\nOpenAlex and Crossref — best matches first.',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.4),
+                style: TextStyle(
+                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 20),
               Wrap(
@@ -158,11 +174,57 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 alignment: WrapAlignment.center,
                 children: [
                   for (final label in _sourceLabels.values)
-                    Chip(
-                      label: Text(label),
-                      labelStyle:
-                          theme.textTheme.labelSmall, // keep chips compact
-                      visualDensity: VisualDensity.compact,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1C2028) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF2C3240) : const Color(0xFFE5E7EB),
+                        ),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF374151),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Popular research suggestions
+              Text(
+                'TRENDING TOPICS',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (final topic in [
+                    'Scaling Laws',
+                    'Diffusion Models',
+                    'Reasoning & LLMs',
+                    'Transformers',
+                    'Reinforcement Learning',
+                    'Mechanistic Interpretability',
+                  ])
+                    ActionChip(
+                      label: Text(topic),
+                      onPressed: () {
+                        _controller.text = topic;
+                        notifier.submit(topic);
+                      },
                     ),
                 ],
               ),
@@ -180,7 +242,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(
                   width: 14,
@@ -188,16 +249,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  'Querying arXiv · Semantic Scholar · OpenAlex · Crossref…',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                Expanded(
+                  child: Text(
+                    'Querying arXiv · Semantic Scholar · OpenAlex · Crossref…',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
           )
         else if (page.hasValue)
-          _sourceSummary(context, page.valueOrNull!),        Expanded(
+          _sourceSummary(context, page.valueOrNull!),
+        Expanded(
           child: AsyncListView<SearchResult>(
             value: _toList(page),
             emptyIcon: Icons.search_off,
@@ -205,6 +272,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             emptySubtitle:
                 'Try fewer or different words. Questions in plain language work too.',
             onRetry: () => notifier.submit(_controller.text),
+            onLoadMore: () => notifier.loadMore(),
+            isLoadingMore: page.valueOrNull?.loadingMore ?? false,
+            footerVisible: page.valueOrNull?.cursor != null,
             itemBuilder: (context, r) => PaperCard(
               paper: r.paper,
               onTap: () => context.push('/papers/${r.paper.id}'),
@@ -218,43 +288,87 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _sourceSummary(BuildContext context, SearchPageState meta) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${meta.results.length} papers'
-            '${meta.tookMs > 0 ? ' · ${_formatTook(meta.tookMs)}' : ''}',
-            style: theme.textTheme.labelMedium,
-          ),
-          const Spacer(),
-          for (final s in meta.sources) ...[
-            Tooltip(
-              message: s.ok
-                  ? '${s.papers} results from ${_sourceLabels[s.slug] ?? s.slug}'
-                  : '${_sourceLabels[s.slug] ?? s.slug} unavailable',
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    s.ok ? Icons.check_circle : Icons.error_outline,
-                    size: 13,
-                    color: s.ok ? theme.colorScheme.primary : theme.colorScheme.error,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${meta.results.length} papers'
+                '${meta.tookMs > 0 ? ' · ${_formatTook(meta.tookMs)}' : ''}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF374151),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1F2430) : const Color(0xFFEFF2F6),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Federated search',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                   ),
-                  const SizedBox(width: 3),
-                  Text(
-                    _sourceLabels[s.slug] ?? s.slug,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: s.ok
-                          ? theme.colorScheme.onSurfaceVariant
-                          : theme.colorScheme.outline,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final s in meta.sources) ...[
+                  Tooltip(
+                    message: s.ok
+                        ? '${s.papers} results from ${_sourceLabels[s.slug] ?? s.slug}'
+                        : '${_sourceLabels[s.slug] ?? s.slug} unavailable',
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1A1D24) : Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF2C3240) : const Color(0xFFE5E7EB),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            s.ok ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                            size: 12,
+                            color: s.ok ? const Color(0xFF10B981) : const Color(0xFFFF7675),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_sourceLabels[s.slug] ?? s.slug}${s.ok ? ' (${s.papers})' : ''}',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF374151),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-            const SizedBox(width: 10),
-          ],
+          ),
         ],
       ),
     );
@@ -271,18 +385,18 @@ class _ScoreBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
       decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(999),
+        color: AppTheme.canaryYellow.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         score.toStringAsFixed(1),
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSecondaryContainer,
-          fontWeight: FontWeight.w700,
+        style: const TextStyle(
+          color: AppTheme.canaryYellow,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
