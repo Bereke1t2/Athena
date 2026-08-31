@@ -3,6 +3,7 @@ import 'package:athena/core/prefs/user_preferences.dart';
 import 'package:athena/core/router/app_router.dart';
 import 'package:athena/features/feed/domain/feed.dart';
 import 'package:athena/features/feed/domain/feed_repository.dart';
+import 'package:athena/features/papers/domain/article_content.dart';
 import 'package:athena/features/papers/domain/paper.dart';
 import 'package:athena/features/papers/domain/paper_repository.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +21,9 @@ class _NoopFeedRepo implements FeedRepository {
 class _NoopPaperRepo implements PaperRepository {
   @override
   Future<PaperDetail> getById(String id) => throw UnimplementedError();
+
+  @override
+  Future<ArticleContent> getArticleContent(String id) => throw UnimplementedError();
 }
 
 void main() {

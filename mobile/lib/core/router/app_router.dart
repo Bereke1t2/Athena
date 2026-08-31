@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/ai/presentation/chat_screen.dart';
+import '../../features/ai/presentation/create_audio_screen.dart';
 import '../../features/feed/presentation/feed_screen.dart';
 import '../../features/library/presentation/saved_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
+import '../../features/papers/presentation/article_reader_screen.dart';
+import '../../features/papers/presentation/paper_audio_player_screen.dart';
 import '../../features/papers/presentation/paper_detail_screen.dart';
 import '../../features/papers/presentation/pdf_viewer_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
@@ -80,6 +83,27 @@ GoRouter buildAppRouter() {
         ),
       ),
       GoRoute(
+        path: '/papers/:id/reader',
+        name: 'paper-reader',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => ArticleReaderScreen(
+          paperId: state.pathParameters['id']!,
+          title: state.uri.queryParameters['title'],
+        ),
+      ),
+      GoRoute(
+        path: '/create-audio',
+        name: 'create-audio',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const CreateAudioScreen(),
+      ),
+      GoRoute(
+        path: '/player',
+        name: 'player',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PaperAudioPlayerScreen(),
+      ),
+      GoRoute(
         path: '/saved',
         name: 'saved',
         parentNavigatorKey: _rootNavigatorKey,
@@ -134,9 +158,21 @@ class _HomeShell extends StatelessWidget {
         selectedIndex: shell.currentIndex,
         onDestinationSelected: shell.goBranch,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.feed_outlined), label: 'Feed'),
-          NavigationDestination(icon: Icon(Icons.search), label: 'Search'),
-          NavigationDestination(icon: Icon(Icons.category_outlined), label: 'Topics'),
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: 'Feed',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.search_rounded),
+            selectedIcon: Icon(Icons.saved_search_rounded),
+            label: 'Search',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.category_outlined),
+            selectedIcon: Icon(Icons.category_rounded),
+            label: 'Topics',
+          ),
         ],
       ),
     );
