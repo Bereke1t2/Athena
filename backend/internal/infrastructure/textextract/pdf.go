@@ -21,8 +21,8 @@ const MaxBytes = 20 << 20
 // PDFExtractor implements ai.TextExtractor for PDF streams.
 type PDFExtractor struct{}
 
-// New builds a PDF text extractor.
-func New() *PDFExtractor { return &PDFExtractor{} }
+// NewPDFExtractor builds a dedicated PDF text extractor.
+func NewPDFExtractor() *PDFExtractor { return &PDFExtractor{} }
 
 var _ domainai.TextExtractor = (*PDFExtractor)(nil)
 

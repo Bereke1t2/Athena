@@ -133,6 +133,7 @@ func run() error {
 			}
 			llm = openaicompat.NewClient(openaicompat.Config{
 				BaseURL: base, APIKey: cfg.LLMAPIKey, Model: cfg.LLMModel,
+				Timeout: 90 * time.Second,
 			})
 		}
 
@@ -150,12 +151,16 @@ func run() error {
 		rag := appai.NewRAGService(paperStore, aiStore, extractor, embedder,
 			appai.HTTPFetcher{}, log)
 		retrieval := appai.NewRetrievalService(embedder, aiStore)
+		retrieval.Logger = log
 		summarySvc := appai.NewSummaryService(llm, aiStore, paperStore, aiStore, log)
 		summarySvc.Indexer = rag
 		chatSvc := appchat.NewService(llm, aiStore, retrieval, paperStore, log)
 		chatSvc.Indexer = rag
 
 		aiHandlers = v1.NewAIHandlers(summarySvc, chatSvc, log)
+		if cfg.LLMProvider != "stub" && cfg.LLMAPIKey == "" {
+			log.Warn("LLM_API_KEY is empty; AI requests are sent unauthenticated and will likely fail")
+		}
 		log.Info("ai layer enabled", "llm", cfg.LLMProvider, "model", cfg.LLMModel,
 			"embeddings", embedder.Model())
 	} else {

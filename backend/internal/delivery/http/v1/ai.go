@@ -149,6 +149,66 @@ func (h *AIHandlers) SummaryPost(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ---- GET /api/v1/research/papers/{id}/reader --------------------------------
+
+type readerSectionDTO struct {
+	Seq         int    `json:"seq"`
+	SectionPath string `json:"section_path,omitempty"`
+	Heading     string `json:"heading,omitempty"`
+	Content     string `json:"content"`
+	TokenCount  int    `json:"token_count"`
+}
+
+type paperReaderResponseDTO struct {
+	PaperID     uuid.UUID          `json:"paper_id"`
+	Title       string             `json:"title"`
+	Abstract    string             `json:"abstract,omitempty"`
+	SourceURL   string             `json:"source_url,omitempty"`
+	Format      string             `json:"format"`
+	Sections    []readerSectionDTO `json:"sections"`
+	TotalChunks int                `json:"total_chunks"`
+}
+
+func (h *AIHandlers) ReaderGet(w http.ResponseWriter, r *http.Request) {
+	if h.Summary == nil {
+		WriteError(w, r, http.StatusNotImplemented, CodeNotImplemented,
+			"AI layer is not enabled on this deployment")
+		return
+	}
+	paperID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid paper id")
+		return
+	}
+
+	content, err := h.Summary.GetArticleContent(r.Context(), paperID)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+
+	sections := make([]readerSectionDTO, 0, len(content.Chunks))
+	for _, c := range content.Chunks {
+		sections = append(sections, readerSectionDTO{
+			Seq:         c.Seq,
+			SectionPath: c.SectionPath,
+			Heading:     c.Heading,
+			Content:     c.Content,
+			TokenCount:  c.TokenCount,
+		})
+	}
+
+	WriteJSON(w, http.StatusOK, paperReaderResponseDTO{
+		PaperID:     content.PaperID,
+		Title:       content.Title,
+		Abstract:    content.Abstract,
+		SourceURL:   content.SourceURL,
+		Format:      content.Format,
+		Sections:    sections,
+		TotalChunks: len(sections),
+	})
+}
+
 // ---- POST /api/v1/chat/sessions ---------------------------------------------
 
 type createSessionRequestDTO struct {

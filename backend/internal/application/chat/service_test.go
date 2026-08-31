@@ -274,6 +274,42 @@ func TestCitationsForExtractsQuotes(t *testing.T) {
 	}
 }
 
+func TestAskHandlesGreetingsWarmly(t *testing.T) {
+	greetingPhrases := []string{
+		"hello",
+		"hey there",
+		"hi there",
+		"what's up",
+		"hey athena",
+		"hey there athena!",
+		"good morning",
+	}
+
+	for _, phrase := range greetingPhrases {
+		t.Run(phrase, func(t *testing.T) {
+			svc, _, _ := newHarness(t, []string{"unused"}, nil)
+			sessID := mustSession(t, svc)
+
+			var streamed string
+			msg, err := svc.Ask(context.Background(), sessID, phrase, func(d string) {
+				streamed += d
+			})
+			if err != nil {
+				t.Fatalf("Ask greeting failed for %q: %v", phrase, err)
+			}
+			if !strings.Contains(msg.Content, "Attention Is All You Need") {
+				t.Fatalf("greeting should mention paper title for %q: %q", phrase, msg.Content)
+			}
+			if strings.Contains(msg.Content, RefusalSentence) {
+				t.Fatalf("greeting must not refuse for %q: %q", phrase, msg.Content)
+			}
+			if streamed != msg.Content {
+				t.Fatalf("streamed content mismatch: got %q, want %q", streamed, msg.Content)
+			}
+		})
+	}
+}
+
 // ---- helpers ----------------------------------------------------------------
 
 func mustSession(t *testing.T, svc *Service) uuid.UUID {

@@ -129,13 +129,14 @@ type SummaryService struct {
 	MaxContextChars int
 
 	indexTimeout time.Duration
+	genTimeout   time.Duration
 }
 
 func NewSummaryService(llm domainai.LLMProvider, store SummaryStore,
 	papers PaperSource, chunks ChunkSource, log *slog.Logger) *SummaryService {
 	return &SummaryService{LLM: llm, Store: store, Papers: papers,
 		Chunks: chunks, Logger: log, MaxContextChars: 24000,
-		indexTimeout: 30 * time.Second}
+		indexTimeout: 60 * time.Second, genTimeout: 90 * time.Second}
 }
 
 // Summarize returns the cached summary when the source content is unchanged,
@@ -189,7 +190,12 @@ func (s *SummaryService) Summarize(ctx context.Context, paperID uuid.UUID,
 	}
 
 	prompt := buildSummaryPrompt(detail, abstractOf(detail), chunks, level, s.MaxContextChars)
-	resp, err := s.LLM.Generate(ctx, domainai.GenerateRequest{
+	// Bound the terminal generation so a slow/unreachable LLM can't block the
+	// request handler indefinitely (no server WriteTimeout guards this path,
+	// since chat uses SSE streaming).
+	gctx, cancel := context.WithTimeout(ctx, s.genTimeout)
+	defer cancel()
+	resp, err := s.LLM.Generate(gctx, domainai.GenerateRequest{
 		System:      groundingSystem,
 		Prompt:      prompt,
 		Temperature: 0.2,
@@ -224,6 +230,57 @@ func (s *SummaryService) Summarize(ctx context.Context, paperID uuid.UUID,
 	}
 	recordStatus("summary", resp.Model, "ok")
 	return sum, nil
+}
+
+// ArticleContent carries structured full text and sections for the In-App Academic Reader.
+type ArticleContent struct {
+	PaperID     uuid.UUID        `json:"paper_id"`
+	Title       string           `json:"title"`
+	Abstract    string           `json:"abstract,omitempty"`
+	SourceURL   string           `json:"source_url,omitempty"`
+	Format      string           `json:"format"` // "pdf" or "web_article"
+	Chunks      []domainai.Chunk `json:"chunks"`
+}
+
+// GetArticleContent returns the structured text chunks for the In-App Reader.
+// Lazily indexes if chunks are not yet cached.
+func (s *SummaryService) GetArticleContent(ctx context.Context, paperID uuid.UUID) (ArticleContent, error) {
+	detail, err := s.Papers.GetDetailByID(ctx, paperID)
+	if err != nil {
+		return ArticleContent{}, mapReadErr(err)
+	}
+
+	chunks, err := s.Chunks.ListChunks(ctx, paperID)
+	if err != nil {
+		return ArticleContent{}, fmt.Errorf("load chunks: %w", err)
+	}
+
+	if len(chunks) == 0 && s.Indexer != nil {
+		ictx, cancel := context.WithTimeout(ctx, s.indexTimeout)
+		defer cancel()
+		if _, ierr := s.Indexer.IngestPaper(ictx, paperID); ierr == nil {
+			chunks, _ = s.Chunks.ListChunks(ctx, paperID)
+		}
+	}
+
+	candidates := CandidateFullTextURLs(detail)
+	sourceURL := ""
+	format := "web_article"
+	if len(candidates) > 0 {
+		sourceURL = candidates[0]
+		if strings.Contains(strings.ToLower(sourceURL), ".pdf") || strings.Contains(strings.ToLower(sourceURL), "/pdf/") {
+			format = "pdf"
+		}
+	}
+
+	return ArticleContent{
+		PaperID:   paperID,
+		Title:     detail.Summary.Title,
+		Abstract:  abstractOf(detail),
+		SourceURL: sourceURL,
+		Format:    format,
+		Chunks:    chunks,
+	}, nil
 }
 
 func groundingFor(chunks []domainai.Chunk) domainai.Grounding {

@@ -39,7 +39,7 @@ type PaperSource interface {
 	GetDetailByID(ctx context.Context, id uuid.UUID) (research.PaperDetail, error)
 }
 
-var chunkRefRe = regexp.MustCompile(`\[chunk (\d+)\]`)
+var chunkRefRe = regexp.MustCompile(`(?i)\[(?:chunk|source)\s*[:#]?\s*(\d+)\]`)
 
 // Service orchestrates grounded single-paper conversations.
 type Service struct {
@@ -62,7 +62,7 @@ func NewService(llm domainai.LLMProvider, sessions SessionStore,
 	retriever domainai.ChunkRetriever, papers PaperSource, log *slog.Logger) *Service {
 	return &Service{LLM: llm, Sessions: sessions, Retriever: retriever,
 		Papers: papers, Logger: log, HistoryTurns: 8, TopK: 8,
-		indexTimeout: 30 * time.Second}
+		indexTimeout: 60 * time.Second}
 }
 
 // CreateSession opens a single-paper chat container.
@@ -110,6 +110,22 @@ func (s *Service) Ask(ctx context.Context, sessionID uuid.UUID, question string,
 
 	if s.LLM == nil {
 		return domainai.Message{}, domainai.ErrNotGrounded // AI disabled
+	}
+
+	// Conversational greetings & pleasantries bypass strict chunk citation refusal
+	if greetingText, isGreeting := handleGreeting(detail, question); isGreeting {
+		if onDelta != nil {
+			onDelta(greetingText)
+		}
+		appai.RecordChatStatus("ok")
+		return s.Sessions.AppendMessage(ctx, domainai.Message{
+			SessionID:  sessionID,
+			Role:       domainai.RoleAssistant,
+			Content:    greetingText,
+			Citations:  nil,
+			ModelID:    s.LLM.Model(),
+			TokenUsage: domainai.TokenUsage{TotalTokens: len(greetingText) / 4},
+		})
 	}
 
 	history := s.historyWindow(ctx, sessionID)
@@ -217,7 +233,7 @@ func (s *Service) buildContext(d research.PaperDetail, chunks []domainai.Retriev
 
 func (s *Service) runStream(ctx context.Context, system, prompt string, onDelta func(string)) (string, domainai.TokenUsage, string, error) {
 	stream, err := s.LLM.GenerateStream(ctx, domainai.GenerateRequest{
-		System: system, Prompt: prompt, Temperature: 0.3, MaxTokens: 900,
+		System: system, Prompt: prompt, Temperature: 0.3, MaxTokens: 8192,
 	})
 	if err != nil {
 		s.Logger.Error("open stream failed", "error", err)
@@ -257,7 +273,7 @@ func (s *Service) groundedAnswer(ctx context.Context, d research.PaperDetail,
 Rules you must never break:
 1. Answer using the provided title and abstract context.
 2. Distinguish findings from interpretation from speculation; keep stated limitations.
-3. If the title/abstract is insufficient to answer, reply exactly: "The provided material does not contain enough evidence to answer this."
+3. If the user asks about something not addressed in the title or abstract, explain what the paper covers based on the available metadata and note that full-text excerpts are not available.
 4. Numbers and statistics must appear verbatim in the context or be omitted.
 5. Never invent citations, authors, papers, or figures.`
 	}
@@ -338,10 +354,22 @@ func citationsFor(indices []int, chunks []domainai.RetrievedChunk) []domainai.Ci
 		out = append(out, domainai.Citation{
 			ChunkID:     c.ID,
 			SectionPath: firstNonEmpty(c.SectionPath, c.Heading),
-			Quote:       firstSentence(c.Content),
+			Quote:       cleanCitationQuote(c.Content),
 		})
 	}
 	return out
+}
+
+func cleanCitationQuote(s string) string {
+	s = strings.TrimSpace(s)
+	lines := strings.Split(s, "\n")
+	for _, ln := range lines {
+		ln = strings.TrimSpace(ln)
+		if len(ln) >= 30 && !strings.HasPrefix(ln, "#") {
+			return firstSentence(ln)
+		}
+	}
+	return firstSentence(s)
 }
 
 func renderHistory(turns []domainai.HistoryTurn) string {
@@ -372,7 +400,7 @@ func firstSentence(s string) string {
 			return s[:i+1]
 		}
 	}
-	return truncate(s, 140)
+	return truncate(s, 160)
 }
 
 func truncate(s string, n int) string {
@@ -404,4 +432,34 @@ func mapReadErr(err error) error {
 		return domainai.ErrNotFound
 	}
 	return err
+}
+
+func handleGreeting(d research.PaperDetail, q string) (string, bool) {
+	norm := strings.ToLower(strings.TrimSpace(q))
+	norm = strings.Trim(norm, "!?. ,")
+
+	greetings := map[string]bool{
+		"hi": true, "hello": true, "hey": true, "howdy": true, "helo": true, "helow": true,
+		"hi there": true, "hello there": true, "hey there": true,
+		"whats up": true, "what's up": true, "sup": true, "yo": true,
+		"greetings": true, "hiya": true, "heya": true, "how are you": true, "how are you doing": true,
+		"good morning": true, "good afternoon": true, "good evening": true,
+		"who are you": true, "what can you do": true, "help": true,
+		"thanks": true, "thank you": true, "thank you!": true,
+	}
+
+	if greetings[norm] ||
+		strings.HasPrefix(norm, "hi athena") || strings.HasPrefix(norm, "hello athena") ||
+		strings.HasPrefix(norm, "hey athena") || strings.HasPrefix(norm, "hey there athena") ||
+		strings.HasPrefix(norm, "hi there athena") || strings.HasPrefix(norm, "hello there athena") {
+		if norm == "thanks" || norm == "thank you" {
+			return "You're welcome! Feel free to ask any questions about the methodology, experimental results, or findings.", true
+		}
+		title := d.Summary.Title
+		if title == "" {
+			title = "this research paper"
+		}
+		return fmt.Sprintf("Hello! I'm Athena, your research assistant for \"%s\".\n\nI can help you break down the methodology, explain complex equations, analyze experimental results, or discuss key findings from the full text. What would you like to explore?", title), true
+	}
+	return "", false
 }
