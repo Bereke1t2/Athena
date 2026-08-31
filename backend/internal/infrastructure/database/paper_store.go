@@ -325,9 +325,17 @@ func (s *PaperStore) mergeInto(ctx context.Context, tx pgx.Tx, target uuid.UUID,
 			language         = COALESCE(language, NULLIF($7,'')),
 			doi              = COALESCE(doi, NULLIF($8,'')),
 			arxiv_id         = COALESCE(arxiv_id, NULLIF($9,'')),
-			oa_status        = CASE WHEN oa_status = 'unknown' THEN $10::oa_status ELSE oa_status END,
+			oa_status        = CASE
+				WHEN oa_status = 'unknown' THEN $10::oa_status
+				WHEN oa_status = 'closed' AND $10::oa_status NOT IN ('unknown', 'closed') THEN $10::oa_status
+				ELSE oa_status
+			END,
 			is_open_access   = is_open_access OR $11,
-			best_oa_url      = COALESCE(best_oa_url, NULLIF($12,'')),
+			best_oa_url      = CASE
+				WHEN best_oa_url IS NULL OR best_oa_url = '' THEN NULLIF($12,'')
+				WHEN ($12 ILIKE '%.pdf' OR $12 ILIKE '%/pdf/%' OR $12 ILIKE '%arxiv.org%') AND NOT (best_oa_url ILIKE '%.pdf' OR best_oa_url ILIKE '%/pdf/%' OR best_oa_url ILIKE '%arxiv.org%') THEN NULLIF($12,'')
+				ELSE best_oa_url
+			END,
 			license          = COALESCE(license, NULLIF($13,'')),
 			cited_by_count   = GREATEST(cited_by_count, $14),
 			reference_count  = GREATEST(reference_count, $15),

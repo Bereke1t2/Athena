@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -130,6 +131,12 @@ func (c *Client) do(ctx context.Context, body chatRequest) (*http.Response, erro
 		resp, err := c.http.Do(req)
 		if err != nil {
 			lastErr = fmt.Errorf("llm call failed: %w", err)
+			// A client/context timeout won't heal on retry — retrying just
+			// multiplies the wait (previously up to ~4×60s before the handler
+			// gave up). Fail fast; only genuinely transient errors retry.
+			if ctx.Err() != nil || isTimeout(err) {
+				return nil, lastErr
+			}
 			continue
 		}
 		if resp.StatusCode == http.StatusTooManyRequests {
@@ -151,6 +158,16 @@ func (c *Client) do(ctx context.Context, body chatRequest) (*http.Response, erro
 		return nil, fmt.Errorf("%w: %s (retry-after: %v)", ai.ErrRateLimited, he.Body, delay)
 	}
 	return nil, lastErr
+}
+
+// isTimeout reports whether err is a client-side or context deadline timeout,
+// which retrying cannot fix.
+func isTimeout(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var ne net.Error
+	return errors.As(err, &ne) && ne.Timeout()
 }
 
 // retryDelay parses the Retry-After or Retry-Info header hint, falling back
@@ -237,7 +254,9 @@ func (c *Client) GenerateStream(ctx context.Context, req ai.GenerateRequest) (ai
 	if err != nil {
 		return nil, err
 	}
-	return &streamReader{scanner: bufio.NewScanner(resp.Body), body: resp.Body, model: c.model}, nil
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
+	return &streamReader{scanner: scanner, body: resp.Body, model: c.model}, nil
 }
 
 func messages(req ai.GenerateRequest) []message {

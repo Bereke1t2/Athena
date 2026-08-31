@@ -6,6 +6,7 @@ package ai
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 
@@ -16,6 +17,7 @@ import (
 type ChunkSearcher interface {
 	SearchByVector(ctx context.Context, paperID uuid.UUID, vec []float32, modelID string, k int) ([]domainai.RetrievedChunk, error)
 	SearchKeyword(ctx context.Context, paperID uuid.UUID, query string, k int) ([]domainai.RetrievedChunk, error)
+	ListLeadingChunks(ctx context.Context, paperID uuid.UUID, k int) ([]domainai.RetrievedChunk, error)
 }
 
 // RetrievalService implements domainai.ChunkRetriever over the hybrid legs.
@@ -23,6 +25,7 @@ type ChunkSearcher interface {
 type RetrievalService struct {
 	Embedder   domainai.EmbeddingProvider // nil ⇒ keyword only
 	Searcher   ChunkSearcher
+	Logger     *slog.Logger
 	CandidateK int
 }
 
@@ -69,7 +72,9 @@ func (s *RetrievalService) Retrieve(ctx context.Context, q domainai.ChunkQuery) 
 			add(vecList, 1.0)
 		} else if embErr != nil {
 			// Embedding outage must not kill lexical retrieval.
-			fmt.Printf("athena: embedding leg failed, keyword-only: %v\n", embErr)
+			if s.Logger != nil {
+				s.Logger.WarnContext(ctx, "embedding leg failed, falling back to keyword retrieval", "error", embErr)
+			}
 		}
 	}
 
@@ -94,6 +99,16 @@ func (s *RetrievalService) Retrieve(ctx context.Context, q domainai.ChunkQuery) 
 	if len(out) > k {
 		out = out[:k]
 	}
+
+	// Structural fallback: if query returned no specific hits but the paper has chunks,
+	// load the paper's leading structural chunks so chat remains grounded in full text.
+	if len(out) == 0 && q.PaperID != uuid.Nil && s.Searcher != nil {
+		leading, lerr := s.Searcher.ListLeadingChunks(ctx, q.PaperID, k)
+		if lerr == nil && len(leading) > 0 {
+			return leading, nil
+		}
+	}
+
 	return out, nil
 }
 

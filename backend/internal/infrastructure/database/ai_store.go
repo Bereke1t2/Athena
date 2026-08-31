@@ -96,30 +96,40 @@ func (s *AIStore) ReplaceChunks(ctx context.Context, paperID uuid.UUID,
 	if _, err := tx.Exec(ctx, `DELETE FROM paper_chunks WHERE paper_id = $1`, paperID); err != nil {
 		return fmt.Errorf("clear chunks: %w", err)
 	}
+	batch := &pgx.Batch{}
 	for i := range chunks {
 		c := chunks[i]
 		if c.ID == uuid.Nil {
 			c.ID = uuid.New()
 			chunks[i] = c
 		}
-		if _, err := tx.Exec(ctx, `
+		batch.Queue(`
 			INSERT INTO paper_chunks (id, paper_id, seq, section_path, heading, content,
 				token_count, content_hash)
 			VALUES ($1, $2, $3, NULLIF($4,''), NULLIF($5,''), $6, $7, $8)`,
 			c.ID, paperID, c.Seq, c.SectionPath, c.Heading, c.Content,
-			c.TokenCount, c.ContentHash); err != nil {
-			return fmt.Errorf("insert chunk %d: %w", c.Seq, err)
-		}
+			c.TokenCount, c.ContentHash)
+
 		if modelID != "" && i < len(vectors) && len(vectors[i]) > 0 {
-			if _, err := tx.Exec(ctx, `
+			batch.Queue(`
 				INSERT INTO chunk_embeddings (chunk_id, model_id, dim, embedding)
 				VALUES ($1, $2, $3, $4::vector)
 				ON CONFLICT (chunk_id, model_id) DO UPDATE SET embedding = EXCLUDED.embedding`,
-				c.ID, modelID, len(vectors[i]), pgvectorLiteral(vectors[i])); err != nil {
-				return fmt.Errorf("insert embedding %d: %w", c.Seq, err)
-			}
+				c.ID, modelID, len(vectors[i]), pgvectorLiteral(vectors[i]))
 		}
 	}
+
+	br := tx.SendBatch(ctx, batch)
+	for j := 0; j < batch.Len(); j++ {
+		if _, err := br.Exec(); err != nil {
+			_ = br.Close()
+			return fmt.Errorf("batch insert item %d: %w", j, err)
+		}
+	}
+	if err := br.Close(); err != nil {
+		return fmt.Errorf("close batch: %w", err)
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit chunks: %w", err)
 	}
@@ -190,6 +200,43 @@ func (s *AIStore) SearchKeyword(ctx context.Context, paperID uuid.UUID, query st
 		LIMIT $3`, paperID, query, k)
 	if err != nil {
 		return nil, fmt.Errorf("keyword search: %w", err)
+	}
+	res, err := scanRetrieved(rows)
+	if err != nil || len(res) > 0 {
+		return res, err
+	}
+
+	// Fallback to plainto_tsquery for natural language questions
+	fallbackRows, ferr := s.pool.Query(ctx, `
+		SELECT id, paper_id, seq, COALESCE(section_path,''), COALESCE(heading,''),
+		       content, token_count, content_hash,
+		       ts_rank_cd(to_tsvector('english', content),
+		                  plainto_tsquery('english', $2)) AS score
+		FROM paper_chunks
+		WHERE paper_id = $1
+		  AND to_tsvector('english', content) @@ plainto_tsquery('english', $2)
+		ORDER BY score DESC
+		LIMIT $3`, paperID, query, k)
+	if ferr != nil {
+		return nil, nil
+	}
+	return scanRetrieved(fallbackRows)
+}
+
+// ListLeadingChunks returns the first k chunks of a paper in sequence order for fallback context.
+func (s *AIStore) ListLeadingChunks(ctx context.Context, paperID uuid.UUID, k int) ([]ai.RetrievedChunk, error) {
+	if k <= 0 {
+		k = 8
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, paper_id, seq, COALESCE(section_path,''), COALESCE(heading,''),
+		       content, token_count, content_hash, 1.0 AS score
+		FROM paper_chunks
+		WHERE paper_id = $1
+		ORDER BY seq ASC
+		LIMIT $2`, paperID, k)
+	if err != nil {
+		return nil, fmt.Errorf("list leading chunks: %w", err)
 	}
 	return scanRetrieved(rows)
 }

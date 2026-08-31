@@ -97,6 +97,22 @@ class ChatMessage {
   final DateTime? createdAt;
 
   bool get isUser => role == 'user';
+
+  ChatMessage copyWith({
+    String? id,
+    String? role,
+    String? content,
+    List<ChatCitation>? citations,
+    DateTime? createdAt,
+  }) {
+    return ChatMessage(
+      id: id ?? this.id,
+      role: role ?? this.role,
+      content: content ?? this.content,
+      citations: citations ?? this.citations,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }
 
 /// One SSE event from the ask stream.

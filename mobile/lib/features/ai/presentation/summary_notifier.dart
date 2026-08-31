@@ -11,8 +11,10 @@ part 'summary_notifier.g.dart';
 sealed class SummaryState with _$SummaryState {
   const factory SummaryState({
     @Default(ExplanationLevel.intermediate) ExplanationLevel level,
-    @Default(AsyncValue<PaperSummaryAI>.loading())
-    AsyncValue<PaperSummaryAI> data,
+    // null = not requested yet (idle). Generation is opt-in — no tokens are
+    // spent until the user taps "Summarize", so the initial state must be
+    // distinct from loading.
+    AsyncValue<PaperSummaryAI>? data,
   }) = _SummaryState;
 }
 

@@ -80,6 +80,7 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 	if deps.AI != nil {
 		if deps.AI.Summary != nil {
 			mux.HandleFunc("POST /api/v1/research/papers/{id}/summary", deps.AI.SummaryPost)
+			mux.HandleFunc("GET /api/v1/research/papers/{id}/reader", deps.AI.ReaderGet)
 		}
 		if deps.AI.Chat != nil {
 			mux.HandleFunc("POST /api/v1/chat/sessions", deps.AI.CreateSession)

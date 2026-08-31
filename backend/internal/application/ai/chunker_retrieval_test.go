@@ -82,10 +82,12 @@ func TestChunkTextOverlapCarriesContext(t *testing.T) {
 // ---- retrieval --------------------------------------------------------------
 
 type fakeSearcher struct {
-	vec  []domainai.RetrievedChunk
-	kw   []domainai.RetrievedChunk
-	errV error
-	errK error
+	vec     []domainai.RetrievedChunk
+	kw      []domainai.RetrievedChunk
+	leading []domainai.RetrievedChunk
+	errV    error
+	errK    error
+	errL    error
 }
 
 func (f *fakeSearcher) SearchByVector(context.Context, uuid.UUID, []float32, string, int) ([]domainai.RetrievedChunk, error) {
@@ -94,6 +96,10 @@ func (f *fakeSearcher) SearchByVector(context.Context, uuid.UUID, []float32, str
 
 func (f *fakeSearcher) SearchKeyword(context.Context, uuid.UUID, string, int) ([]domainai.RetrievedChunk, error) {
 	return f.kw, f.errK
+}
+
+func (f *fakeSearcher) ListLeadingChunks(context.Context, uuid.UUID, int) ([]domainai.RetrievedChunk, error) {
+	return f.leading, f.errL
 }
 
 func TestRetrieveFusesBothLegs(t *testing.T) {
@@ -138,6 +144,20 @@ func TestRetrieveSurvivesEmbeddingOutage(t *testing.T) {
 		PaperID: uuid.New(), Question: "q"})
 	if err != nil || len(got) != 1 {
 		t.Fatalf("vector outage must degrade to keyword: %v %v", got, err)
+	}
+}
+
+func TestRetrieveFallbackToLeadingChunks(t *testing.T) {
+	lead := domainai.RetrievedChunk{Chunk: domainai.Chunk{ID: uuid.New(), Content: "Introduction excerpt"}}
+	svc := NewRetrievalService(stubEmbedder{}, &fakeSearcher{
+		vec:     nil, // 0 hits on vector
+		kw:      nil, // 0 hits on keyword
+		leading: []domainai.RetrievedChunk{lead},
+	})
+	got, err := svc.Retrieve(context.Background(), domainai.ChunkQuery{
+		PaperID: uuid.New(), Question: "what is this paper about?", TopK: 3})
+	if err != nil || len(got) != 1 || got[0].ID != lead.ID {
+		t.Fatalf("broad question with 0 search hits must fallback to leading chunks: got %+v, err %v", got, err)
 	}
 }
 

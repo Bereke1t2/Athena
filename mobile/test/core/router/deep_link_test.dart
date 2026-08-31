@@ -3,6 +3,7 @@ import 'package:athena/core/prefs/user_preferences.dart';
 import 'package:athena/core/router/app_router.dart';
 import 'package:athena/features/feed/domain/feed.dart';
 import 'package:athena/features/feed/domain/feed_repository.dart';
+import 'package:athena/features/papers/domain/article_content.dart';
 import 'package:athena/features/papers/domain/paper.dart';
 import 'package:athena/features/papers/domain/paper_repository.dart';
 import 'package:flutter/material.dart';
@@ -46,6 +47,13 @@ class FakePaperRepo implements PaperRepository {
         versions: const [],
         referenceCount: 3,
         sources: const [],
+      );
+
+  @override
+  Future<ArticleContent> getArticleContent(String id) async => ArticleContent(
+        paperId: id,
+        title: 'Scaling Laws for Neural LMs',
+        sections: const [],
       );
 }
 

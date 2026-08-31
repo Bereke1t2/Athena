@@ -64,8 +64,9 @@ class ChatThread extends _$ChatThread {
             buffer.write(text);
             state = state.copyWith(streaming: buffer.toString());
           case ChatDone(:final message):
+            final finalContent = message.content.isNotEmpty ? message.content : buffer.toString().trim();
             state = state.copyWith(
-              messages: [...state.messages, message],
+              messages: [...state.messages, message.copyWith(content: finalContent)],
               streaming: '',
               sending: false,
             );

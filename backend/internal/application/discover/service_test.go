@@ -126,3 +126,43 @@ func TestRelevanceRewardsTextAndAgreement(t *testing.T) {
 		t.Fatal("textual relevance must outweigh raw citations here")
 	}
 }
+
+func TestRicherMerge(t *testing.T) {
+	a := paperWithDOI("10.1000/abc", "Paper Title", 10, 2023)
+	a.OA = research.OpenAccess{
+		Status: research.OAStatusClosed,
+		URL:    "https://publisher.com/article/123",
+	}
+	a.Versions = []research.VersionRef{
+		{Kind: research.VersionPublisher, URL: "https://publisher.com/article/123"},
+	}
+
+	b := paperWithDOI("10.1000/abc", "Paper Title", 15, 2023)
+	b.Identifiers = []research.Identifier{
+		{Type: research.IDTypeDOI, Value: "10.1000/abc"},
+		{Type: research.IDTypeArxiv, Value: "2301.00001"},
+	}
+	b.OA = research.OpenAccess{
+		Status: research.OAStatusGreen,
+		URL:    "https://arxiv.org/pdf/2301.00001",
+	}
+	b.Versions = []research.VersionRef{
+		{Kind: research.VersionPreprint, URL: "https://arxiv.org/pdf/2301.00001"},
+	}
+
+	merged := richer(a, b)
+
+	if !merged.OA.IsOpen() || merged.OA.Status != research.OAStatusGreen {
+		t.Fatalf("richer should have upgraded to Green OA, got %+v", merged.OA)
+	}
+	if merged.OA.URL != "https://arxiv.org/pdf/2301.00001" {
+		t.Fatalf("richer should prefer direct PDF URL, got %q", merged.OA.URL)
+	}
+	if len(merged.Versions) != 2 {
+		t.Fatalf("richer should merge both unique versions, got %d versions: %+v", len(merged.Versions), merged.Versions)
+	}
+	if len(merged.Identifiers) != 2 {
+		t.Fatalf("richer should retain all unique identifiers, got %d", len(merged.Identifiers))
+	}
+}
+

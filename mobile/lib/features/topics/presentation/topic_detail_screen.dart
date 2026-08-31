@@ -24,55 +24,81 @@ class TopicDetailScreen extends ConsumerWidget {
           ref.invalidate(topicDetailControllerProvider(slug));
           ref.invalidate(topicPapersNotifierProvider(slug));
         },
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            topicAsync.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(48),
-                child: Center(child: CircularProgressIndicator()),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification.metrics.pixels >= notification.metrics.maxScrollExtent - 350) {
+              final page = papersAsync.valueOrNull;
+              if (page?.nextCursor != null) {
+                ref.read(topicPapersNotifierProvider(slug).notifier).loadMore();
+              }
+            }
+            return false;
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              topicAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(48),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (e, _) => ErrorView(
+                  failure: e,
+                  onRetry: () => ref.invalidate(topicDetailControllerProvider(slug)),
+                ),
+                data: (topic) => _header(context, topic),
               ),
-              error: (e, _) => ErrorView(
-                failure: e,
-                onRetry: () => ref.invalidate(topicDetailControllerProvider(slug)),
-              ),
-              data: (topic) => _header(context, topic),
-            ),
-            const Divider(height: 24),
-            papersAsync.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(48),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (e, _) => ErrorView(
-                failure: e,
-                onRetry: () => ref.invalidate(topicPapersNotifierProvider(slug)),
-              ),
-              data: (page) {
-                if (page.items.isEmpty) {
-                  return const EmptyView(
-                    icon: Icons.article_outlined,
-                    title: 'No papers under this topic yet',
-                  );
-                }
-                return Column(
-                  children: [
-                    for (final p in page.items)
-                      PaperCard(paper: p, onTap: () => context.push('/papers/${p.id}')),
-                    if (page.nextCursor != null)
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: OutlinedButton(
-                          onPressed: () =>
-                              ref.read(topicPapersNotifierProvider(slug).notifier).loadMore(),
-                          child: const Text('Load more'),
+              const Divider(height: 24),
+              papersAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.all(48),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (e, _) => ErrorView(
+                  failure: e,
+                  onRetry: () => ref.invalidate(topicPapersNotifierProvider(slug)),
+                ),
+                data: (page) {
+                  final theme = Theme.of(context);
+                  if (page.items.isEmpty) {
+                    return const EmptyView(
+                      icon: Icons.article_outlined,
+                      title: 'No papers under this topic yet',
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final p in page.items)
+                        PaperCard(paper: p, onTap: () => context.push('/papers/${p.id}')),
+                      if (page.nextCursor != null)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2.2),
+                            ),
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text(
+                              "End of papers for this topic",
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.outline,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ],
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_client.dart';
+import '../domain/article_content.dart';
 import '../domain/paper.dart';
 import '../domain/paper_repository.dart';
 import 'paper.dtos.dart';
@@ -15,6 +16,16 @@ class PaperRepositoryImpl implements PaperRepository {
     try {
       final res = await _dio.get<Map<String, dynamic>>('/research/papers/$id');
       return PaperDetailDto.fromJson(res.data!).toDomain();
+    } catch (e) {
+      throw failureFromDio(e);
+    }
+  }
+
+  @override
+  Future<ArticleContent> getArticleContent(String id) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>('/research/papers/$id/reader');
+      return ArticleContent.fromJson(res.data!);
     } catch (e) {
       throw failureFromDio(e);
     }

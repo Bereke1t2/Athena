@@ -12,19 +12,55 @@ abstract interface class PdfRepository {
   Future<void> deleteCache(String paperId);
 }
 
+/// Checks whether a URL points directly to a PDF resource.
+bool isDirectPdfUrl(String url) {
+  final lower = url.trim().toLowerCase();
+  return lower.endsWith('.pdf') ||
+      lower.contains('.pdf?') ||
+      lower.contains('/pdf/') ||
+      lower.contains('arxiv.org/pdf');
+}
+
 /// Best-effort PDF URL from stored identifiers/versions; null when the paper
-/// has no plausible full-text link.
+/// has no plausible direct PDF link.
 String? resolvePdfUrl(PaperDetail paper) {
-  // Prefer direct PDF links (arXiv is always a real PDF).
+  // 1. Prefer direct PDF links (arXiv is always a real PDF).
   if (paper.arxivId.isNotEmpty) {
     return 'https://arxiv.org/pdf/${paper.arxivId}';
   }
-  // Check bestOaUrl — only accept if it looks like a direct PDF link.
-  if (paper.bestOaUrl.isNotEmpty) {
-    final lower = paper.bestOaUrl.toLowerCase();
-    if (lower.endsWith('.pdf') || lower.contains('/pdf/')) {
-      return paper.bestOaUrl;
+  // 2. Check bestOaUrl if it is a direct PDF.
+  if (paper.bestOaUrl.isNotEmpty && isDirectPdfUrl(paper.bestOaUrl)) {
+    return paper.bestOaUrl;
+  }
+  // 3. Check version candidates for a direct PDF link.
+  for (final v in paper.versions) {
+    if (v.url.isNotEmpty && isDirectPdfUrl(v.url)) {
+      return v.url;
     }
+  }
+  return null;
+}
+
+/// Best-effort web URL (DOI / Open Access landing page / publisher / arXiv abstract)
+/// for opening in a browser when a direct PDF is unavailable or to view publisher source.
+String? resolveWebUrl(PaperDetail paper) {
+  if (paper.doi.isNotEmpty) {
+    final doi = paper.doi.trim();
+    if (doi.startsWith('http://') || doi.startsWith('https://')) {
+      return doi;
+    }
+    return 'https://doi.org/$doi';
+  }
+  if (paper.bestOaUrl.isNotEmpty) {
+    return paper.bestOaUrl.trim();
+  }
+  for (final v in paper.versions) {
+    if (v.url.isNotEmpty) {
+      return v.url.trim();
+    }
+  }
+  if (paper.arxivId.isNotEmpty) {
+    return 'https://arxiv.org/abs/${paper.arxivId.trim()}';
   }
   return null;
 }

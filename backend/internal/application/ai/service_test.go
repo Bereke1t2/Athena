@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -34,6 +35,21 @@ func (f *fakeLLM) Generate(_ context.Context, req domainai.GenerateRequest) (dom
 
 func (f *fakeLLM) GenerateStream(context.Context, domainai.GenerateRequest) (domainai.StreamReader, error) {
 	return nil, errors.New("not used in summary tests")
+}
+
+// blockingLLM blocks in Generate until the context is cancelled, simulating a
+// slow or unreachable provider.
+type blockingLLM struct{}
+
+func (blockingLLM) Model() string { return "blocking-1" }
+
+func (blockingLLM) Generate(ctx context.Context, _ domainai.GenerateRequest) (domainai.GenerateResponse, error) {
+	<-ctx.Done()
+	return domainai.GenerateResponse{}, ctx.Err()
+}
+
+func (blockingLLM) GenerateStream(context.Context, domainai.GenerateRequest) (domainai.StreamReader, error) {
+	return nil, errors.New("not used")
 }
 
 func testLogger() *slog.Logger { return slog.New(slog.DiscardHandler) }
@@ -182,6 +198,25 @@ func TestSummarizeTriggersLazyIndexing(t *testing.T) {
 	}
 }
 
+// A stalling LLM must be bounded by genTimeout so the request fails fast
+// instead of hanging the handler.
+func TestSummarizeBoundsSlowGeneration(t *testing.T) {
+	svc := NewSummaryService(blockingLLM{}, &fakeSummaryStore{saved: map[string]domainai.Summary{}},
+		&fakePapers{detailWithAbstract()}, &fakeChunks{}, testLogger())
+	svc.genTimeout = 20 * time.Millisecond
+
+	start := time.Now()
+	_, err := svc.Summarize(context.Background(), uuid.New(), domainai.LevelBeginner)
+	elapsed := time.Since(start)
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected deadline exceeded, got %v", err)
+	}
+	if elapsed > time.Second {
+		t.Fatalf("Summarize must fail fast at the deadline, took %v", elapsed)
+	}
+}
+
 func TestParseSummaryJSONToleratesFences(t *testing.T) {
 	text := "```json\n" + summaryJSON() + "\n```"
 	sections, tldr, err := parseSummaryJSON(text)
@@ -201,3 +236,76 @@ func TestContentHashChangesWithInput(t *testing.T) {
 		t.Fatal("content hash must be input-sensitive")
 	}
 }
+
+func TestFullTextURLResolution(t *testing.T) {
+	cases := []struct {
+		name    string
+		detail  research.PaperDetail
+		wantURL string
+		wantOK  bool
+	}{
+		{
+			name: "arxiv id always resolves",
+			detail: research.PaperDetail{
+				ArxivID: "2301.00001",
+			},
+			wantURL: "https://arxiv.org/pdf/2301.00001",
+			wantOK:  true,
+		},
+		{
+			name: "direct pdf best oa url without is_open_access flag",
+			detail: research.PaperDetail{
+				Summary:   research.PaperSummary{IsOpenAccess: false},
+				BestOAURL: "https://example.org/papers/test.pdf",
+			},
+			wantURL: "https://example.org/papers/test.pdf",
+			wantOK:  true,
+		},
+		{
+			name: "biorxiv version url without is_open_access flag",
+			detail: research.PaperDetail{
+				Summary:   research.PaperSummary{IsOpenAccess: false},
+				BestOAURL: "https://example.org/landing/123",
+				Versions: []research.VersionLine{
+					{Kind: research.VersionPreprint, URL: "https://www.biorxiv.org/content/10.1101/123.full.pdf"},
+				},
+			},
+			wantURL: "https://www.biorxiv.org/content/10.1101/123.full.pdf",
+			wantOK:  true,
+		},
+		{
+			name: "open access with landing page best oa url fallback",
+			detail: research.PaperDetail{
+				Summary:   research.PaperSummary{IsOpenAccess: true},
+				BestOAURL: "https://openaccess.org/article/123",
+			},
+			wantURL: "https://openaccess.org/article/123",
+			wantOK:  true,
+		},
+		{
+			name: "closed access with only landing page returns false",
+			detail: research.PaperDetail{
+				Summary:   research.PaperSummary{IsOpenAccess: false},
+				BestOAURL: "https://publisher.com/article/123",
+				Versions: []research.VersionLine{
+					{Kind: research.VersionPublisher, URL: "https://publisher.com/article/123"},
+				},
+			},
+			wantURL: "",
+			wantOK:  false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotURL, gotOK := fullTextURL(tc.detail)
+			if gotOK != tc.wantOK {
+				t.Fatalf("fullTextURL() ok = %v, want %v", gotOK, tc.wantOK)
+			}
+			if gotURL != tc.wantURL {
+				t.Fatalf("fullTextURL() url = %q, want %q", gotURL, tc.wantURL)
+			}
+		})
+	}
+}
+

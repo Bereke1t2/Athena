@@ -291,18 +291,52 @@ func richer(a, b research.Paper) research.Paper {
 	if len(b.Topics) > len(out.Topics) {
 		out.Topics = b.Topics
 	}
-	if len(b.Identifiers) > len(out.Identifiers) {
+	if len(b.Identifiers) > 0 {
 		out.Identifiers = append(out.Identifiers, diffIdentifiers(out.Identifiers, b.Identifiers)...)
 	}
 	if out.PublishedOn == nil && b.PublishedOn != nil {
 		out.PublishedOn = b.PublishedOn
 		out.Year = b.Year
 	}
-	if len(b.Versions) > len(out.Versions) {
-		out.Versions = append(out.Versions, b.Versions...)
-	}
-	if out.OA.URL == "" && b.OA.URL != "" {
+	out.Versions = mergeVersions(out.Versions, b.Versions)
+
+	// OA merge: prefer open status over closed/unknown, and preserve best URL.
+	if b.OA.IsOpen() && !out.OA.IsOpen() {
 		out.OA = b.OA
+	} else if !b.OA.IsOpen() && !out.OA.IsOpen() && out.OA.URL == "" && b.OA.URL != "" {
+		out.OA = b.OA
+	} else if b.OA.IsOpen() && out.OA.IsOpen() {
+		// Both open: prefer direct PDF URL over generic landing page.
+		if isPDFUrl(b.OA.URL) && !isPDFUrl(out.OA.URL) {
+			out.OA = b.OA
+		} else if out.OA.URL == "" && b.OA.URL != "" {
+			out.OA.URL = b.OA.URL
+		}
+	} else if out.OA.URL == "" && b.OA.URL != "" {
+		out.OA.URL = b.OA.URL
+	}
+	return out
+}
+
+func isPDFUrl(u string) bool {
+	lower := strings.ToLower(u)
+	return strings.Contains(lower, ".pdf") || strings.Contains(lower, "/pdf/") || strings.Contains(lower, "arxiv.org")
+}
+
+func mergeVersions(a, b []research.VersionRef) []research.VersionRef {
+	seen := map[string]bool{}
+	out := make([]research.VersionRef, 0, len(a)+len(b))
+	for _, v := range a {
+		if v.URL != "" && !seen[v.URL] {
+			seen[v.URL] = true
+			out = append(out, v)
+		}
+	}
+	for _, v := range b {
+		if v.URL != "" && !seen[v.URL] {
+			seen[v.URL] = true
+			out = append(out, v)
+		}
 	}
 	return out
 }
