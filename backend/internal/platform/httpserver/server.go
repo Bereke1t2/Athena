@@ -21,9 +21,10 @@ type Deps struct {
 	Admin     *v1.AdminHandlers
 	AI        *v1.AIHandlers
 	Auth      *v1.AuthHandlers
-	Bookmarks *v1.BookmarksHandlers
-	Follows   *v1.FollowsHandlers
-	Logger    *slog.Logger
+	Bookmarks     *v1.BookmarksHandlers
+	Follows       *v1.FollowsHandlers
+	Notifications *v1.NotificationsHandlers
+	Logger        *slog.Logger
 
 	// Ping checks database connectivity for readiness probes.
 	Ping func() error
@@ -123,6 +124,13 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.Handle("POST /api/v1/me/follows/authors", v1.RequireAuth(deps.Follows.FollowAuthor))
 		mux.Handle("DELETE /api/v1/me/follows/authors/{authorId}", v1.RequireAuth(deps.Follows.UnfollowAuthor))
 		mux.Handle("GET /api/v1/me/follows/authors", v1.RequireAuth(deps.Follows.ListFollowedAuthors))
+	}
+
+	if deps.Auth != nil && deps.Notifications != nil {
+		mux.Handle("GET /api/v1/me/notifications", v1.RequireAuth(deps.Notifications.List))
+		mux.Handle("POST /api/v1/me/notifications/{id}/read", v1.RequireAuth(deps.Notifications.MarkRead))
+		mux.Handle("POST /api/v1/me/notifications/read-all", v1.RequireAuth(deps.Notifications.MarkAllRead))
+		mux.Handle("GET /api/v1/me/notifications/unread-count", v1.RequireAuth(deps.Notifications.UnreadCount))
 	}
 
 	if deps.Admin != nil {

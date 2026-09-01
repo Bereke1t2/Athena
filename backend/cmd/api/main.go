@@ -20,6 +20,7 @@ import (
 	appbookmark "athena/backend/internal/application/bookmark"
 	appfeed "athena/backend/internal/application/feed"
 	appfollow "athena/backend/internal/application/follow"
+	appnotif "athena/backend/internal/application/notification"
 	appsearch "athena/backend/internal/application/search"
 	v1 "athena/backend/internal/delivery/http/v1"
 	"athena/backend/internal/infrastructure/cache"
@@ -121,6 +122,10 @@ func run() error {
 	followHandlers := v1.NewFollowsHandlers(
 		appfollow.NewService(database.NewFollowStore(pool)), log)
 
+	// Phase 5 notifications: user in-app alerts and updates.
+	notifHandlers := v1.NewNotificationsHandlers(
+		appnotif.NewService(database.NewNotificationStore(pool)), log)
+
 	// Phase 4 AI layer: only wired when an LLM provider is configured.
 	var aiHandlers *v1.AIHandlers
 	if cfg.AIEnabled() {
@@ -181,9 +186,10 @@ func run() error {
 			Admin:     admin,
 			AI:        aiHandlers,
 			Auth:      authHandlers,
-			Bookmarks: bookmarkHandlers,
-			Follows:   followHandlers,
-			Logger:    log,
+			Bookmarks:     bookmarkHandlers,
+			Follows:       followHandlers,
+			Notifications: notifHandlers,
+			Logger:        log,
 			Ping: func() error {
 				cctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()
