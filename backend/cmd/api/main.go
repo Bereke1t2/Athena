@@ -19,6 +19,7 @@ import (
 	appauth "athena/backend/internal/application/auth"
 	appbookmark "athena/backend/internal/application/bookmark"
 	appfeed "athena/backend/internal/application/feed"
+	appfollow "athena/backend/internal/application/follow"
 	appsearch "athena/backend/internal/application/search"
 	v1 "athena/backend/internal/delivery/http/v1"
 	"athena/backend/internal/infrastructure/cache"
@@ -116,6 +117,10 @@ func run() error {
 	bookmarkHandlers := v1.NewBookmarksHandlers(
 		appbookmark.NewService(database.NewBookmarkStore(pool)), log)
 
+	// Phase 5 follows: topics and authors subscriptions.
+	followHandlers := v1.NewFollowsHandlers(
+		appfollow.NewService(database.NewFollowStore(pool)), log)
+
 	// Phase 4 AI layer: only wired when an LLM provider is configured.
 	var aiHandlers *v1.AIHandlers
 	if cfg.AIEnabled() {
@@ -177,6 +182,7 @@ func run() error {
 			AI:        aiHandlers,
 			Auth:      authHandlers,
 			Bookmarks: bookmarkHandlers,
+			Follows:   followHandlers,
 			Logger:    log,
 			Ping: func() error {
 				cctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

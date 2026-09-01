@@ -22,6 +22,7 @@ type Deps struct {
 	AI        *v1.AIHandlers
 	Auth      *v1.AuthHandlers
 	Bookmarks *v1.BookmarksHandlers
+	Follows   *v1.FollowsHandlers
 	Logger    *slog.Logger
 
 	// Ping checks database connectivity for readiness probes.
@@ -113,6 +114,15 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.Handle("POST /api/v1/me/bookmarks", v1.RequireAuth(deps.Bookmarks.Add))
 		mux.Handle("GET /api/v1/me/bookmarks", v1.RequireAuth(deps.Bookmarks.List))
 		mux.Handle("DELETE /api/v1/me/bookmarks/{paperId}", v1.RequireAuth(deps.Bookmarks.Remove))
+	}
+
+	if deps.Auth != nil && deps.Follows != nil {
+		mux.Handle("POST /api/v1/me/follows/topics", v1.RequireAuth(deps.Follows.FollowTopic))
+		mux.Handle("DELETE /api/v1/me/follows/topics/{slug}", v1.RequireAuth(deps.Follows.UnfollowTopic))
+		mux.Handle("GET /api/v1/me/follows/topics", v1.RequireAuth(deps.Follows.ListFollowedTopics))
+		mux.Handle("POST /api/v1/me/follows/authors", v1.RequireAuth(deps.Follows.FollowAuthor))
+		mux.Handle("DELETE /api/v1/me/follows/authors/{authorId}", v1.RequireAuth(deps.Follows.UnfollowAuthor))
+		mux.Handle("GET /api/v1/me/follows/authors", v1.RequireAuth(deps.Follows.ListFollowedAuthors))
 	}
 
 	if deps.Admin != nil {
