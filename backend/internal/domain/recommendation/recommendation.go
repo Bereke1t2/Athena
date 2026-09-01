@@ -4,6 +4,7 @@ package recommendation
 import (
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -37,7 +38,7 @@ type ScoredPaper struct {
 }
 
 // RankPapers calculates affinity scores for candidate papers given an affinity profile,
-// combining topic overlap, recency decay, and citation gravity.
+// combining topic keyword overlap, recency decay, and citation gravity.
 func RankPapers(papers []research.PaperSummary, profile AffinityProfile, now time.Time) []ScoredPaper {
 	if len(papers) == 0 {
 		return nil
@@ -62,13 +63,22 @@ func RankPapers(papers []research.PaperSummary, profile AffinityProfile, now tim
 			}
 		}
 
-		// 3. Topic affinity
+		// 3. Topic keyword affinity in title / abstract
+		titleLower := strings.ToLower(p.Title)
+		var abstractLower string
+		if p.Abstract != nil {
+			abstractLower = strings.ToLower(*p.Abstract)
+		}
+
 		matchedTopicWeight := 0.0
 		bestTopic := ""
-		for _, t := range p.Topics {
-			if w, ok := profile.TopicWeights[t.Slug]; ok && w > matchedTopicWeight {
-				matchedTopicWeight = w
-				bestTopic = t.Name
+		for slug, w := range profile.TopicWeights {
+			cleanSlug := strings.ToLower(strings.ReplaceAll(slug, "-", " "))
+			if (cleanSlug != "" && strings.Contains(titleLower, cleanSlug)) || (abstractLower != "" && strings.Contains(abstractLower, cleanSlug)) {
+				if w > matchedTopicWeight {
+					matchedTopicWeight = w
+					bestTopic = cleanSlug
+				}
 			}
 		}
 		if matchedTopicWeight > 0 {

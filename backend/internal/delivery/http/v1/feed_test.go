@@ -45,14 +45,14 @@ func TestFeedLatest(t *testing.T) {
 	}
 }
 
-func TestFeedRecommendedNotImplemented(t *testing.T) {
+func TestFeedRecommended(t *testing.T) {
 	h := NewFeedHandlers(appfeed.NewService(&fakeFeedSource{}), testLogger())
 	r := httptest.NewRequest(http.MethodGet, "/api/v1/feed?section=recommended", nil)
 	w := httptest.NewRecorder()
 	h.Get(w, r)
 
-	if w.Code != http.StatusNotImplemented {
-		t.Fatalf("want 501 for recommended, got %d", w.Code)
+	if w.Code != http.StatusOK {
+		t.Fatalf("want 200 for recommended, got %d", w.Code)
 	}
 }
 
