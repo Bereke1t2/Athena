@@ -95,6 +95,9 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 			mux.HandleFunc("GET /api/v1/chat/sessions/{id}/messages", deps.AI.ListMessages)
 			mux.HandleFunc("POST /api/v1/chat/sessions/{id}/messages", deps.AI.Ask)
 		}
+		if deps.AI.Comparison != nil {
+			mux.HandleFunc("POST /api/v1/research/compare", deps.AI.Compare)
+		}
 	}
 
 	if deps.Search != nil {

@@ -18,6 +18,7 @@ import (
 
 	appauth "athena/backend/internal/application/auth"
 	appbookmark "athena/backend/internal/application/bookmark"
+	appexport "athena/backend/internal/application/export"
 	appfeed "athena/backend/internal/application/feed"
 	appfollow "athena/backend/internal/application/follow"
 	appnotif "athena/backend/internal/application/notification"
@@ -168,6 +169,7 @@ func run() error {
 		chatSvc.Indexer = rag
 
 		aiHandlers = v1.NewAIHandlers(summarySvc, chatSvc, log)
+		aiHandlers.Comparison = appai.NewComparisonService(llm, paperStore, aiStore, log)
 		if cfg.LLMProvider != "stub" && cfg.LLMAPIKey == "" {
 			log.Warn("LLM_API_KEY is empty; AI requests are sent unauthenticated and will likely fail")
 		}
@@ -177,18 +179,21 @@ func run() error {
 		log.Info("ai layer disabled (set LLM_PROVIDER to enable)")
 	}
 
+	exportHandlers := v1.NewExportHandlers(appexport.NewService(store), log)
+
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpserver.New(httpserver.Deps{
 			Research: research,
 			Search:   v1.NewSearchHandlersWithLive(searchSvc, discoverSvc, log), Feed: v1.NewFeedHandlers(feedSvc, log),
 			Topics:    topics,
-			Admin:     admin,
-			AI:        aiHandlers,
-			Auth:      authHandlers,
+			Admin:         admin,
+			AI:            aiHandlers,
+			Auth:          authHandlers,
 			Bookmarks:     bookmarkHandlers,
 			Follows:       followHandlers,
 			Notifications: notifHandlers,
+			Export:        exportHandlers,
 			Logger:        log,
 			Ping: func() error {
 				cctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
