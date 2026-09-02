@@ -19,17 +19,22 @@ type PaperReader interface {
 	ListPapers(ctx context.Context, q research.ListQuery) ([]research.PaperSummary, string, error)
 }
 
+// FollowReader queries a user's followed topics.
+type FollowReader interface {
+	ListFollowedTopics(ctx context.Context, userID uuid.UUID) ([]domainfollow.TopicFollow, error)
+}
+
 // Service generates personalized research briefings and trend pulses.
 type Service struct {
 	papers      PaperReader
-	followStore domainfollow.Store
+	followStore FollowReader
 	repo        domaindigest.DigestRepository
 	log         *slog.Logger
 	clock       func() time.Time
 }
 
 // NewService constructs a DigestService.
-func NewService(papers PaperReader, followStore domainfollow.Store, repo domaindigest.DigestRepository, log *slog.Logger) *Service {
+func NewService(papers PaperReader, followStore FollowReader, repo domaindigest.DigestRepository, log *slog.Logger) *Service {
 	if log == nil {
 		log = slog.Default()
 	}
