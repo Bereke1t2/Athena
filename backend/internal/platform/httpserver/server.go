@@ -26,6 +26,7 @@ type Deps struct {
 	Notifications *v1.NotificationsHandlers
 	History       *v1.HistoryHandlers
 	Export        *v1.ExportHandlers
+	Digest        *v1.DigestHandlers
 	Logger        *slog.Logger
 
 	// Ping checks database connectivity for readiness probes.
@@ -147,6 +148,11 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.Handle("GET /api/v1/me/history/progress/{paperId}", v1.RequireAuth(deps.History.GetProgress))
 		mux.Handle("GET /api/v1/me/history", v1.RequireAuth(deps.History.List))
 		mux.Handle("DELETE /api/v1/me/history", v1.RequireAuth(deps.History.Clear))
+	}
+
+	if deps.Auth != nil && deps.Digest != nil {
+		mux.Handle("GET /api/v1/research/digest/latest", v1.RequireAuth(deps.Digest.Latest))
+		mux.Handle("POST /api/v1/research/digest/generate", v1.RequireAuth(deps.Digest.Generate))
 	}
 
 	if deps.Admin != nil {

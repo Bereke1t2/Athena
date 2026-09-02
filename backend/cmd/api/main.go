@@ -19,6 +19,7 @@ import (
 	appauth "athena/backend/internal/application/auth"
 	appbookmark "athena/backend/internal/application/bookmark"
 	appexport "athena/backend/internal/application/export"
+	appdigest "athena/backend/internal/application/digest"
 	appfeed "athena/backend/internal/application/feed"
 	appfollow "athena/backend/internal/application/follow"
 	appnotif "athena/backend/internal/application/notification"
@@ -120,8 +121,9 @@ func run() error {
 		appbookmark.NewService(database.NewBookmarkStore(pool)), log)
 
 	// Phase 5 follows: topics and authors subscriptions.
+	followStore := database.NewFollowStore(pool)
 	followHandlers := v1.NewFollowsHandlers(
-		appfollow.NewService(database.NewFollowStore(pool)), log)
+		appfollow.NewService(followStore), log)
 
 	// Phase 5 notifications: user in-app alerts and updates.
 	notifHandlers := v1.NewNotificationsHandlers(
@@ -180,6 +182,7 @@ func run() error {
 	}
 
 	exportHandlers := v1.NewExportHandlers(appexport.NewService(store), log)
+	digestHandlers := v1.NewDigestHandlers(appdigest.NewService(store, followStore, nil, log), log)
 
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
@@ -194,6 +197,7 @@ func run() error {
 			Follows:       followHandlers,
 			Notifications: notifHandlers,
 			Export:        exportHandlers,
+			Digest:        digestHandlers,
 			Logger:        log,
 			Ping: func() error {
 				cctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
