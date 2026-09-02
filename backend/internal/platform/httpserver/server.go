@@ -21,8 +21,13 @@ type Deps struct {
 	Admin     *v1.AdminHandlers
 	AI        *v1.AIHandlers
 	Auth      *v1.AuthHandlers
-	Bookmarks *v1.BookmarksHandlers
-	Logger    *slog.Logger
+	Bookmarks     *v1.BookmarksHandlers
+	Follows       *v1.FollowsHandlers
+	Notifications *v1.NotificationsHandlers
+	History       *v1.HistoryHandlers
+	Export        *v1.ExportHandlers
+	Digest        *v1.DigestHandlers
+	Logger        *slog.Logger
 
 	// Ping checks database connectivity for readiness probes.
 	Ping func() error
@@ -77,6 +82,10 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/citations", deps.Research.Citations)
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/related", deps.Research.Related)
 	}
+	if deps.Export != nil {
+		mux.HandleFunc("GET /api/v1/research/papers/{id}/export", deps.Export.ExportPaper)
+		mux.HandleFunc("POST /api/v1/research/papers/export", deps.Export.BulkExport)
+	}
 	if deps.AI != nil {
 		if deps.AI.Summary != nil {
 			mux.HandleFunc("POST /api/v1/research/papers/{id}/summary", deps.AI.SummaryPost)
@@ -86,6 +95,9 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 			mux.HandleFunc("POST /api/v1/chat/sessions", deps.AI.CreateSession)
 			mux.HandleFunc("GET /api/v1/chat/sessions/{id}/messages", deps.AI.ListMessages)
 			mux.HandleFunc("POST /api/v1/chat/sessions/{id}/messages", deps.AI.Ask)
+		}
+		if deps.AI.Comparison != nil {
+			mux.HandleFunc("POST /api/v1/research/compare", deps.AI.Compare)
 		}
 	}
 
@@ -113,6 +125,34 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.Handle("POST /api/v1/me/bookmarks", v1.RequireAuth(deps.Bookmarks.Add))
 		mux.Handle("GET /api/v1/me/bookmarks", v1.RequireAuth(deps.Bookmarks.List))
 		mux.Handle("DELETE /api/v1/me/bookmarks/{paperId}", v1.RequireAuth(deps.Bookmarks.Remove))
+	}
+
+	if deps.Auth != nil && deps.Follows != nil {
+		mux.Handle("POST /api/v1/me/follows/topics", v1.RequireAuth(deps.Follows.FollowTopic))
+		mux.Handle("DELETE /api/v1/me/follows/topics/{slug}", v1.RequireAuth(deps.Follows.UnfollowTopic))
+		mux.Handle("GET /api/v1/me/follows/topics", v1.RequireAuth(deps.Follows.ListFollowedTopics))
+		mux.Handle("POST /api/v1/me/follows/authors", v1.RequireAuth(deps.Follows.FollowAuthor))
+		mux.Handle("DELETE /api/v1/me/follows/authors/{authorId}", v1.RequireAuth(deps.Follows.UnfollowAuthor))
+		mux.Handle("GET /api/v1/me/follows/authors", v1.RequireAuth(deps.Follows.ListFollowedAuthors))
+	}
+
+	if deps.Auth != nil && deps.Notifications != nil {
+		mux.Handle("GET /api/v1/me/notifications", v1.RequireAuth(deps.Notifications.List))
+		mux.Handle("POST /api/v1/me/notifications/{id}/read", v1.RequireAuth(deps.Notifications.MarkRead))
+		mux.Handle("POST /api/v1/me/notifications/read-all", v1.RequireAuth(deps.Notifications.MarkAllRead))
+		mux.Handle("GET /api/v1/me/notifications/unread-count", v1.RequireAuth(deps.Notifications.UnreadCount))
+	}
+
+	if deps.Auth != nil && deps.History != nil {
+		mux.Handle("POST /api/v1/me/history/progress", v1.RequireAuth(deps.History.RecordProgress))
+		mux.Handle("GET /api/v1/me/history/progress/{paperId}", v1.RequireAuth(deps.History.GetProgress))
+		mux.Handle("GET /api/v1/me/history", v1.RequireAuth(deps.History.List))
+		mux.Handle("DELETE /api/v1/me/history", v1.RequireAuth(deps.History.Clear))
+	}
+
+	if deps.Auth != nil && deps.Digest != nil {
+		mux.Handle("GET /api/v1/research/digest/latest", v1.RequireAuth(deps.Digest.Latest))
+		mux.Handle("POST /api/v1/research/digest/generate", v1.RequireAuth(deps.Digest.Generate))
 	}
 
 	if deps.Admin != nil {
