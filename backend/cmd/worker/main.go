@@ -75,6 +75,7 @@ func main() {
 
 	riverWorkers := river.NewWorkers()
 	workers.AddAll(riverWorkers, service, log)
+	workers.AddNotifications(riverWorkers, pool, log)
 
 	// Phase 4: full-text RAG indexing when an LLM/embedding stack is set.
 	var ragService *appai.RAGService
@@ -97,8 +98,9 @@ func main() {
 
 	clientOpts := &river.Config{
 		Queues: map[string]river.QueueConfig{
-			"ingestion": {MaxWorkers: cfg.WorkerConcurrency},
-			"ai":        {MaxWorkers: 1},
+			"ingestion":     {MaxWorkers: cfg.WorkerConcurrency},
+			"ai":            {MaxWorkers: 1},
+			"notifications": {MaxWorkers: 2},
 		},
 		Workers: riverWorkers,
 		// Backfill attempts legitimately run for many minutes (River's
