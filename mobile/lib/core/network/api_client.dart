@@ -7,6 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../constants/app_constants.dart';
 import '../error/failure.dart';
+import '../prefs/user_preferences.dart';
 
 part 'api_client.g.dart';
 
@@ -26,6 +27,10 @@ Dio apiClient(Ref ref) {
     InterceptorsWrapper(
       onRequest: (options, handler) {
         options.headers['X-Request-ID'] = _newRequestId();
+        final token = UserPreferences.instance.authToken;
+        if (token != null && token.isNotEmpty) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
         handler.next(options);
       },
     ),
