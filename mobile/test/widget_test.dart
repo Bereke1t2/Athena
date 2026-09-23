@@ -24,7 +24,17 @@ class _NoopPaperRepo implements PaperRepository {
 
   @override
   Future<ArticleContent> getArticleContent(String id) => throw UnimplementedError();
+
+  @override
+  Future<String> exportCitation(String id, String format) => throw UnimplementedError();
+
+  @override
+  Future<List<PaperSummary>> getCitations(String id, {String direction = 'in', int limit = 20}) => throw UnimplementedError();
+
+  @override
+  Future<List<PaperSummary>> getRelated(String id, {int limit = 10}) => throw UnimplementedError();
 }
+
 
 void main() {
   setUpAll(() async {

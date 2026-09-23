@@ -37,26 +37,20 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Final verification complete (2026-08-26)** — `flutter analyze` clean, `flutter test` all green (26 passed, 1 skipped integration). Gotcha discovered: `WisdomBannerCard`/`AthenaOwlCrest` (core/widgets/athena_branding.dart) repeats an AnimationController forever, so any test booting the app shell must use bounded `tester.pump(duration)` calls instead of `pumpAndSettle`. Feed header is now "ATHENA" branding (widget_test asserts this).
-2. Widget/deep-link tests need `SharedPreferences.setMockInitialValues({'athena.onboarding.complete': true})` + `UserPreferences.instance.load()` in setUpAll (already present in widget_test.dart and deep_link_test.dart).
-3. **Phase 5 in progress — auth slice DONE (2026-08-26)**: email+password
-   accounts + opaque bearer sessions. Migration `000010_auth`
-   (`users.password_hash`, `sessions` table, sha256-token-hash only). Layers:
-   `domain/user` (ports + sentinels) → `application/auth` (Service; unknown-email
-   and wrong-password both return ErrInvalidCredentials, real KDF run keeps
-   timing uniform) → `infrastructure/auth` (stdlib crypto/pbkdf2 hasher,
-   600k iters, self-describing hash format) + `infrastructure/database.UserStore`
-   (implements BOTH user and session ports) → `delivery/http/v1/auth.go`
-   (register/login/logout/me + WithAuth middleware that degrades bad tokens to
-   anonymous). Routes registered only when Auth handlers non-nil. Verified live:
-   register 201 / login 200 / bad login 401 / me 200 / logout 204→401 / dup 409.
-   Next Phase 5 steps: server-side bookmarks (`bookmarks` table already exists),
-   follow topics/authors, personalized `recommended` feed section
-   (feed service still returns ErrNotImplemented for it), notification fan-out.
-4. Future roadmap: Phase 5 remainder (above), Phase 6 comparison/digests. New ingested topics need field mapping (see above).
-5. Pre-existing noise: some backend files fail gofmt (research/*, pgsearch.go, providers) — historical; format only files you touch. One info-level lint may remain in prefs files.
-6. arXiv backfill rate limit (~100 rec/3s) and S2 bulk without API key are slow — documented in roadmap Phase 1 notes.
-7. Dev API restart needs env vars exported manually (zsh can't source .env due to a parse error on line 32): ATHENA_HTTP_ADDR/:8080, ATHENA_DATABASE_URL (:5433), ATHENA_REDIS_ADDR (:6380), LLM_PROVIDER=stub.
+1. **Full Verification Complete (2026-09-23)**:
+   - `flutter analyze` clean (0 issues).
+   - `flutter test` all green (37 tests passed, 1 integration skipped).
+   - `go test -count=1 ./...` all green (100% tests passed across all packages).
+2. **Phase 5 & 6 Milestone Completed (2026-09-23)**:
+   - **Backend Reading History**: Migration `000011_reading_history`, PostgreSQL `HistoryStore`, API routes `/users/me/history`.
+   - **River Notification Fanout**: `NotificationFanoutWorker` fanning out ingestion alerts to topic and author subscribers via River queue `"notifications"`.
+   - **AI Comparison Synthesis**: Structured comparative summary, consensus points, divergence points, attribute matrix.
+   - **Mobile Auth & Profiles**: Login, registration, profile management, session persistence with Dio `Authorization: Bearer <token>` interceptor.
+   - **Mobile Personalization & Follows**: Follow topics & authors toggles, Notifications Center with unread counter, Recommended feed tab.
+   - **Multi-Paper Comparison Matrix**: Side-by-side comparison screen (`/compare`), consensus/divergence cards, and dynamic paper selection.
+   - **Citation & Export**: Multi-format export modal sheet (BibTeX, APA, MLA, Chicago, RIS, Markdown) and Citation network / Related research explorer cards on paper detail.
+3. Dev API restart needs env vars exported manually (zsh can't source .env due to a parse error on line 32): ATHENA_HTTP_ADDR/:8080, ATHENA_DATABASE_URL (:5433), ATHENA_REDIS_ADDR (:6380), LLM_PROVIDER=stub.
+
 
 ## Style
 
