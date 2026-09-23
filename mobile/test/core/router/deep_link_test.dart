@@ -55,7 +55,17 @@ class FakePaperRepo implements PaperRepository {
         title: 'Scaling Laws for Neural LMs',
         sections: const [],
       );
+
+  @override
+  Future<String> exportCitation(String id, String format) async => '@article{x, title={Test}}';
+
+  @override
+  Future<List<PaperSummary>> getCitations(String id, {String direction = 'in', int limit = 20}) async => const [];
+
+  @override
+  Future<List<PaperSummary>> getRelated(String id, {int limit = 10}) async => const [];
 }
+
 
 Future<void> _pump(WidgetTester tester, {required String location}) async {
   final router = buildAppRouter();

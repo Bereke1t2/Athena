@@ -6,12 +6,29 @@ part of 'di.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$feedRepositoryHash() => r'6a6ec501178691cb76cd184245d4167a7416566d';
+String _$authRepositoryHash() => r'56ca5bb945543a327dd0f844733189f769739483';
 
 /// Composition root: interfaces bound to implementations; controllers depend
 /// on interfaces only and tests override these providers.
 ///
-/// Copied from [feedRepository].
+/// Copied from [authRepository].
+@ProviderFor(authRepository)
+final authRepositoryProvider = AutoDisposeProvider<AuthRepository>.internal(
+  authRepository,
+  name: r'authRepositoryProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$authRepositoryHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef AuthRepositoryRef = AutoDisposeProviderRef<AuthRepository>;
+String _$feedRepositoryHash() => r'6a6ec501178691cb76cd184245d4167a7416566d';
+
+/// See also [feedRepository].
 @ProviderFor(feedRepository)
 final feedRepositoryProvider = AutoDisposeProvider<FeedRepository>.internal(
   feedRepository,
@@ -110,5 +127,62 @@ final pdfRepositoryProvider = AutoDisposeProvider<PdfRepositoryImpl>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef PdfRepositoryRef = AutoDisposeProviderRef<PdfRepositoryImpl>;
+String _$followsRepositoryHash() => r'37e242d0f6ecd5d4d5907bc0c06202e0ed40f413';
+
+/// See also [followsRepository].
+@ProviderFor(followsRepository)
+final followsRepositoryProvider =
+    AutoDisposeProvider<FollowsRepository>.internal(
+  followsRepository,
+  name: r'followsRepositoryProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$followsRepositoryHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef FollowsRepositoryRef = AutoDisposeProviderRef<FollowsRepository>;
+String _$notificationsRepositoryHash() =>
+    r'7513c60656e42f355bcdf08c998d91e7954956a6';
+
+/// See also [notificationsRepository].
+@ProviderFor(notificationsRepository)
+final notificationsRepositoryProvider =
+    AutoDisposeProvider<NotificationsRepository>.internal(
+  notificationsRepository,
+  name: r'notificationsRepositoryProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$notificationsRepositoryHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef NotificationsRepositoryRef
+    = AutoDisposeProviderRef<NotificationsRepository>;
+String _$comparisonRepositoryHash() =>
+    r'b373c72df9b6e6917b90404002b705a3c7e542ae';
+
+/// See also [comparisonRepository].
+@ProviderFor(comparisonRepository)
+final comparisonRepositoryProvider =
+    AutoDisposeProvider<ComparisonRepository>.internal(
+  comparisonRepository,
+  name: r'comparisonRepositoryProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$comparisonRepositoryHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef ComparisonRepositoryRef = AutoDisposeProviderRef<ComparisonRepository>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

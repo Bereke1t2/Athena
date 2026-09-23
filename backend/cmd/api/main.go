@@ -18,10 +18,11 @@ import (
 
 	appauth "athena/backend/internal/application/auth"
 	appbookmark "athena/backend/internal/application/bookmark"
-	appexport "athena/backend/internal/application/export"
 	appdigest "athena/backend/internal/application/digest"
+	appexport "athena/backend/internal/application/export"
 	appfeed "athena/backend/internal/application/feed"
 	appfollow "athena/backend/internal/application/follow"
+	apphistory "athena/backend/internal/application/history"
 	appnotif "athena/backend/internal/application/notification"
 	appsearch "athena/backend/internal/application/search"
 	v1 "athena/backend/internal/delivery/http/v1"
@@ -181,21 +182,28 @@ func run() error {
 		log.Info("ai layer disabled (set LLM_PROVIDER to enable)")
 	}
 
+	// Phase 5 reading history: progress tracking per user.
+	historyStore := database.NewHistoryStore(pool)
+	historyHandlers := v1.NewHistoryHandlers(
+		apphistory.NewService(historyStore), log)
+
 	exportHandlers := v1.NewExportHandlers(appexport.NewService(store), log)
 	digestHandlers := v1.NewDigestHandlers(appdigest.NewService(store, followStore, nil, log), log)
 
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpserver.New(httpserver.Deps{
-			Research: research,
-			Search:   v1.NewSearchHandlersWithLive(searchSvc, discoverSvc, log), Feed: v1.NewFeedHandlers(feedSvc, log),
-			Topics:    topics,
+			Research:      research,
+			Search:        v1.NewSearchHandlersWithLive(searchSvc, discoverSvc, log),
+			Feed:          v1.NewFeedHandlers(feedSvc, log),
+			Topics:        topics,
 			Admin:         admin,
 			AI:            aiHandlers,
 			Auth:          authHandlers,
 			Bookmarks:     bookmarkHandlers,
 			Follows:       followHandlers,
 			Notifications: notifHandlers,
+			History:       historyHandlers,
 			Export:        exportHandlers,
 			Digest:        digestHandlers,
 			Logger:        log,

@@ -3,13 +3,18 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/ai/presentation/chat_screen.dart';
 import '../../features/ai/presentation/create_audio_screen.dart';
+import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/register_screen.dart';
+import '../../features/comparison/presentation/comparison_screen.dart';
 import '../../features/feed/presentation/feed_screen.dart';
 import '../../features/library/presentation/saved_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/papers/presentation/article_reader_screen.dart';
 import '../../features/papers/presentation/paper_audio_player_screen.dart';
 import '../../features/papers/presentation/paper_detail_screen.dart';
 import '../../features/papers/presentation/pdf_viewer_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/topics/presentation/topic_detail_screen.dart';
 import '../../features/topics/presentation/topics_screen.dart';
@@ -108,6 +113,42 @@ GoRouter buildAppRouter() {
         name: 'saved',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const SavedScreen(),
+      ),
+      GoRoute(
+        path: '/profile',
+        name: 'profile',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/login',
+        name: 'login',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/register',
+        name: 'register',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        name: 'notifications',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/compare',
+        name: 'compare',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final idsParam = state.uri.queryParameters['ids'];
+          final idsList = idsParam != null && idsParam.isNotEmpty
+              ? idsParam.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList()
+              : (state.extra is List<String> ? state.extra! as List<String> : <String>[]);
+          return ComparisonScreen(initialPaperIds: idsList);
+        },
       ),
       // Custom-scheme deep link landing zone: athena://paper/{uuid} parses to
       // path /{uuid}. Only UUID-shaped segments are treated as paper links.
