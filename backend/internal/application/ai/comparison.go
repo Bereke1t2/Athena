@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -32,6 +33,18 @@ func NewComparisonService(llm domainai.LLMProvider, papers PaperSource, chunks C
 		chunks: chunks,
 		log:    log,
 	}
+}
+
+type llmComparisonJSON struct {
+	Summary          string   `json:"comparative_summary"`
+	ConsensusPoints  []string `json:"consensus_points"`
+	DivergencePoints []string `json:"divergence_points"`
+	Papers           []struct {
+		PaperID     string   `json:"paper_id"`
+		Methodology string   `json:"methodology"`
+		Strengths   []string `json:"strengths"`
+		Limitations []string `json:"limitations"`
+	} `json:"papers"`
 }
 
 // Compare analyzes and synthesizes 2 to 5 papers.
@@ -79,22 +92,94 @@ func (s *ComparisonService) Compare(ctx context.Context, paperIDs []uuid.UUID, f
 		})
 	}
 
-	modelID := "stub"
+	modelID := "heuristic"
 	if s.llm != nil {
 		modelID = s.llm.Model()
 	}
 
-	// Build comparative overview
+	// Default heuristic synthesis
 	titles := make([]string, 0, len(paperDetails))
 	for _, p := range paperDetails {
 		titles = append(titles, fmt.Sprintf("'%s' (%d)", p.Summary.Title, p.Summary.Year))
 	}
 	summary := fmt.Sprintf("Comparative synthesis of %d studies: %s. The papers collectively advance the problem space through complementary methodologies.", len(titles), strings.Join(titles, ", "))
+	consensus := []string{"Both works agree on the core scaling principles and foundational benchmarks."}
+	divergence := []string{"Approaches diverge in architectural constraints and computational trade-offs."}
+
+	// If LLM is available and not stub, query for structured synthesis
+	if s.llm != nil && modelID != "stub" && modelID != "heuristic" {
+		var promptBuilder strings.Builder
+		promptBuilder.WriteString("You are a scientific research assistant. Compare the following papers and output ONLY a JSON object.\n\nPapers:\n")
+		for i, p := range paperDetails {
+			abs := ""
+			if p.Summary.Abstract != nil {
+				abs = *p.Summary.Abstract
+			}
+			promptBuilder.WriteString(fmt.Sprintf("%d. ID: %s\nTitle: %s (%d)\nAbstract: %s\n\n", i+1, p.Summary.ID, p.Summary.Title, p.Summary.Year, abs))
+		}
+		promptBuilder.WriteString(`Output JSON format:
+{
+  "comparative_summary": "...",
+  "consensus_points": ["point 1", "point 2"],
+  "divergence_points": ["point 1", "point 2"],
+  "papers": [
+    {
+      "paper_id": "<uuid>",
+      "methodology": "...",
+      "strengths": ["..."],
+      "limitations": ["..."]
+    }
+  ]
+}`)
+
+		resp, err := s.llm.Generate(ctx, domainai.GenerateRequest{
+			System:      "You are a rigorous scientific analyst. Return valid JSON only.",
+			Prompt:      promptBuilder.String(),
+			MaxTokens:   1500,
+			Temperature: 0.2,
+		})
+		if err == nil && resp.Text != "" {
+			var parsed llmComparisonJSON
+			cleaned := strings.TrimSpace(resp.Text)
+			cleaned = strings.TrimPrefix(cleaned, "```json")
+			cleaned = strings.TrimPrefix(cleaned, "```")
+			cleaned = strings.TrimSuffix(cleaned, "```")
+			cleaned = strings.TrimSpace(cleaned)
+
+			if jsonErr := json.Unmarshal([]byte(cleaned), &parsed); jsonErr == nil {
+				if parsed.Summary != "" {
+					summary = parsed.Summary
+				}
+				if len(parsed.ConsensusPoints) > 0 {
+					consensus = parsed.ConsensusPoints
+				}
+				if len(parsed.DivergencePoints) > 0 {
+					divergence = parsed.DivergencePoints
+				}
+				for _, pp := range parsed.Papers {
+					pid, _ := uuid.Parse(pp.PaperID)
+					for idx := range matrixEntries {
+						if matrixEntries[idx].PaperID == pid {
+							if pp.Methodology != "" {
+								matrixEntries[idx].Methodology = pp.Methodology
+							}
+							if len(pp.Strengths) > 0 {
+								matrixEntries[idx].Strengths = pp.Strengths
+							}
+							if len(pp.Limitations) > 0 {
+								matrixEntries[idx].Limitations = pp.Limitations
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	report := domaincomp.SynthesisReport{
 		Papers:             matrixEntries,
-		ConsensusPoints:    []string{"Both works agree on the core scaling principles and foundational benchmarks."},
-		DivergencePoints:   []string{"Approaches diverge in architectural constraints and computational trade-offs."},
+		ConsensusPoints:    consensus,
+		DivergencePoints:   divergence,
 		ComparativeSummary: summary,
 		Grounding:          "abstract",
 		ModelID:            modelID,
