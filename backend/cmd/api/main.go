@@ -18,7 +18,12 @@ import (
 
 	appauth "athena/backend/internal/application/auth"
 	appbookmark "athena/backend/internal/application/bookmark"
+	appdigest "athena/backend/internal/application/digest"
+	appexport "athena/backend/internal/application/export"
 	appfeed "athena/backend/internal/application/feed"
+	appfollow "athena/backend/internal/application/follow"
+	apphistory "athena/backend/internal/application/history"
+	appnotif "athena/backend/internal/application/notification"
 	appsearch "athena/backend/internal/application/search"
 	v1 "athena/backend/internal/delivery/http/v1"
 	"athena/backend/internal/infrastructure/cache"
@@ -116,6 +121,15 @@ func run() error {
 	bookmarkHandlers := v1.NewBookmarksHandlers(
 		appbookmark.NewService(database.NewBookmarkStore(pool)), log)
 
+	// Phase 5 follows: topics and authors subscriptions.
+	followStore := database.NewFollowStore(pool)
+	followHandlers := v1.NewFollowsHandlers(
+		appfollow.NewService(followStore), log)
+
+	// Phase 5 notifications: user in-app alerts and updates.
+	notifHandlers := v1.NewNotificationsHandlers(
+		appnotif.NewService(database.NewNotificationStore(pool)), log)
+
 	// Phase 4 AI layer: only wired when an LLM provider is configured.
 	var aiHandlers *v1.AIHandlers
 	if cfg.AIEnabled() {
@@ -158,6 +172,7 @@ func run() error {
 		chatSvc.Indexer = rag
 
 		aiHandlers = v1.NewAIHandlers(summarySvc, chatSvc, log)
+		aiHandlers.Comparison = appai.NewComparisonService(llm, paperStore, aiStore, log)
 		if cfg.LLMProvider != "stub" && cfg.LLMAPIKey == "" {
 			log.Warn("LLM_API_KEY is empty; AI requests are sent unauthenticated and will likely fail")
 		}
@@ -167,17 +182,31 @@ func run() error {
 		log.Info("ai layer disabled (set LLM_PROVIDER to enable)")
 	}
 
+	// Phase 5 reading history: progress tracking per user.
+	historyStore := database.NewHistoryStore(pool)
+	historyHandlers := v1.NewHistoryHandlers(
+		apphistory.NewService(historyStore), log)
+
+	exportHandlers := v1.NewExportHandlers(appexport.NewService(store), log)
+	digestHandlers := v1.NewDigestHandlers(appdigest.NewService(store, followStore, nil, log), log)
+
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpserver.New(httpserver.Deps{
-			Research: research,
-			Search:   v1.NewSearchHandlersWithLive(searchSvc, discoverSvc, log), Feed: v1.NewFeedHandlers(feedSvc, log),
-			Topics:    topics,
-			Admin:     admin,
-			AI:        aiHandlers,
-			Auth:      authHandlers,
-			Bookmarks: bookmarkHandlers,
-			Logger:    log,
+			Research:      research,
+			Search:        v1.NewSearchHandlersWithLive(searchSvc, discoverSvc, log),
+			Feed:          v1.NewFeedHandlers(feedSvc, log),
+			Topics:        topics,
+			Admin:         admin,
+			AI:            aiHandlers,
+			Auth:          authHandlers,
+			Bookmarks:     bookmarkHandlers,
+			Follows:       followHandlers,
+			Notifications: notifHandlers,
+			History:       historyHandlers,
+			Export:        exportHandlers,
+			Digest:        digestHandlers,
+			Logger:        log,
 			Ping: func() error {
 				cctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()

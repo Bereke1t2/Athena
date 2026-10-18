@@ -18,6 +18,7 @@ import (
 	riverpgxv5 "github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	appai "athena/backend/internal/application/ai"
+	appdigest "athena/backend/internal/application/digest"
 	"athena/backend/internal/application/ingestion"
 	domainai "athena/backend/internal/domain/ai"
 	"athena/backend/internal/infrastructure/ai/openaicompat"
@@ -75,6 +76,10 @@ func main() {
 
 	riverWorkers := river.NewWorkers()
 	workers.AddAll(riverWorkers, service, log)
+	workers.AddNotifications(riverWorkers, pool, log)
+
+	digestSvc := appdigest.NewService(store, database.NewFollowStore(pool), nil, log)
+	workers.AddDigest(riverWorkers, digestSvc, pool, log)
 
 	// Phase 4: full-text RAG indexing when an LLM/embedding stack is set.
 	var ragService *appai.RAGService
@@ -97,8 +102,9 @@ func main() {
 
 	clientOpts := &river.Config{
 		Queues: map[string]river.QueueConfig{
-			"ingestion": {MaxWorkers: cfg.WorkerConcurrency},
-			"ai":        {MaxWorkers: 1},
+			"ingestion":     {MaxWorkers: cfg.WorkerConcurrency},
+			"ai":            {MaxWorkers: 1},
+			"notifications": {MaxWorkers: 2},
 		},
 		Workers: riverWorkers,
 		// Backfill attempts legitimately run for many minutes (River's
@@ -109,6 +115,7 @@ func main() {
 		clientOpts.PeriodicJobs = []*river.PeriodicJob{
 			workers.PeriodicSyncWindow(openalexadapter.Slug, 6*time.Hour),
 			workers.PeriodicSyncWindow(arxivadapter.Slug, 6*time.Hour),
+			workers.PeriodicWeeklyDigest(7 * 24 * time.Hour),
 		}
 	}
 
