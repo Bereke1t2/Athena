@@ -19,9 +19,10 @@ import (
 // AIHandlers serve the Phase 4 endpoints: paper summaries and grounded chat
 // (api-specification.md §2, docs/architecture/ai-rag.md).
 type AIHandlers struct {
-	Summary *appai.SummaryService
-	Chat    *appchat.Service
-	Logger  *slog.Logger
+	Summary    *appai.SummaryService
+	Chat       *appchat.Service
+	Comparison *appai.ComparisonService
+	Logger     *slog.Logger
 }
 
 func NewAIHandlers(summary *appai.SummaryService, chat *appchat.Service, log *slog.Logger) *AIHandlers {
@@ -352,4 +353,47 @@ func (h *AIHandlers) fail(w http.ResponseWriter, r *http.Request, err error) {
 		h.Logger.Error("ai request failed", "error", err, "request_id", RequestIDFrom(r.Context()))
 	}
 	WriteError(w, r, status, code, msg)
+}
+
+type compareRequestDTO struct {
+	PaperIDs []string `json:"paper_ids"`
+	Facets   []string `json:"facets,omitempty"`
+}
+
+// Compare: POST /api/v1/research/compare
+func (h *AIHandlers) Compare(w http.ResponseWriter, r *http.Request) {
+	if h.Comparison == nil {
+		WriteError(w, r, http.StatusServiceUnavailable, CodeInternal, "comparison service unavailable")
+		return
+	}
+	var req compareRequestDTO
+	if err := decodeJSON(r, &req); err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid JSON body")
+		return
+	}
+	if len(req.PaperIDs) < 2 {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "at least 2 paper_ids are required")
+		return
+	}
+	if len(req.PaperIDs) > 5 {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "maximum 5 paper_ids can be compared")
+		return
+	}
+	paperUUIDs := make([]uuid.UUID, 0, len(req.PaperIDs))
+	for _, idStr := range req.PaperIDs {
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "all paper_ids must be valid UUIDs")
+			return
+		}
+		paperUUIDs = append(paperUUIDs, id)
+	}
+
+	report, err := h.Comparison.Compare(r.Context(), paperUUIDs, nil)
+	if err != nil {
+		h.Logger.Error("paper comparison failed", "error", err, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "failed to generate comparison")
+		return
+	}
+	WriteJSON(w, http.StatusOK, report)
 }
