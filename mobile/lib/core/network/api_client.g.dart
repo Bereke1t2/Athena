@@ -6,7 +6,7 @@ part of 'api_client.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$apiClientHash() => r'3e5e34007f38c518681894adba8def495ca27102';
+String _$apiClientHash() => r'26e5478b9d32af4bc94d2324acbd3a84d22b5a5d';
 
 /// The single dio instance (mobile-conventions: one client from core/network;
 /// features declare typed endpoint methods against it).
