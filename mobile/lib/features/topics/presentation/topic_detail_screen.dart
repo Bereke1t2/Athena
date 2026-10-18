@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/paper_card.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../follows/presentation/follows_notifier.dart';
 import '../domain/topic.dart';
 import 'topics_notifier.dart';
 
@@ -46,7 +48,7 @@ class TopicDetailScreen extends ConsumerWidget {
                   failure: e,
                   onRetry: () => ref.invalidate(topicDetailControllerProvider(slug)),
                 ),
-                data: (topic) => _header(context, topic),
+                data: (topic) => _header(context, ref, topic),
               ),
               const Divider(height: 24),
               papersAsync.when(
@@ -104,34 +106,73 @@ class TopicDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _header(BuildContext context, Topic topic) {
+  Widget _header(BuildContext context, WidgetRef ref, Topic topic) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final followsState = ref.watch(followsNotifierProvider);
+    final isFollowed = followsState.isTopicFollowed(topic.slug);
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 8,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Chip(label: Text(topic.isField ? 'Field' : 'Topic')),
-              Chip(label: Text('${topic.paperCountEstimate} papers')),
-              if (topic.parentName != null)
-                Chip(label: Text('in ${topic.parentName!}')),
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    Chip(label: Text(topic.isField ? 'Field' : 'Topic')),
+                    Chip(label: Text('${topic.paperCountEstimate} papers')),
+                    if (topic.parentName != null)
+                      Chip(label: Text('in ${topic.parentName!}')),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isFollowed
+                      ? (isDark ? const Color(0xFF232836) : const Color(0xFFE5E7EB))
+                      : AppTheme.canaryYellow,
+                  foregroundColor: isFollowed
+                      ? (isDark ? Colors.white : const Color(0xFF141416))
+                      : const Color(0xFF141416),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  ref.read(followsNotifierProvider.notifier).toggleTopicFollow(topic.slug, topic.name);
+                },
+                icon: Icon(isFollowed ? Icons.check_rounded : Icons.add_rounded, size: 16),
+                label: Text(
+                  isFollowed ? 'Following' : 'Follow Topic',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                ),
+              ),
             ],
           ),
           if (topic.description.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(topic.description, style: theme.textTheme.bodyMedium),
           ],
           if (topic.children.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text('Subtopics', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 4),
+            const SizedBox(height: 14),
+            Text('Subtopics', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
             Wrap(
               spacing: 6,
-              runSpacing: 0,
-              children: [for (final c in topic.children) ActionChip(label: Text(Topic.displayNameForSlug(c)), onPressed: () => context.push('/topics/$c'))],
+              runSpacing: 6,
+              children: [
+                for (final c in topic.children)
+                  ActionChip(
+                    label: Text(Topic.displayNameForSlug(c)),
+                    onPressed: () => context.push('/topics/$c'),
+                  ),
+              ],
             ),
           ],
         ],
