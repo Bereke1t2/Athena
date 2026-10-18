@@ -7,7 +7,11 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
+
+	domainrec "athena/backend/internal/domain/recommendation"
 	"athena/backend/internal/domain/research"
 )
 
@@ -76,7 +80,6 @@ func (s *Service) Get(ctx context.Context, section Section, topicSlugs []string,
 	case "", SectionLatest:
 	case SectionTrending:
 	case SectionRecommended:
-		return nil, "", ErrNotImplemented
 	default:
 		return nil, "", ErrInvalidSection
 	}
@@ -102,6 +105,53 @@ func (s *Service) Get(ctx context.Context, section Section, topicSlugs []string,
 			return nil, "", err
 		}
 		return trendingItems(papers, fellBack), "", nil
+	}
+
+	if section == SectionRecommended {
+		candidateLimit := limit * 2
+		if candidateLimit < 30 {
+			candidateLimit = 30
+		}
+		if candidateLimit > 100 {
+			candidateLimit = 100
+		}
+		lq := research.ListQuery{
+			Sort:       research.SortNewest,
+			Limit:      candidateLimit,
+			FieldSlug:  fieldSlug,
+			TopicSlugs: topics,
+		}
+		papers, _, err := s.source.ListPapers(ctx, lq)
+		fellBack := false
+		if err == nil && len(papers) == 0 && len(topics) > 0 {
+			lq.TopicSlugs = nil
+			papers, _, err = s.source.ListPapers(ctx, lq)
+			fellBack = true
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		profile := domainrec.NewAffinityProfile(uuid.Nil)
+		for _, t := range topics {
+			profile.TopicWeights[t] = 1.0
+		}
+		scored := domainrec.RankPapers(papers, profile, time.Now().UTC())
+		if len(scored) > limit {
+			scored = scored[:limit]
+		}
+		items := make([]Item, 0, len(scored))
+		for _, sp := range scored {
+			reason := sp.MatchReason
+			if fellBack {
+				reason = fallbackReason
+			}
+			items = append(items, Item{
+				Paper:   sp.Paper,
+				Section: SectionRecommended,
+				Reason:  reason,
+			})
+		}
+		return items, "", nil
 	}
 
 	lq := research.ListQuery{

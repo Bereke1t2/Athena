@@ -154,3 +154,31 @@ func TestTrendingTopicFallback(t *testing.T) {
 		t.Fatalf("expected filtered then unfiltered trending calls: %v", src.trendCalls)
 	}
 }
+
+func TestRecommendedFeedRankingAndFallback(t *testing.T) {
+	src := &fakeSource{
+		onList: func(q research.ListQuery) ([]research.PaperSummary, string, error) {
+			if len(q.TopicSlugs) > 0 {
+				p := research.PaperSummary{
+					ID:           testPaperID(),
+					Title:        "Attention Is All You Need for Natural Language Processing",
+					CitedByCount: 100,
+				}
+				return []research.PaperSummary{p}, "", nil
+			}
+			return nil, "", nil
+		},
+	}
+	svc := NewService(src)
+
+	items, _, err := svc.Get(context.Background(), SectionRecommended, []string{"natural-language-processing"}, "", "", 10)
+	if err != nil {
+		t.Fatalf("recommended feed failed: %v", err)
+	}
+	if len(items) != 1 || items[0].Section != SectionRecommended {
+		t.Fatalf("expected 1 recommended item, got %+v", items)
+	}
+	if items[0].Reason != "matches your focus on natural language processing" {
+		t.Fatalf("expected specific topic reason, got %q", items[0].Reason)
+	}
+}
