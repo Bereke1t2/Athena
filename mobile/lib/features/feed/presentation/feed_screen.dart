@@ -6,6 +6,7 @@ import '../../../core/prefs/prefs_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
 import '../../../core/widgets/paper_card.dart';
+import '../../notifications/presentation/notifications_notifier.dart';
 import '../../papers/domain/audio_playback.dart';
 import '../../papers/domain/paper.dart';
 import '../../papers/presentation/audio_player_notifier.dart';
@@ -161,11 +162,46 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                       ),
                                       onPressed: () => ref.read(appThemeModeProvider.notifier).toggle(),
                                     ),
+                                    Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.notifications_none_rounded, size: 21),
+                                          onPressed: () => context.push('/notifications'),
+                                        ),
+                                        if (ref.watch(notificationsNotifierProvider).unreadCount > 0)
+                                          Positioned(
+                                            right: 6,
+                                            top: 6,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(3.5),
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFFFF7675),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                                              child: Text(
+                                                '${ref.watch(notificationsNotifierProvider).unreadCount}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 8.5,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                     const SizedBox(width: 4),
-                                    CircleAvatar(
-                                      radius: 18,
-                                      backgroundColor: isDark ? const Color(0xFF2C3240) : const Color(0xFFE5E7EB),
-                                      child: const Icon(Icons.person_rounded, size: 20, color: Color(0xFF141416)),
+                                    InkWell(
+                                      onTap: () => context.push('/profile'),
+                                      borderRadius: BorderRadius.circular(18),
+                                      child: CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: isDark ? const Color(0xFF2C3240) : const Color(0xFFE5E7EB),
+                                        child: const Icon(Icons.person_rounded, size: 20, color: Color(0xFF141416)),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -513,12 +549,17 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                 ButtonSegment(
                                   value: FeedSection.latest,
                                   label: Text('Latest'),
-                                  icon: Icon(Icons.schedule_rounded, size: 16),
+                                  icon: Icon(Icons.schedule_rounded, size: 15),
                                 ),
                                 ButtonSegment(
                                   value: FeedSection.trending,
                                   label: Text('Trending'),
-                                  icon: Icon(Icons.trending_up_rounded, size: 16),
+                                  icon: Icon(Icons.trending_up_rounded, size: 15),
+                                ),
+                                ButtonSegment(
+                                  value: FeedSection.recommended,
+                                  label: Text('For you'),
+                                  icon: Icon(Icons.auto_awesome_rounded, size: 15),
                                 ),
                               ],
                               selected: {_section},
@@ -566,6 +607,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         (context, i) {
                           final item = items[i];
                           final isTrending = _section == FeedSection.trending;
+                          final isRecommended = _section == FeedSection.recommended;
                           return AnimatedEntrance(
                             delay: Duration(milliseconds: 30 * (i % 6)),
                             child: PaperCard(
@@ -588,7 +630,30 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                         ),
                                       ),
                                     )
-                                  : null,
+                                  : (isRecommended
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                          decoration: BoxDecoration(
+                                            color: isDark ? const Color(0xFF222736) : const Color(0xFFF1F3F7),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.auto_awesome_rounded, size: 11, color: AppTheme.canaryYellow),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                item.reason.isNotEmpty ? item.reason : 'Recommended',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isDark ? Colors.white70 : const Color(0xFF374151),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : null),
                               onTap: () => context.push('/papers/${item.paper.id}'),
                             ),
                           );
