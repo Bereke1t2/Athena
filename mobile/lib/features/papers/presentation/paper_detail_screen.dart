@@ -3,14 +3,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/di.dart';
 import '../../../core/prefs/saved_papers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../ai/presentation/paper_summary_card.dart';
+import '../domain/citation_graph.dart';
 import '../domain/paper.dart';
 import '../domain/pdf_repository.dart';
 import 'paper_detail_notifier.dart';
+import 'paper_export_modal.dart';
+
+final paperCitationGraphProvider =
+    FutureProvider.family<CitationGraph, ({String id, int depth})>((ref, arg) {
+  return ref.watch(paperRepositoryProvider).getCitationGraph(arg.id, depth: arg.depth);
+});
 
 class PaperDetailScreen extends ConsumerWidget {
   const PaperDetailScreen({super.key, required this.id});
@@ -52,6 +60,16 @@ class PaperDetailScreen extends ConsumerWidget {
           ),
           if (paper != null) ...[
             IconButton(
+              tooltip: 'Cite & Export',
+              icon: const Icon(Icons.format_quote_rounded, size: 20),
+              onPressed: () => showPaperExportModal(context, paper),
+            ),
+            IconButton(
+              tooltip: 'Compare Papers',
+              icon: const Icon(Icons.compare_arrows_rounded, size: 20),
+              onPressed: () => context.push('/compare?ids=${paper.summary.id}'),
+            ),
+            IconButton(
               tooltip: _pdfUrl(paper) != null ? 'Open PDF' : 'Read Article',
               icon: Icon(
                 _pdfUrl(paper) != null ? Icons.picture_as_pdf_rounded : Icons.menu_book_rounded,
@@ -79,6 +97,7 @@ class PaperDetailScreen extends ConsumerWidget {
           ],
         ],
       ),
+
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(
@@ -236,66 +255,112 @@ class PaperDetailScreen extends ConsumerWidget {
                   // Action Buttons Strip
                   AnimatedEntrance(
                     delay: const Duration(milliseconds: 140),
-                    child: Row(
+                    child: Column(
                       children: [
-                        if (pdfUrl != null)
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
-                                foregroundColor: isDark ? const Color(0xFF141416) : Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 11),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                elevation: 0,
+                        Row(
+                          children: [
+                            if (pdfUrl != null)
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                                    foregroundColor: isDark ? const Color(0xFF141416) : Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 11),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: () => _openPdf(context, paper),
+                                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                                  label: const Text(
+                                    'Open PDF',
+                                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                              )
+                            else if (webUrl != null)
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                                    foregroundColor: isDark ? const Color(0xFF141416) : Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 11),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: () => _openWeb(context, webUrl),
+                                  icon: const Icon(Icons.language_rounded, size: 16),
+                                  label: const Text(
+                                    'Open Web',
+                                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                                  ),
+                                ),
                               ),
-                              onPressed: () => _openPdf(context, paper),
-                              icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
-                              label: const Text(
-                                'Open PDF',
-                                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                            if (pdfUrl != null || webUrl != null) const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: isDark ? Colors.white : const Color(0xFF141416),
+                                  side: BorderSide(
+                                    color: isDark ? const Color(0xFF373D4E) : const Color(0xFFD1D5DB),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  context.push(
+                                    '/papers/${paper.summary.id}/chat?title=${Uri.encodeComponent(paper.title)}',
+                                  );
+                                },
+                                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                                label: const Text(
+                                  'Ask Paper AI',
+                                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                                ),
                               ),
                             ),
-                          )
-                        else if (webUrl != null)
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
-                                foregroundColor: isDark ? const Color(0xFF141416) : Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 11),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                elevation: 0,
-                              ),
-                              onPressed: () => _openWeb(context, webUrl),
-                              icon: const Icon(Icons.language_rounded, size: 16),
-                              label: const Text(
-                                'Open Web',
-                                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: isDark ? Colors.white : const Color(0xFF141416),
+                                  side: BorderSide(
+                                    color: isDark ? const Color(0xFF373D4E) : const Color(0xFFD1D5DB),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () => showPaperExportModal(context, paper),
+                                icon: const Icon(Icons.format_quote_rounded, size: 16),
+                                label: const Text(
+                                  'Cite & Export',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
                               ),
                             ),
-                          ),
-                        if (pdfUrl != null || webUrl != null) const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: isDark ? Colors.white : const Color(0xFF141416),
-                              side: BorderSide(
-                                color: isDark ? const Color(0xFF373D4E) : const Color(0xFFD1D5DB),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: isDark ? Colors.white : const Color(0xFF141416),
+                                  side: BorderSide(
+                                    color: isDark ? const Color(0xFF373D4E) : const Color(0xFFD1D5DB),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () => context.push('/compare?ids=${paper.summary.id}'),
+                                icon: const Icon(Icons.compare_arrows_rounded, size: 16),
+                                label: const Text(
+                                  'Compare Papers',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 11),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            onPressed: () {
-                              context.push(
-                                '/papers/${paper.summary.id}/chat?title=${Uri.encodeComponent(paper.title)}',
-                              );
-                            },
-                            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                            label: const Text(
-                              'Ask Paper AI',
-                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
-                            ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
@@ -324,6 +389,26 @@ class PaperDetailScreen extends ConsumerWidget {
                   PaperSummaryCard(paperId: paper.summary.id),
 
                   const SizedBox(height: 18),
+
+                  // Citations & References Explorer
+                  _CitationsExplorerCard(
+                    paperId: paper.summary.id,
+                    citedCount: paper.summary.citedByCount,
+                    refCount: paper.referenceCount,
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  // Citation Network Graph Explorer
+                  _CitationGraphExplorerCard(paperId: paper.summary.id),
+
+                  const SizedBox(height: 18),
+
+                  // Related Research
+                  _RelatedPapersCard(paperId: paper.summary.id),
+
+                  const SizedBox(height: 18),
+
 
                   // Real Topics & Taxonomy
                   if (paper.topics.isNotEmpty) ...[
@@ -701,4 +786,450 @@ class _SectionCard extends StatelessWidget {
     );
   }
 }
+
+class _CitationsExplorerCard extends ConsumerStatefulWidget {
+  const _CitationsExplorerCard({
+    required this.paperId,
+    required this.citedCount,
+    required this.refCount,
+  });
+
+  final String paperId;
+  final int citedCount;
+  final int refCount;
+
+  @override
+  ConsumerState<_CitationsExplorerCard> createState() => _CitationsExplorerCardState();
+}
+
+class _CitationsExplorerCardState extends ConsumerState<_CitationsExplorerCard> {
+  String _direction = 'in'; // 'in' = cited by, 'out' = references
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final async = ref.watch(paperCitationsProvider(widget.paperId, direction: _direction));
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.hub_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Citation Network',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _isExpanded = !_isExpanded),
+                  child: Text(_isExpanded ? 'Hide' : 'Explore'),
+                ),
+              ],
+            ),
+            if (_isExpanded) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  ChoiceChip(
+                    label: Text('Cited By (${widget.citedCount})'),
+                    selected: _direction == 'in',
+                    onSelected: (_) => setState(() => _direction = 'in'),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: Text('References (${widget.refCount})'),
+                    selected: _direction == 'out',
+                    onSelected: (_) => setState(() => _direction = 'out'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'No citation records found for this view.',
+                    style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+                  ),
+                ),
+                data: (papers) {
+                  if (papers.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'No linked papers found.',
+                        style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+                      ),
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final p in papers.take(5)) ...[
+                        InkWell(
+                          onTap: () => context.push('/papers/${p.id}'),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.description_outlined, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${p.venueName.isNotEmpty ? p.venueName : "arXiv"} · ${p.year > 0 ? p.year : "Recent"} · ${p.citedByCount} citations',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right_rounded, size: 18),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (p != papers.take(5).last)
+                          Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RelatedPapersCard extends ConsumerWidget {
+  const _RelatedPapersCard({required this.paperId});
+
+  final String paperId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final async = ref.watch(paperRelatedProvider(paperId));
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.recommend_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Related Research',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            async.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (_, __) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No related research discovered yet.',
+                  style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+                ),
+              ),
+              data: (papers) {
+                if (papers.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'No related research discovered yet.',
+                      style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+                    ),
+                  );
+                }
+                return Column(
+                  children: [
+                    for (final p in papers.take(4)) ...[
+                      InkWell(
+                        onTap: () => context.push('/papers/${p.id}'),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.canaryYellow.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.menu_book_rounded, size: 14, color: AppTheme.canaryYellow),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      p.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${p.venueName.isNotEmpty ? p.venueName : "arXiv"} · ${p.year > 0 ? p.year : "Recent"} · ${p.citedByCount} citations',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, size: 18),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (p != papers.take(4).last)
+                        Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CitationGraphExplorerCard extends ConsumerStatefulWidget {
+  const _CitationGraphExplorerCard({required this.paperId});
+
+  final String paperId;
+
+  @override
+  ConsumerState<_CitationGraphExplorerCard> createState() => _CitationGraphExplorerCardState();
+}
+
+class _CitationGraphExplorerCardState extends ConsumerState<_CitationGraphExplorerCard> {
+  int _depth = 1;
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final async = ref.watch(paperCitationGraphProvider((id: widget.paperId, depth: _depth)));
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  Icon(Icons.hub_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Citation Network Graph',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const Spacer(),
+                  async.when(
+                    data: (g) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${g.totalNodes} papers · ${g.totalEdges} links',
+                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.canaryYellow),
+                      ),
+                    ),
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(_isExpanded ? Icons.expand_less_rounded : Icons.expand_more_rounded, size: 20),
+                ],
+              ),
+            ),
+            if (_isExpanded) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  ChoiceChip(
+                    label: const Text('1-Hop Direct', style: TextStyle(fontSize: 11)),
+                    selected: _depth == 1,
+                    onSelected: (val) {
+                      if (val) setState(() => _depth = 1);
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('2-Hop Extended', style: TextStyle(fontSize: 11)),
+                    selected: _depth == 2,
+                    onSelected: (val) {
+                      if (val) setState(() => _depth = 2);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              async.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    'Could not load citation network graph.',
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.error),
+                  ),
+                ),
+                data: (graph) {
+                  final nonSeedNodes = graph.nodes.where((n) => !n.isSeed).toList();
+                  if (nonSeedNodes.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'No multi-hop citation connections found for this paper yet.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                        ),
+                      ),
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          'CONNECTED RESEARCH NODES',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ),
+                      for (final node in nonSeedNodes.take(8)) ...[
+                        InkWell(
+                          onTap: () => context.push('/papers/${node.id}'),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: node.depth == 1
+                                        ? const Color(0xFF3B82F6).withValues(alpha: 0.15)
+                                        : const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    node.depth == 1 ? 'HOP 1' : 'HOP 2',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: node.depth == 1
+                                          ? const Color(0xFF60A5FA)
+                                          : const Color(0xFFA78BFA),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        node.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${node.venueName.isNotEmpty ? node.venueName : "arXiv"} · ${node.year > 0 ? node.year : "Recent"} · ${node.citedByCount} citations',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right_rounded, size: 18),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (node != nonSeedNodes.take(8).last)
+                          Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
 

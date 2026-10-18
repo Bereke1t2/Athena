@@ -4,6 +4,7 @@ import 'package:athena/core/router/app_router.dart';
 import 'package:athena/features/feed/domain/feed.dart';
 import 'package:athena/features/feed/domain/feed_repository.dart';
 import 'package:athena/features/papers/domain/article_content.dart';
+import 'package:athena/features/papers/domain/citation_graph.dart';
 import 'package:athena/features/papers/domain/paper.dart';
 import 'package:athena/features/papers/domain/paper_repository.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +25,20 @@ class _NoopPaperRepo implements PaperRepository {
 
   @override
   Future<ArticleContent> getArticleContent(String id) => throw UnimplementedError();
+
+  @override
+  Future<String> exportCitation(String id, String format) => throw UnimplementedError();
+
+  @override
+  Future<List<PaperSummary>> getCitations(String id, {String direction = 'in', int limit = 20}) => throw UnimplementedError();
+
+  @override
+  Future<List<PaperSummary>> getRelated(String id, {int limit = 10}) => throw UnimplementedError();
+
+  @override
+  Future<CitationGraph> getCitationGraph(String id, {int depth = 1, int limit = 25}) => throw UnimplementedError();
 }
+
 
 void main() {
   setUpAll(() async {
