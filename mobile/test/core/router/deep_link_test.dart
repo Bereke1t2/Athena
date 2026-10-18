@@ -4,6 +4,7 @@ import 'package:athena/core/router/app_router.dart';
 import 'package:athena/features/feed/domain/feed.dart';
 import 'package:athena/features/feed/domain/feed_repository.dart';
 import 'package:athena/features/papers/domain/article_content.dart';
+import 'package:athena/features/papers/domain/citation_graph.dart';
 import 'package:athena/features/papers/domain/paper.dart';
 import 'package:athena/features/papers/domain/paper_repository.dart';
 import 'package:flutter/material.dart';
@@ -64,6 +65,10 @@ class FakePaperRepo implements PaperRepository {
 
   @override
   Future<List<PaperSummary>> getRelated(String id, {int limit = 10}) async => const [];
+
+  @override
+  Future<CitationGraph> getCitationGraph(String id, {int depth = 1, int limit = 25}) async =>
+      CitationGraph(rootId: id);
 }
 
 

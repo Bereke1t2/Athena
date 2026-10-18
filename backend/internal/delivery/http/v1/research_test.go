@@ -30,6 +30,8 @@ type fakeReader struct {
 	citErr    error
 	related   []research.PaperSummary
 	relErr    error
+	graph     research.CitationGraph
+	graphErr  error
 
 	lastQuery     research.ListQuery
 	lastDirection research.CitationDirection
@@ -66,6 +68,10 @@ func (f *fakeReader) RelatedBySharedTopics(context.Context, uuid.UUID, int) ([]r
 	return f.related, f.relErr
 }
 
+func (f *fakeReader) GetCitationGraph(context.Context, uuid.UUID, int, int) (research.CitationGraph, error) {
+	return f.graph, f.graphErr
+}
+
 func summary(id string) research.PaperSummary {
 	return research.PaperSummary{
 		ID:              uuid.MustParse(id),
@@ -86,6 +92,7 @@ func newResearchServer(r *fakeReader) http.Handler {
 	mux.HandleFunc("GET /api/v1/research/papers/{id}", h.Get)
 	mux.HandleFunc("GET /api/v1/research/papers/{id}/citations", h.Citations)
 	mux.HandleFunc("GET /api/v1/research/papers/{id}/related", h.Related)
+	mux.HandleFunc("GET /api/v1/research/papers/{id}/graph", h.Graph)
 	return WithRequestID(mux)
 }
 
@@ -431,3 +438,62 @@ func assertErrorEnvelope(t *testing.T, rec *httptest.ResponseRecorder, wantCode 
 		t.Fatalf("request_id missing from envelope")
 	}
 }
+
+func TestCitationGraphHappyPath(t *testing.T) {
+	rootID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	node2 := uuid.MustParse("00000000-0000-0000-0000-000000000002")
+
+	r := &fakeReader{
+		findID: rootID,
+		graph: research.CitationGraph{
+			RootID: rootID,
+			Depth:  1,
+			Nodes: []research.GraphNode{
+				{ID: rootID, Title: "Attention Is All You Need", Year: 2017, VenueName: "NeurIPS", CitedByCount: 100000, Depth: 0, IsSeed: true},
+				{ID: node2, Title: "BERT: Pre-training of Deep Bidirectional Transformers", Year: 2018, VenueName: "NAACL", CitedByCount: 80000, Depth: 1, IsSeed: false},
+			},
+			Edges: []research.GraphEdge{
+				{Source: node2, Target: rootID, IsInfluential: true},
+			},
+			TotalNodes: 2,
+			TotalEdges: 1,
+		},
+	}
+	srv := newResearchServer(r)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/research/papers/"+rootID.String()+"/graph?depth=1&limit=25", nil)
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+	}
+
+	var graph research.CitationGraph
+	if err := json.Unmarshal(rec.Body.Bytes(), &graph); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if graph.TotalNodes != 2 || graph.TotalEdges != 1 {
+		t.Fatalf("got nodes=%d edges=%d, want 2 and 1", graph.TotalNodes, graph.TotalEdges)
+	}
+	if len(graph.Nodes) != 2 || !graph.Nodes[0].IsSeed {
+		t.Fatalf("seed node missing or incorrect: %+v", graph.Nodes)
+	}
+}
+
+func TestCitationGraphNotFound(t *testing.T) {
+	r := &fakeReader{
+		graphErr: research.ErrNotFound,
+	}
+	srv := newResearchServer(r)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/research/papers/"+uuid.New().String()+"/graph", nil)
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404, body: %s", rec.Code, rec.Body.String())
+	}
+	assertErrorEnvelope(t, rec, CodeNotFound)
+}
+

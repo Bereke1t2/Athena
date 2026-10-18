@@ -399,3 +399,162 @@ func (s *PaperStore) RelatedBySharedTopics(ctx context.Context, paperID uuid.UUI
 	}
 	return out, rows.Err()
 }
+
+// GetCitationGraph traverses citation edges up to maxDepth and returns the connected graph.
+func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, maxDepth int, limitPerLevel int) (research.CitationGraph, error) {
+	if maxDepth <= 0 {
+		maxDepth = 1
+	}
+	if maxDepth > 2 {
+		maxDepth = 2
+	}
+	if limitPerLevel <= 0 {
+		limitPerLevel = 25
+	}
+	if limitPerLevel > 50 {
+		limitPerLevel = 50
+	}
+
+	// 1. Verify seed paper exists and get its metadata
+	var seedTitle, seedVenue string
+	var seedYear, seedCitations int
+	err := s.pool.QueryRow(ctx, `
+		SELECT title, COALESCE(publication_year, 0), COALESCE(venue_name, ''), cited_by_count
+		FROM papers
+		WHERE id = $1 AND deleted_at IS NULL`, paperID).Scan(&seedTitle, &seedYear, &seedVenue, &seedCitations)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return research.CitationGraph{}, research.ErrNotFound
+		}
+		return research.CitationGraph{}, fmt.Errorf("load seed paper: %w", err)
+	}
+
+	seedNode := research.GraphNode{
+		ID:           paperID,
+		Title:        seedTitle,
+		Year:         seedYear,
+		VenueName:    seedVenue,
+		CitedByCount: seedCitations,
+		Depth:        0,
+		IsSeed:       true,
+	}
+
+	nodesMap := map[uuid.UUID]research.GraphNode{paperID: seedNode}
+	edgeSet := make(map[string]research.GraphEdge)
+	level1IDs := make([]uuid.UUID, 0)
+
+	// 2. Query Level 1 citations (incoming and outgoing)
+	rows, err := s.pool.Query(ctx, `
+		SELECT c.citing_paper_id, c.cited_paper_id, COALESCE(c.is_influential, false),
+		       p.id, p.title, COALESCE(p.publication_year, 0), COALESCE(p.venue_name, ''), p.cited_by_count
+		FROM citations c
+		JOIN papers p ON p.id = (CASE WHEN c.citing_paper_id = $1 THEN c.cited_paper_id ELSE c.citing_paper_id END)
+		WHERE (c.citing_paper_id = $1 OR c.cited_paper_id = $1)
+		  AND p.deleted_at IS NULL
+		ORDER BY c.is_influential DESC, p.cited_by_count DESC, p.id DESC
+		LIMIT $2`, paperID, limitPerLevel)
+	if err != nil {
+		return research.CitationGraph{}, fmt.Errorf("level 1 citations: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var citingID, citedID, pID uuid.UUID
+		var isInfluential bool
+		var title, venue string
+		var year, citations int
+		if err := rows.Scan(&citingID, &citedID, &isInfluential, &pID, &title, &year, &venue, &citations); err != nil {
+			return research.CitationGraph{}, err
+		}
+		if _, exists := nodesMap[pID]; !exists {
+			nodesMap[pID] = research.GraphNode{
+				ID:           pID,
+				Title:        title,
+				Year:         year,
+				VenueName:    venue,
+				CitedByCount: citations,
+				Depth:        1,
+				IsSeed:       false,
+			}
+			level1IDs = append(level1IDs, pID)
+		}
+		edgeKey := citingID.String() + "->" + citedID.String()
+		edgeSet[edgeKey] = research.GraphEdge{
+			Source:        citingID,
+			Target:        citedID,
+			IsInfluential: isInfluential,
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return research.CitationGraph{}, err
+	}
+
+	// 3. Query Level 2 citations if depth >= 2
+	if maxDepth >= 2 && len(level1IDs) > 0 {
+		topL1 := level1IDs
+		if len(topL1) > 15 {
+			topL1 = topL1[:15]
+		}
+
+		l2Rows, err := s.pool.Query(ctx, `
+			SELECT c.citing_paper_id, c.cited_paper_id, COALESCE(c.is_influential, false),
+			       p.id, p.title, COALESCE(p.publication_year, 0), COALESCE(p.venue_name, ''), p.cited_by_count
+			FROM citations c
+			JOIN papers p ON p.id = (CASE WHEN c.citing_paper_id = ANY($1) THEN c.cited_paper_id ELSE c.citing_paper_id END)
+			WHERE (c.citing_paper_id = ANY($1) OR c.cited_paper_id = ANY($1))
+			  AND p.deleted_at IS NULL
+			ORDER BY c.is_influential DESC, p.cited_by_count DESC, p.id DESC
+			LIMIT $2`, topL1, limitPerLevel)
+		if err == nil {
+			defer l2Rows.Close()
+			for l2Rows.Next() {
+				var citingID, citedID, pID uuid.UUID
+				var isInfluential bool
+				var title, venue string
+				var year, citations int
+				if err := l2Rows.Scan(&citingID, &citedID, &isInfluential, &pID, &title, &year, &venue, &citations); err == nil {
+					if _, exists := nodesMap[pID]; !exists {
+						nodesMap[pID] = research.GraphNode{
+							ID:           pID,
+							Title:        title,
+							Year:         year,
+							VenueName:    venue,
+							CitedByCount: citations,
+							Depth:        2,
+							IsSeed:       false,
+						}
+					}
+					edgeKey := citingID.String() + "->" + citedID.String()
+					edgeSet[edgeKey] = research.GraphEdge{
+						Source:        citingID,
+						Target:        citedID,
+						IsInfluential: isInfluential,
+					}
+				}
+			}
+		}
+	}
+
+	// 4. Assemble ordered nodes (seed first) and edges
+	nodes := make([]research.GraphNode, 0, len(nodesMap))
+	nodes = append(nodes, seedNode)
+	for id, n := range nodesMap {
+		if id != paperID {
+			nodes = append(nodes, n)
+		}
+	}
+
+	edges := make([]research.GraphEdge, 0, len(edgeSet))
+	for _, e := range edgeSet {
+		edges = append(edges, e)
+	}
+
+	return research.CitationGraph{
+		RootID:     paperID,
+		Depth:      maxDepth,
+		Nodes:      nodes,
+		Edges:      edges,
+		TotalNodes: len(nodes),
+		TotalEdges: len(edges),
+	}, nil
+}

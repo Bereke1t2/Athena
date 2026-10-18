@@ -81,6 +81,7 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.HandleFunc("GET /api/v1/research/papers/{id}", deps.Research.Get)
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/citations", deps.Research.Citations)
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/related", deps.Research.Related)
+		mux.HandleFunc("GET /api/v1/research/papers/{id}/graph", deps.Research.Graph)
 	}
 	if deps.Export != nil {
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/export", deps.Export.ExportPaper)

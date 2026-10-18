@@ -103,6 +103,34 @@ type PaperDetail struct {
 	UpdatedAt       time.Time
 }
 
+// GraphNode represents a paper in the citation traversal network.
+type GraphNode struct {
+	ID           uuid.UUID `json:"id"`
+	Title        string    `json:"title"`
+	Year         int       `json:"year"`
+	VenueName    string    `json:"venue_name"`
+	CitedByCount int       `json:"cited_by_count"`
+	Depth        int       `json:"depth"`
+	IsSeed       bool      `json:"is_seed"`
+}
+
+// GraphEdge represents a directed citation relationship from Source citing Target.
+type GraphEdge struct {
+	Source        uuid.UUID `json:"source"`
+	Target        uuid.UUID `json:"target"`
+	IsInfluential bool      `json:"is_influential"`
+}
+
+// CitationGraph represents the multi-hop network of citations surrounding a seed paper.
+type CitationGraph struct {
+	RootID     uuid.UUID   `json:"root_id"`
+	Depth      int         `json:"depth"`
+	Nodes      []GraphNode `json:"nodes"`
+	Edges      []GraphEdge `json:"edges"`
+	TotalNodes int         `json:"total_nodes"`
+	TotalEdges int         `json:"total_edges"`
+}
+
 // PaperReader is the query-side port used by application services and HTTP
 // handlers. Cursor semantics are owned by the implementation.
 type PaperReader interface {
@@ -111,4 +139,5 @@ type PaperReader interface {
 	ListPapers(ctx context.Context, q ListQuery) ([]PaperSummary, string, error)
 	ListCitations(ctx context.Context, paperID uuid.UUID, dir CitationDirection, limit int) ([]PaperSummary, error)
 	RelatedBySharedTopics(ctx context.Context, paperID uuid.UUID, limit int) ([]PaperSummary, error)
+	GetCitationGraph(ctx context.Context, paperID uuid.UUID, maxDepth int, limitPerLevel int) (CitationGraph, error)
 }
