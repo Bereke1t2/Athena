@@ -101,8 +101,6 @@ func (s *NotificationStore) List(ctx context.Context, userID uuid.UUID, unreadOn
 	defer rows.Close()
 
 	out := make([]domainnotification.Notification, 0, limit)
-	var lastCreated time.Time
-	var lastID uuid.UUID
 
 	for rows.Next() {
 		var n domainnotification.Notification
@@ -116,15 +114,15 @@ func (s *NotificationStore) List(ctx context.Context, userID uuid.UUID, unreadOn
 			_ = json.Unmarshal(rawData, &n.Data)
 		}
 		out = append(out, n)
-		lastCreated, lastID = n.CreatedAt, n.ID
 	}
 	if err := rows.Err(); err != nil {
 		return nil, "", err
 	}
 
 	if len(out) > limit {
+		lastItem := out[limit-1]
 		out = out[:limit]
-		next := encodeNotifCursor(notifCursor{V: 1, Created: lastCreated, ID: lastID})
+		next := encodeNotifCursor(notifCursor{V: 1, Created: lastItem.CreatedAt, ID: lastItem.ID})
 		return out, next, nil
 	}
 	return out, "", nil
