@@ -32,6 +32,9 @@ func (s *NotificationStore) Create(ctx context.Context, n domainnotification.Not
 	if n.CreatedAt.IsZero() {
 		n.CreatedAt = time.Now().UTC()
 	}
+	if n.DeliveredVia == nil {
+		n.DeliveredVia = []string{"in_app"}
+	}
 	dataBytes, err := json.Marshal(n.Data)
 	if err != nil {
 		return n, fmt.Errorf("marshal notification data: %w", err)
