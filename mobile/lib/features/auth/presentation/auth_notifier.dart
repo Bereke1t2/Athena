@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di.dart';
+import '../../../core/error/failure.dart';
 import '../../../core/prefs/user_preferences.dart';
 import '../domain/auth_models.dart';
 
@@ -42,8 +43,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = await _repo.getCurrentUser();
       state = state.copyWith(user: user);
-    } catch (_) {
-      // Ignored: keep cached session
+    } catch (e) {
+      if (e is ServerFailure && (e.statusCode == 401 || e.statusCode == 403)) {
+        await UserPreferences.instance.clearAuthSession();
+        state = const AuthState();
+      }
+      // For transient network or server errors, keep cached session for offline access
     }
   }
 

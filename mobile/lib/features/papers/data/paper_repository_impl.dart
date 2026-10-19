@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/network/api_client.dart';
 import '../domain/article_content.dart';
+import '../domain/citation_graph.dart';
 import '../domain/paper.dart';
 import '../domain/paper_repository.dart';
 import 'paper.dtos.dart';
@@ -79,5 +80,19 @@ class PaperRepositoryImpl implements PaperRepository {
       throw failureFromDio(e);
     }
   }
+
+  @override
+  Future<CitationGraph> getCitationGraph(String id, {int depth = 1, int limit = 25}) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/research/papers/$id/graph',
+        queryParameters: {'depth': depth, 'limit': limit},
+      );
+      return CitationGraph.fromJson(res.data ?? <String, dynamic>{});
+    } catch (e) {
+      throw failureFromDio(e);
+    }
+  }
 }
+
 

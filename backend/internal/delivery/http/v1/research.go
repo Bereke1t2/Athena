@@ -260,6 +260,33 @@ func (h *ResearchHandlers) Related(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, out)
 }
 
+func (h *ResearchHandlers) Graph(w http.ResponseWriter, r *http.Request) {
+	id, ok := h.lookupByPathID(w, r)
+	if !ok {
+		return
+	}
+	depth := 1
+	if raw := r.URL.Query().Get("depth"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 1 && n <= 2 {
+			depth = n
+		}
+	}
+	limit, okLimit := h.clampLimit(w, r, 25, 50)
+	if !okLimit {
+		return
+	}
+	graph, err := h.Reader.GetCitationGraph(r.Context(), id, depth, limit)
+	if err != nil {
+		if errors.Is(err, research.ErrNotFound) {
+			WriteError(w, r, http.StatusNotFound, CodeNotFound, "paper not found")
+			return
+		}
+		h.fail(w, r, err, "fetching citation graph")
+		return
+	}
+	WriteJSON(w, http.StatusOK, graph)
+}
+
 // ---- helpers -----------------------------------------------------------------
 
 // lookupByPathID resolves {id} and maps resolution failures to responses.

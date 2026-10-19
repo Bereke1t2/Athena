@@ -87,8 +87,8 @@ func (s *ComparisonService) Compare(ctx context.Context, paperIDs []uuid.UUID, f
 			Venue:       detail.Summary.VenueName,
 			KeyTakeaway: takeaway,
 			Methodology: string(detail.Summary.PublicationType),
-			Strengths:   []string{"Empirical evaluation", "Rigorous methodology"},
-			Limitations: []string{"Domain-specific benchmarks"},
+			Strengths:   []string{},
+			Limitations: []string{},
 		})
 	}
 
@@ -103,8 +103,8 @@ func (s *ComparisonService) Compare(ctx context.Context, paperIDs []uuid.UUID, f
 		titles = append(titles, fmt.Sprintf("'%s' (%d)", p.Summary.Title, p.Summary.Year))
 	}
 	summary := fmt.Sprintf("Comparative synthesis of %d studies: %s. The papers collectively advance the problem space through complementary methodologies.", len(titles), strings.Join(titles, ", "))
-	consensus := []string{"Both works agree on the core scaling principles and foundational benchmarks."}
-	divergence := []string{"Approaches diverge in architectural constraints and computational trade-offs."}
+	consensus := []string{}
+	divergence := []string{}
 
 	// If LLM is available and not stub, query for structured synthesis
 	if s.llm != nil && modelID != "stub" && modelID != "heuristic" {

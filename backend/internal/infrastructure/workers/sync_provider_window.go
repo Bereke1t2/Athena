@@ -74,10 +74,20 @@ func (w *SyncProviderWindowWorker) Work(ctx context.Context, job *river.Job[Sync
 		"edges_linked", stats.EdgesLinked,
 	)
 
+	client := river.ClientFromContext[pgx.Tx](ctx)
+	if client != nil && len(stats.CreatedPaperIDs) > 0 {
+		for _, paperID := range stats.CreatedPaperIDs {
+			if _, err := client.Insert(ctx, NotificationFanoutArgs{PaperID: paperID.String()}, &river.InsertOpts{
+				Queue: "notifications",
+			}); err != nil {
+				w.Logger.Warn("failed to enqueue notification fanout", "paper_id", paperID, "error", err)
+			}
+		}
+	}
+
 	if stats.NextCursor == "" || job.Attempt >= MaxJobAttempts {
 		return nil
 	}
-	client := river.ClientFromContext[pgx.Tx](ctx)
 	if client == nil {
 		return fmt.Errorf("no river client in context; cannot enqueue continuation")
 	}

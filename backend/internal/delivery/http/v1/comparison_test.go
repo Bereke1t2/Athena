@@ -89,8 +89,8 @@ func TestCompareEndpoint(t *testing.T) {
 		if len(resp.Papers) != 2 {
 			t.Errorf("expected 2 papers in matrix, got %d", len(resp.Papers))
 		}
-		if len(resp.ConsensusPoints) == 0 {
-			t.Errorf("expected consensus points to be non-empty")
+		if len(resp.ConsensusPoints) != 0 {
+			t.Errorf("expected empty consensus points in heuristic fallback, got %d", len(resp.ConsensusPoints))
 		}
 	})
 

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/paper_card.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../auth/presentation/auth_notifier.dart';
 import '../../follows/presentation/follows_notifier.dart';
 import '../domain/topic.dart';
 import 'topics_notifier.dart';
@@ -145,6 +146,17 @@ class TopicDetailScreen extends ConsumerWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () {
+                  final isAuthenticated = ref.read(authNotifierProvider).isAuthenticated;
+                  if (!isAuthenticated) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please sign in to follow topics'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                    context.push('/login');
+                    return;
+                  }
                   ref.read(followsNotifierProvider.notifier).toggleTopicFollow(topic.slug, topic.name);
                 },
                 icon: Icon(isFollowed ? Icons.check_rounded : Icons.add_rounded, size: 16),

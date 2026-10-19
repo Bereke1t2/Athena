@@ -61,6 +61,7 @@ class _PaperExportSheetState extends ConsumerState<_PaperExportSheet> {
       final repo = ref.read(paperRepositoryProvider);
       final text = await repo.exportCitation(widget.paper.summary.id, format);
       if (mounted) {
+        if (_selectedFormat != format) return;
         setState(() {
           _content = text;
           _isLoading = false;
@@ -68,6 +69,7 @@ class _PaperExportSheetState extends ConsumerState<_PaperExportSheet> {
       }
     } catch (e) {
       if (mounted) {
+        if (_selectedFormat != format) return;
         setState(() {
           _error = 'Failed to generate citation';
           _isLoading = false;

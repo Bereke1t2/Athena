@@ -139,8 +139,6 @@ func (s *HistoryStore) ListHistory(ctx context.Context, userID uuid.UUID, cursor
 	defer rows.Close()
 
 	out := make([]domainhistory.HistoryEntry, 0, limit)
-	var lastRead time.Time
-	var lastPaper uuid.UUID
 
 	for rows.Next() {
 		var sum research.PaperSummary
@@ -160,15 +158,15 @@ func (s *HistoryStore) ListHistory(ctx context.Context, userID uuid.UUID, cursor
 		sum.OAStatus = research.OAStatus(oaStatus)
 		entry.Paper = sum
 		out = append(out, entry)
-		lastRead, lastPaper = entry.LastReadAt, paperID
 	}
 	if err := rows.Err(); err != nil {
 		return nil, "", err
 	}
 
 	if len(out) > limit {
+		lastItem := out[limit-1]
 		out = out[:limit]
-		next := encodeHistoryCursor(historyCursor{V: 1, LastRead: lastRead, PaperID: lastPaper})
+		next := encodeHistoryCursor(historyCursor{V: 1, LastRead: lastItem.LastReadAt, PaperID: lastItem.Paper.ID})
 		return out, next, nil
 	}
 	return out, "", nil
