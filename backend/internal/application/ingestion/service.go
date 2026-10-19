@@ -30,6 +30,7 @@ type RunStats struct {
 	EdgesLinked  int
 	ItemErrors   int
 	LastIssue    string
+	CreatedPaperIDs []uuid.UUID
 
 	// NextCursor is the provider continuation token when the window has more
 	// pages beyond MaxPages; empty means exhausted.
@@ -216,6 +217,7 @@ func (s *Service) consume(ctx context.Context, prov research.ResearchProvider, a
 			switch {
 			case res.Created:
 				stats.Created++
+				stats.CreatedPaperIDs = append(stats.CreatedPaperIDs, res.PaperID)
 			case res.ContentChanged:
 				stats.Updated++
 			default:
