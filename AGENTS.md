@@ -42,7 +42,7 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
    - `flutter test` all green (37 tests passed, 1 integration skipped).
    - `go test -count=1 ./...` all green (100% tests passed across all packages).
 2. **Phase 5 & 6 Milestone Completed (2026-09-23)**:
-   - **Backend Reading History**: Migration `000011_reading_history`, PostgreSQL `HistoryStore`, API routes `/users/me/history`.
+   - **Backend Reading History**: Migration `000011_reading_history`, PostgreSQL `HistoryStore`, API routes `/api/v1/me/history`.
    - **River Notification Fanout**: `NotificationFanoutWorker` fanning out ingestion alerts to topic and author subscribers via River queue `"notifications"`.
    - **AI Comparison Synthesis**: Structured comparative summary, consensus points, divergence points, attribute matrix.
    - **Mobile Auth & Profiles**: Login, registration, profile management, session persistence with Dio `Authorization: Bearer <token>` interceptor.
