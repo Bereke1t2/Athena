@@ -809,7 +809,6 @@ class _CitationsExplorerCardState extends ConsumerState<_CitationsExplorerCard> 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final async = ref.watch(paperCitationsProvider(widget.paperId, direction: _direction));
 
     return Card(
       margin: EdgeInsets.zero,
@@ -855,78 +854,100 @@ class _CitationsExplorerCardState extends ConsumerState<_CitationsExplorerCard> 
                 ],
               ),
               const SizedBox(height: 12),
-              async.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text(
-                    'No citation records found for this view.',
-                    style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
-                  ),
-                ),
-                data: (papers) {
-                  if (papers.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'No linked papers found.',
-                        style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
-                      ),
-                    );
-                  }
-                  return Column(
-                    children: [
-                      for (final p in papers.take(5)) ...[
-                        InkWell(
-                          onTap: () => context.push('/papers/${p.id}'),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.description_outlined, size: 16),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        p.title,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '${p.venueName.isNotEmpty ? p.venueName : "arXiv"} · ${p.year > 0 ? p.year : "Recent"} · ${p.citedByCount} citations',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(Icons.chevron_right_rounded, size: 18),
-                              ],
-                            ),
-                          ),
-                        ),
-                        if (p != papers.take(5).last)
-                          Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
-                      ],
-                    ],
-                  );
-                },
+              _CitationsList(
+                paperId: widget.paperId,
+                direction: _direction,
+                isDark: isDark,
               ),
             ],
           ],
         ),
       ),
+    );
+  }
+}
+
+class _CitationsList extends ConsumerWidget {
+  const _CitationsList({
+    required this.paperId,
+    required this.direction,
+    required this.isDark,
+  });
+
+  final String paperId;
+  final String direction;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(paperCitationsProvider(paperId, direction: direction));
+    return async.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          'No citation records found for this view.',
+          style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+        ),
+      ),
+      data: (papers) {
+        if (papers.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              'No linked papers found.',
+              style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+            ),
+          );
+        }
+        return Column(
+          children: [
+            for (final p in papers.take(5)) ...[
+              InkWell(
+                onTap: () => context.push('/papers/${p.id}'),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.description_outlined, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${p.venueName.isNotEmpty ? p.venueName : "arXiv"} · ${p.year > 0 ? p.year : "Recent"} · ${p.citedByCount} citations',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+              if (p != papers.take(5).last)
+                Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),
+            ],
+          ],
+        );
+      },
     );
   }
 }
