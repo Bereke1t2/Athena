@@ -51,10 +51,11 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 			var topicName, paperTitle string
 			if err := rows.Scan(&userID, &topicName, &paperTitle); err == nil {
 				_, _ = notifStore.Create(ctx, domainnotif.Notification{
-					UserID: userID,
-					Type:   domainnotif.TypeNewPapersTopic,
-					Title:  fmt.Sprintf("New paper in %s", topicName),
-					Body:   paperTitle,
+					UserID:       userID,
+					Type:         domainnotif.TypeNewPapersTopic,
+					Title:        fmt.Sprintf("New paper in %s", topicName),
+					Body:         paperTitle,
+					DeliveredVia: []string{"in_app"},
 					Data: map[string]any{
 						"paper_id":   paperID.String(),
 						"topic_name": topicName,
@@ -79,10 +80,11 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 			var authorName, paperTitle string
 			if err := authorRows.Scan(&userID, &authorName, &paperTitle); err == nil {
 				_, _ = notifStore.Create(ctx, domainnotif.Notification{
-					UserID: userID,
-					Type:   domainnotif.TypeNewPapersAuthor,
-					Title:  fmt.Sprintf("New paper by %s", authorName),
-					Body:   paperTitle,
+					UserID:       userID,
+					Type:         domainnotif.TypeNewPapersAuthor,
+					Title:        fmt.Sprintf("New paper by %s", authorName),
+					Body:         paperTitle,
+					DeliveredVia: []string{"in_app"},
 					Data: map[string]any{
 						"paper_id":    paperID.String(),
 						"author_name": authorName,
