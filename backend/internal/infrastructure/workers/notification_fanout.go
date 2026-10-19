@@ -44,25 +44,33 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 		JOIN user_topics ut ON ut.topic_id = t.id AND ut.notify = true
 		JOIN papers p ON p.id = pt.paper_id
 		WHERE pt.paper_id = $1`, paperID)
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var userID uuid.UUID
-			var topicName, paperTitle string
-			if err := rows.Scan(&userID, &topicName, &paperTitle); err == nil {
-				_, _ = notifStore.Create(ctx, domainnotif.Notification{
-					UserID:       userID,
-					Type:         domainnotif.TypeNewPapersTopic,
-					Title:        fmt.Sprintf("New paper in %s", topicName),
-					Body:         paperTitle,
-					DeliveredVia: []string{"in_app"},
-					Data: map[string]any{
-						"paper_id":   paperID.String(),
-						"topic_name": topicName,
-					},
-				})
-			}
+	if err != nil {
+		return fmt.Errorf("query topic subscribers for paper %s: %w", paperID, err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID uuid.UUID
+		var topicName, paperTitle string
+		if err := rows.Scan(&userID, &topicName, &paperTitle); err != nil {
+			return fmt.Errorf("scan topic subscriber: %w", err)
 		}
+		_, err := notifStore.Create(ctx, domainnotif.Notification{
+			UserID:       userID,
+			Type:         domainnotif.TypeNewPapersTopic,
+			Title:        fmt.Sprintf("New paper in %s", topicName),
+			Body:         paperTitle,
+			DeliveredVia: []string{"in_app"},
+			Data: map[string]any{
+				"paper_id":   paperID.String(),
+				"topic_name": topicName,
+			},
+		})
+		if err != nil && w.Logger != nil {
+			w.Logger.Warn("create topic notification failed", "user_id", userID, "paper_id", paperID, "error", err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate topic subscribers: %w", err)
 	}
 
 	// 2. Fanout for followed authors
@@ -73,25 +81,33 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 		JOIN user_authors ua ON ua.author_id = a.id
 		JOIN papers p ON p.id = pa.paper_id
 		WHERE pa.paper_id = $1`, paperID)
-	if err == nil {
-		defer authorRows.Close()
-		for authorRows.Next() {
-			var userID uuid.UUID
-			var authorName, paperTitle string
-			if err := authorRows.Scan(&userID, &authorName, &paperTitle); err == nil {
-				_, _ = notifStore.Create(ctx, domainnotif.Notification{
-					UserID:       userID,
-					Type:         domainnotif.TypeNewPapersAuthor,
-					Title:        fmt.Sprintf("New paper by %s", authorName),
-					Body:         paperTitle,
-					DeliveredVia: []string{"in_app"},
-					Data: map[string]any{
-						"paper_id":    paperID.String(),
-						"author_name": authorName,
-					},
-				})
-			}
+	if err != nil {
+		return fmt.Errorf("query author subscribers for paper %s: %w", paperID, err)
+	}
+	defer authorRows.Close()
+	for authorRows.Next() {
+		var userID uuid.UUID
+		var authorName, paperTitle string
+		if err := authorRows.Scan(&userID, &authorName, &paperTitle); err != nil {
+			return fmt.Errorf("scan author subscriber: %w", err)
 		}
+		_, err := notifStore.Create(ctx, domainnotif.Notification{
+			UserID:       userID,
+			Type:         domainnotif.TypeNewPapersAuthor,
+			Title:        fmt.Sprintf("New paper by %s", authorName),
+			Body:         paperTitle,
+			DeliveredVia: []string{"in_app"},
+			Data: map[string]any{
+				"paper_id":    paperID.String(),
+				"author_name": authorName,
+			},
+		})
+		if err != nil && w.Logger != nil {
+			w.Logger.Warn("create author notification failed", "user_id", userID, "paper_id", paperID, "error", err)
+		}
+	}
+	if err := authorRows.Err(); err != nil {
+		return fmt.Errorf("iterate author subscribers: %w", err)
 	}
 
 	return nil
