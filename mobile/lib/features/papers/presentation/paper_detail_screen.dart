@@ -5,10 +5,13 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/di.dart';
 import '../../../core/prefs/saved_papers.dart';
+import '../../../core/prefs/user_preferences.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../ai/presentation/paper_summary_card.dart';
+import '../../history/presentation/history_notifier.dart';
 import '../domain/citation_graph.dart';
 import '../domain/paper.dart';
 import '../domain/pdf_repository.dart';
@@ -30,6 +33,14 @@ class PaperDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(paperDetailControllerProvider(id), (prev, next) {
+      if (next.hasValue && next.value != null && (prev == null || !prev.hasValue)) {
+        if (UserPreferences.instance.authToken != null && isUuid(id)) {
+          ref.read(historyNotifierProvider.notifier).recordProgress(id, 5.0);
+        }
+      }
+    });
+
     final async = ref.watch(paperDetailControllerProvider(id));
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
