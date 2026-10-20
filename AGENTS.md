@@ -37,19 +37,20 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Full Verification Complete (2026-09-23)**:
+1. **Full Verification Complete (2026-10-20)**:
    - `flutter analyze` clean (0 issues).
-   - `flutter test` all green (37 tests passed, 1 integration skipped).
+   - `flutter test` all green (46 tests passed, 1 integration skipped).
    - `go test -count=1 ./...` all green (100% tests passed across all packages).
-2. **Phase 5 & 6 Milestone Completed (2026-09-23)**:
+2. **Phase 5 & 6 Milestone Completed & Hardened (2026-10-20)**:
    - **Backend Reading History**: Migration `000011_reading_history`, PostgreSQL `HistoryStore`, API routes `/api/v1/me/history`.
-   - **River Notification Fanout**: `NotificationFanoutWorker` fanning out ingestion alerts to topic and author subscribers via River queue `"notifications"`.
-   - **AI Comparison Synthesis**: Structured comparative summary, consensus points, divergence points, attribute matrix.
-   - **Mobile Auth & Profiles**: Login, registration, profile management, session persistence with Dio `Authorization: Bearer <token>` interceptor.
-   - **Mobile Personalization & Follows**: Follow topics & authors toggles, Notifications Center with unread counter, Recommended feed tab.
+   - **Mobile Reading History**: Domain models, `HistoryRepositoryImpl`, `HistoryNotifier`, Dual-Tab Library screen (`Saved` + `Reading History`), debounced progress hooks in `ArticleReaderScreen` and `PdfViewerScreen`.
+   - **Server-Side Bookmarks Synchronization**: `BookmarksRepositoryImpl`, `SavedPapers` cloud sync when authenticated with offline fallback, and login/register auto-sync.
+   - **Research Digest Mobile Experience**: `DigestRepositoryImpl`, `DigestNotifier`, `/digest` screen with topic velocity pulses, key breakthroughs, and curated sections, plus notification direct-routing.
+   - **River Ingestion & Notification Fanout**: `NotificationFanoutWorker` fanning out ingestion alerts to topic and author subscribers via River queue `"notifications"`.
    - **Multi-Paper Comparison Matrix**: Side-by-side comparison screen (`/compare`), consensus/divergence cards, and dynamic paper selection.
-   - **Citation & Export**: Multi-format export modal sheet (BibTeX, APA, MLA, Chicago, RIS, Markdown) and Citation network / Related research explorer cards on paper detail.
-3. Dev API restart needs env vars exported manually (zsh can't source .env due to a parse error on line 32): ATHENA_HTTP_ADDR/:8080, ATHENA_DATABASE_URL (:5433), ATHENA_REDIS_ADDR (:6380), LLM_PROVIDER=stub.
+   - **Citation & Export**: Multi-format export modal sheet (BibTeX, APA, MLA, Chicago, RIS, Markdown) and Citation network explorer cards.
+   - **Database Integrity & DevEx**: Added `000002_add_paper_sources.down.sql`, sanitized `.env` `ARXIV_USER_AGENT` to eliminate shell parse error on source.
+3. Dev API restart: ATHENA_HTTP_ADDR/:8080, ATHENA_DATABASE_URL (:5433), ATHENA_REDIS_ADDR (:6380), LLM_PROVIDER=stub.
 
 
 ## Style
