@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/di.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../history/presentation/history_notifier.dart';
 
 /// In-app PDF reader: downloads (with progress) then renders the paper
 /// locally — no browser involved.
@@ -122,6 +123,12 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
                   autoSpacing: true,
                   pageFling: true,
                   nightMode: theme.brightness == Brightness.dark,
+                  onPageChanged: (page, total) {
+                    if (page != null && total != null && total > 0) {
+                      final pct = (((page + 1) / total).clamp(0.0, 1.0) * 100.0);
+                      ref.read(historyNotifierProvider.notifier).recordProgress(widget.paperId, pct);
+                    }
+                  },
                   onError: (e) {
                     unawaited(ref.read(pdfRepositoryProvider).deleteCache(widget.paperId));
                     if (!mounted) return;
