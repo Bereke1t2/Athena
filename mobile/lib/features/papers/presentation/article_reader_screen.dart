@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/di.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ai_formatted_text.dart';
+import '../../history/presentation/history_notifier.dart';
 import '../domain/article_content.dart';
 
 final articleContentProvider =
@@ -33,9 +34,31 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
   final ScrollController _scrollController = ScrollController();
   final Map<int, GlobalKey> _sectionKeys = {};
   double _fontScale = 1.0; // 0.85 (Small), 1.0 (Normal), 1.15 (Large), 1.3 (XL)
+  double _lastReportedProgress = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final max = _scrollController.position.maxScrollExtent;
+    if (max <= 0) return;
+    final pct = (_scrollController.position.pixels / max).clamp(0.0, 1.0) * 100.0;
+    if ((pct - _lastReportedProgress).abs() >= 10.0 || pct >= 95.0) {
+      _lastReportedProgress = pct;
+      ref.read(historyNotifierProvider.notifier).recordProgress(widget.paperId, pct);
+    }
+  }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    if (_lastReportedProgress > 0) {
+      ref.read(historyNotifierProvider.notifier).recordProgress(widget.paperId, _lastReportedProgress);
+    }
     _scrollController.dispose();
     super.dispose();
   }

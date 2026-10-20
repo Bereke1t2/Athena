@@ -5,12 +5,18 @@ import '../features/ai/data/ai_repository_impl.dart';
 import '../features/ai/domain/ai_repository.dart';
 import '../features/auth/data/auth_repository_impl.dart';
 import '../features/auth/domain/auth_repository.dart';
+import '../features/bookmarks/data/bookmarks_repository_impl.dart';
+import '../features/bookmarks/domain/bookmarks_repository.dart';
 import '../features/comparison/data/comparison_repository_impl.dart';
 import '../features/comparison/domain/comparison_repository.dart';
+import '../features/digest/data/digest_repository_impl.dart';
+import '../features/digest/domain/digest_repository.dart';
 import '../features/feed/data/feed_repository_impl.dart';
 import '../features/feed/domain/feed_repository.dart';
 import '../features/follows/data/follows_repository_impl.dart';
 import '../features/follows/domain/follows_repository.dart';
+import '../features/history/data/history_repository_impl.dart';
+import '../features/history/domain/history_repository.dart';
 import '../features/notifications/data/notifications_repository_impl.dart';
 import '../features/notifications/domain/notifications_repository.dart';
 import '../features/papers/data/paper_repository_impl.dart';
@@ -65,4 +71,18 @@ NotificationsRepository notificationsRepository(Ref ref) =>
 @riverpod
 ComparisonRepository comparisonRepository(Ref ref) =>
     ComparisonRepositoryImpl(ref.watch(apiClientProvider));
+
+@riverpod
+HistoryRepository historyRepository(Ref ref) =>
+    HistoryRepositoryImpl(ref.watch(apiClientProvider));
+
+@riverpod
+DigestRepository digestRepository(Ref ref) =>
+    DigestRepositoryImpl(ref.watch(apiClientProvider));
+
+@riverpod
+BookmarksRepository bookmarksRepository(Ref ref) =>
+    BookmarksRepositoryImpl(ref.watch(apiClientProvider));
+
+
 

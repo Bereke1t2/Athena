@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../di.dart';
+import 'user_preferences.dart';
+
 part 'saved_papers.g.dart';
 
-/// A minimal saved-paper record persisted locally (no auth yet — Phase 5 will
-/// move these server-side).
+/// A saved-paper record persisted locally with server-side sync when authenticated.
 class SavedPaper {
   const SavedPaper({
     required this.id,
@@ -48,15 +50,21 @@ class SavedPaper {
   }
 }
 
-/// Local reading list, newest-saved first. [prime] must run in main() before
-/// the first widget build so the synchronous provider starts populated.
+/// Reading list, newest-saved first. [prime] runs in main() before the first
+/// build. When authenticated, operations sync in the background with Athena's API.
 @riverpod
 class SavedPapers extends _$SavedPapers {
   static const _key = 'athena.saved.papers';
   static List<SavedPaper> _cache = const [];
 
   @override
-  List<SavedPaper> build() => _cache;
+  List<SavedPaper> build() {
+    // If authenticated, schedule a server sync
+    if (UserPreferences.instance.authToken != null) {
+      Future.microtask(() => syncWithServer());
+    }
+    return _cache;
+  }
 
   static Future<void> prime() async {
     final prefs = await SharedPreferences.getInstance();
@@ -79,15 +87,54 @@ class SavedPapers extends _$SavedPapers {
   void toggle(SavedPaper paper) {
     if (isSaved(paper.id)) {
       state = state.where((p) => p.id != paper.id).toList();
+      _syncRemoteRemove(paper.id);
     } else {
       state = [paper, ...state];
+      _syncRemoteAdd(paper.id);
     }
     _persist(state);
   }
 
   void remove(String paperId) {
     state = state.where((p) => p.id != paperId).toList();
+    _syncRemoteRemove(paperId);
     _persist(state);
+  }
+
+  void _syncRemoteAdd(String paperId) {
+    if (UserPreferences.instance.authToken != null) {
+      ref.read(bookmarksRepositoryProvider).addBookmark(paperId).catchError((_) {});
+    }
+  }
+
+  void _syncRemoteRemove(String paperId) {
+    if (UserPreferences.instance.authToken != null) {
+      ref.read(bookmarksRepositoryProvider).removeBookmark(paperId).catchError((_) {});
+    }
+  }
+
+  Future<void> syncWithServer() async {
+    if (UserPreferences.instance.authToken == null) return;
+    try {
+      final remote = await ref.read(bookmarksRepositoryProvider).listBookmarks();
+      final currentMap = {for (final p in state) p.id: p};
+      for (final r in remote) {
+        if (!currentMap.containsKey(r.id)) {
+          currentMap[r.id] = SavedPaper(
+            id: r.id,
+            title: r.title,
+            venue: r.venueName,
+            year: r.year,
+            citedByCount: r.citedByCount,
+            savedAt: DateTime.now(),
+          );
+        }
+      }
+      state = currentMap.values.toList();
+      await _persist(state);
+    } catch (_) {
+      // Offline fallback: keep existing local cache
+    }
   }
 
   Future<void> _persist(List<SavedPaper> papers) async {

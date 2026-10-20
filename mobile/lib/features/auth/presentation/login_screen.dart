@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/prefs/saved_papers.dart';
 import '../../../core/theme/app_theme.dart';
 import 'auth_notifier.dart';
 
@@ -35,6 +38,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
 
     if (ok && mounted) {
+      unawaited(ref.read(savedPapersProvider.notifier).syncWithServer());
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Welcome back to Athena!')),
       );

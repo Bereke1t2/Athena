@@ -6,10 +6,10 @@ part of 'saved_papers.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$savedPapersHash() => r'dff098335102629c73ddf15f68070d0af0533efa';
+String _$savedPapersHash() => r'd0623335b0c53d03b6d205494020f4cd0cccc839';
 
-/// Local reading list, newest-saved first. [prime] must run in main() before
-/// the first widget build so the synchronous provider starts populated.
+/// Reading list, newest-saved first. [prime] runs in main() before the first
+/// build. When authenticated, operations sync in the background with Athena's API.
 ///
 /// Copied from [SavedPapers].
 @ProviderFor(SavedPapers)
