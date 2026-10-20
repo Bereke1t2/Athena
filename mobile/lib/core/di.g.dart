@@ -184,5 +184,59 @@ final comparisonRepositoryProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef ComparisonRepositoryRef = AutoDisposeProviderRef<ComparisonRepository>;
+String _$historyRepositoryHash() => r'3c6d3c6e04236c4f00af2ef6b632831cd6e986de';
+
+/// See also [historyRepository].
+@ProviderFor(historyRepository)
+final historyRepositoryProvider =
+    AutoDisposeProvider<HistoryRepository>.internal(
+  historyRepository,
+  name: r'historyRepositoryProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$historyRepositoryHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef HistoryRepositoryRef = AutoDisposeProviderRef<HistoryRepository>;
+String _$digestRepositoryHash() => r'9cf27b967cbc951bafac4f24a0ac1a91fb33b27b';
+
+/// See also [digestRepository].
+@ProviderFor(digestRepository)
+final digestRepositoryProvider = AutoDisposeProvider<DigestRepository>.internal(
+  digestRepository,
+  name: r'digestRepositoryProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$digestRepositoryHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef DigestRepositoryRef = AutoDisposeProviderRef<DigestRepository>;
+String _$bookmarksRepositoryHash() =>
+    r'8c26522e8a2fa00595d058caee22c0dd6c1d831c';
+
+/// See also [bookmarksRepository].
+@ProviderFor(bookmarksRepository)
+final bookmarksRepositoryProvider =
+    AutoDisposeProvider<BookmarksRepository>.internal(
+  bookmarksRepository,
+  name: r'bookmarksRepositoryProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$bookmarksRepositoryHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef BookmarksRepositoryRef = AutoDisposeProviderRef<BookmarksRepository>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
