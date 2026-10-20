@@ -154,6 +154,13 @@ class ProfileScreen extends ConsumerWidget {
             isDark: isDark,
           ),
           _Tile(
+            icon: Icons.auto_stories_rounded,
+            title: 'Research Digest',
+            subtitle: 'Personalized executive briefing and topic velocity',
+            onTap: () => context.push('/digest'),
+            isDark: isDark,
+          ),
+          _Tile(
             icon: Icons.category_rounded,
             title: 'Subscribed Topics',
             subtitle: 'Manage topic filters and focus areas',

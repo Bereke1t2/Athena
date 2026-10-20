@@ -6,6 +6,7 @@ import '../../features/ai/presentation/create_audio_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/comparison/presentation/comparison_screen.dart';
+import '../../features/digest/presentation/digest_screen.dart';
 import '../../features/feed/presentation/feed_screen.dart';
 import '../../features/library/presentation/saved_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
@@ -137,6 +138,12 @@ GoRouter buildAppRouter() {
         name: 'notifications',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/digest',
+        name: 'digest',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const DigestScreen(),
       ),
       GoRoute(
         path: '/compare',

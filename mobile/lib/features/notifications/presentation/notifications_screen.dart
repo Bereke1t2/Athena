@@ -110,7 +110,9 @@ class NotificationsScreen extends ConsumerWidget {
                       if (!n.isRead) {
                         notifier.markAsRead(n.id);
                       }
-                      if (paperId != null && paperId.isNotEmpty) {
+                      if (n.type == 'digest') {
+                        context.push('/digest');
+                      } else if (paperId != null && paperId.isNotEmpty) {
                         context.push('/papers/$paperId');
                       }
                     },
