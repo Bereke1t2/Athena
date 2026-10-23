@@ -12,7 +12,7 @@ func clearEnv(t *testing.T) {
 	t.Helper()
 	keys := []string{
 		"ATHENA_APP_ENV", "ATHENA_HTTP_ADDR", "PORT", "ATHENA_LOG_LEVEL", "ATHENA_LOG_FORMAT",
-		"ATHENA_SHUTDOWN_TIMEOUT", "ATHENA_DATABASE_URL", "ATHENA_DB_MAX_CONNS",
+		"ATHENA_SHUTDOWN_TIMEOUT", "ATHENA_DATABASE_URL", "DATABASE_URL", "ATHENA_DB_MAX_CONNS",
 		"ATHENA_REDIS_ADDR", "ATHENA_ADMIN_TOKEN", "ATHENA_WORKER_CONCURRENCY",
 		"ATHENA_INGESTION_ENABLED", "SEMANTICSCHOLAR_API_KEY", "OPENALEX_MAILTO",
 		"ARXIV_USER_AGENT", "OPENALEX_MAX_RPS", "SEMANTICSCHOLAR_MAX_RPS",
@@ -76,6 +76,15 @@ func TestFromEnvGeminiProviderDefaults(t *testing.T) {
 	assert.Equal(t, "https://generativelanguage.googleapis.com/v1beta/openai/", cfg.LLMBaseURL)
 	assert.Equal(t, "gemini-2.0-flash", cfg.LLMModel)
 	assert.Equal(t, "AIzaSyFakeKey123", cfg.LLMAPIKey)
+}
+
+func TestFromEnvDatabaseURLFallback(t *testing.T) {
+	setEnv(t, map[string]string{
+		"DATABASE_URL": "postgres://neon-user:neon-pass@ep-cool-db.neon.tech/neondb?sslmode=require",
+	})
+	cfg, err := FromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, "postgres://neon-user:neon-pass@ep-cool-db.neon.tech/neondb?sslmode=require", cfg.DatabaseURL)
 }
 
 func TestFromEnvCollectsValidationErrors(t *testing.T) {

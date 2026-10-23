@@ -66,7 +66,10 @@ func FromEnv() (Config, error) {
 		LogLevel:              getEnv("ATHENA_LOG_LEVEL", "info"),
 		LogFormat:             getEnv("ATHENA_LOG_FORMAT", ""),
 		ShutdownTimeout:       getDuration("ATHENA_SHUTDOWN_TIMEOUT", 15*time.Second),
-		DatabaseURL:           strings.TrimSpace(os.Getenv("ATHENA_DATABASE_URL")),
+		DatabaseURL: firstNonEmpty(
+			strings.TrimSpace(os.Getenv("ATHENA_DATABASE_URL")),
+			strings.TrimSpace(os.Getenv("DATABASE_URL")),
+		),
 		DBMaxConns:            getInt32("ATHENA_DB_MAX_CONNS", 20),
 		RedisAddr:             getEnv("ATHENA_REDIS_ADDR", "localhost:6379"),
 		AdminToken:            strings.TrimSpace(os.Getenv("ATHENA_ADMIN_TOKEN")),
