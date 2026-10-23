@@ -11,12 +11,12 @@ import (
 func clearEnv(t *testing.T) {
 	t.Helper()
 	keys := []string{
-		"ATHENA_APP_ENV", "ATHENA_HTTP_ADDR", "ATHENA_LOG_LEVEL", "ATHENA_LOG_FORMAT",
+		"ATHENA_APP_ENV", "ATHENA_HTTP_ADDR", "PORT", "ATHENA_LOG_LEVEL", "ATHENA_LOG_FORMAT",
 		"ATHENA_SHUTDOWN_TIMEOUT", "ATHENA_DATABASE_URL", "ATHENA_DB_MAX_CONNS",
 		"ATHENA_REDIS_ADDR", "ATHENA_ADMIN_TOKEN", "ATHENA_WORKER_CONCURRENCY",
 		"ATHENA_INGESTION_ENABLED", "SEMANTICSCHOLAR_API_KEY", "OPENALEX_MAILTO",
 		"ARXIV_USER_AGENT", "OPENALEX_MAX_RPS", "SEMANTICSCHOLAR_MAX_RPS",
-		"ARXIV_MIN_INTERVAL", "LLM_PROVIDER", "LLM_BASE_URL", "LLM_API_KEY",
+		"ARXIV_MIN_INTERVAL", "LLM_PROVIDER", "LLM_BASE_URL", "LLM_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY",
 		"LLM_MODEL", "EMBEDDING_PROVIDER", "EMBEDDING_MODEL", "EMBEDDING_DIM",
 	}
 	for _, k := range keys {
@@ -52,6 +52,30 @@ func TestFromEnvProductionDefaultsToJSONLogs(t *testing.T) {
 	cfg, err := FromEnv()
 	require.NoError(t, err)
 	assert.Equal(t, "json", cfg.LogFormat)
+}
+
+func TestFromEnvPortFallback(t *testing.T) {
+	setEnv(t, map[string]string{
+		"ATHENA_DATABASE_URL": "postgres://localhost/test",
+		"PORT":                "10000",
+	})
+	cfg, err := FromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, ":10000", cfg.HTTPAddr)
+}
+
+func TestFromEnvGeminiProviderDefaults(t *testing.T) {
+	setEnv(t, map[string]string{
+		"ATHENA_DATABASE_URL": "postgres://localhost/test",
+		"LLM_PROVIDER":        "gemini",
+		"GEMINI_API_KEY":      "AIzaSyFakeKey123",
+	})
+	cfg, err := FromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, "gemini", cfg.LLMProvider)
+	assert.Equal(t, "https://generativelanguage.googleapis.com/v1beta/openai/", cfg.LLMBaseURL)
+	assert.Equal(t, "gemini-2.0-flash", cfg.LLMModel)
+	assert.Equal(t, "AIzaSyFakeKey123", cfg.LLMAPIKey)
 }
 
 func TestFromEnvCollectsValidationErrors(t *testing.T) {

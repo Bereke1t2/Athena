@@ -62,7 +62,7 @@ func (c Config) AIEnabled() bool { return c.LLMProvider != "" }
 func FromEnv() (Config, error) {
 	cfg := Config{
 		AppEnv:                getEnv("ATHENA_APP_ENV", "development"),
-		HTTPAddr:              getEnv("ATHENA_HTTP_ADDR", ":8080"),
+		HTTPAddr:              getHTTPAddr(),
 		LogLevel:              getEnv("ATHENA_LOG_LEVEL", "info"),
 		LogFormat:             getEnv("ATHENA_LOG_FORMAT", ""),
 		ShutdownTimeout:       getDuration("ATHENA_SHUTDOWN_TIMEOUT", 15*time.Second),
@@ -86,7 +86,11 @@ func FromEnv() (Config, error) {
 
 		LLMProvider:           strings.TrimSpace(os.Getenv("LLM_PROVIDER")),
 		LLMBaseURL:            strings.TrimSpace(os.Getenv("LLM_BASE_URL")),
-		LLMAPIKey:             strings.TrimSpace(os.Getenv("LLM_API_KEY")),
+		LLMAPIKey: firstNonEmpty(
+			strings.TrimSpace(os.Getenv("LLM_API_KEY")),
+			strings.TrimSpace(os.Getenv("GEMINI_API_KEY")),
+			strings.TrimSpace(os.Getenv("OPENAI_API_KEY")),
+		),
 		LLMModel:              strings.TrimSpace(os.Getenv("LLM_MODEL")),
 		EmbeddingProviderName: strings.TrimSpace(os.Getenv("EMBEDDING_PROVIDER")),
 		EmbeddingModel:        strings.TrimSpace(os.Getenv("EMBEDDING_MODEL")),
@@ -121,23 +125,34 @@ func FromEnv() (Config, error) {
 		problems = append(problems, fmt.Sprintf("ATHENA_LOG_FORMAT invalid %q", cfg.LogFormat))
 	}
 	switch cfg.LLMProvider {
-	case "", "openai_compatible", "stub":
+	case "", "openai_compatible", "gemini", "stub":
 	default:
-		problems = append(problems, fmt.Sprintf("LLM_PROVIDER invalid %q (want openai_compatible|stub)", cfg.LLMProvider))
+		problems = append(problems, fmt.Sprintf("LLM_PROVIDER invalid %q (want gemini|openai_compatible|stub)", cfg.LLMProvider))
 	}
 	if cfg.LLMProvider != "" {
-		if cfg.LLMModel == "" {
+		if cfg.LLMProvider == "gemini" {
+			if cfg.LLMBaseURL == "" {
+				cfg.LLMBaseURL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+			}
+			if cfg.LLMModel == "" {
+				cfg.LLMModel = "gemini-2.0-flash"
+			}
+		} else if cfg.LLMModel == "" {
 			cfg.LLMModel = "gpt-4o-mini"
 		}
 		switch cfg.EmbeddingProviderName {
-		case "openai_compatible":
+		case "openai_compatible", "gemini":
 			if cfg.EmbeddingModel == "" {
-				cfg.EmbeddingModel = "text-embedding-3-small"
+				if cfg.EmbeddingProviderName == "gemini" {
+					cfg.EmbeddingModel = "text-embedding-004"
+				} else {
+					cfg.EmbeddingModel = "text-embedding-3-small"
+				}
 			}
 		case "", "none":
 			cfg.EmbeddingProviderName = ""
 		default:
-			problems = append(problems, fmt.Sprintf("EMBEDDING_PROVIDER invalid %q (want openai_compatible|none)", cfg.EmbeddingProviderName))
+			problems = append(problems, fmt.Sprintf("EMBEDDING_PROVIDER invalid %q (want openai_compatible|gemini|none)", cfg.EmbeddingProviderName))
 		}
 		if cfg.EmbeddingDim <= 0 || cfg.EmbeddingDim > 4096 {
 			problems = append(problems, fmt.Sprintf("EMBEDDING_DIM invalid %d", cfg.EmbeddingDim))
@@ -147,6 +162,19 @@ func FromEnv() (Config, error) {
 		return Config{}, fmt.Errorf("invalid configuration: %s", strings.Join(problems, "; "))
 	}
 	return cfg, nil
+}
+
+func getHTTPAddr() string {
+	if addr := strings.TrimSpace(os.Getenv("ATHENA_HTTP_ADDR")); addr != "" {
+		return addr
+	}
+	if port := strings.TrimSpace(os.Getenv("PORT")); port != "" {
+		if !strings.HasPrefix(port, ":") {
+			return ":" + port
+		}
+		return port
+	}
+	return ":8080"
 }
 
 func getEnv(key, fallback string) string {
