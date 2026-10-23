@@ -20,8 +20,8 @@ Athena includes a `render.yaml` Blueprint file at the repository root.
    - Web Service (`athena-api`) with pre-deploy migrations
    - Background Worker (`athena-worker`)
 5. In the configuration preview:
-   - Enter your **`OPENAI_API_KEY`** (for RAG embeddings and LLM summaries/chat).
-   - Enter your **`OPENALEX_MAILTO`** (identifies your ingestion requests to OpenAlex polite pool).
+   - Enter your **`GEMINI_API_KEY`** (from [Google AI Studio](https://aistudio.google.com/apikey)).
+   - Enter your **`OPENALEX_MAILTO`**: Literally just your email address (e.g. `yourname@gmail.com`). No registration or API key required; OpenAlex uses it to grant you polite pool access (10 req/sec) and notify you of any issues.
    - (Optional) Enter **`SEMANTICSCHOLAR_API_KEY`** if available.
 6. Click **Apply**. Render will automatically provision the database, run migrations via `preDeployCommand: ./bin/migrate`, build the binaries, and start both services.
 
@@ -61,13 +61,12 @@ If you prefer provisioning services manually:
   ATHENA_REDIS_ADDR=<Redis host:port>
   ATHENA_JWT_SECRET=<32+ character random string>
   ATHENA_ADMIN_TOKEN=<random secure token>
-  LLM_PROVIDER=openai_compatible
-  LLM_MODEL=gpt-4o-mini
-  EMBEDDING_PROVIDER=openai_compatible
-  EMBEDDING_MODEL=text-embedding-3-small
+  LLM_PROVIDER=gemini
+  LLM_MODEL=gemini-2.0-flash
+  GEMINI_API_KEY=<your-google-ai-studio-api-key>
+  EMBEDDING_PROVIDER=none
   EMBEDDING_DIM=1536
-  OPENAI_API_KEY=<your-key>
-  OPENALEX_MAILTO=<your-email>
+  OPENALEX_MAILTO=<your-email@example.com>
   ```
   *(Note: Render automatically sets `$PORT`. The Athena config automatically binds to `:$PORT` when `ATHENA_HTTP_ADDR` is omitted).*
 

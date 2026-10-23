@@ -42,20 +42,23 @@ services:
       - key: ATHENA_ADMIN_TOKEN
         generateValue: true
       - key: LLM_PROVIDER
-        value: openai_compatible
+        # Choose: gemini (default if using Google AI Studio), openai_compatible, or stub
+        value: gemini
       - key: LLM_MODEL
-        value: gpt-4o-mini
+        value: gemini-2.0-flash
       - key: EMBEDDING_PROVIDER
-        value: openai_compatible
-      - key: EMBEDDING_MODEL
-        value: text-embedding-3-small
+        # Use 'none' when using Gemini (uses internal stub embedder without requiring OpenAI)
+        value: none
       - key: EMBEDDING_DIM
         value: "1536"
+      - key: GEMINI_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: SEMANTICSCHOLAR_API_KEY
         sync: false
       - key: OPENALEX_MAILTO
+        # Simply your email (e.g. yourname@gmail.com) for polite pool access
         sync: false
 
   # Athena River Background Ingestion & Research Intelligence Worker
@@ -86,18 +89,21 @@ services:
       - key: ATHENA_INGESTION_ENABLED
         value: "true"
       - key: LLM_PROVIDER
-        value: openai_compatible
+        # Choose: gemini (default if using Google AI Studio), openai_compatible, or stub
+        value: gemini
       - key: LLM_MODEL
-        value: gpt-4o-mini
+        value: gemini-2.0-flash
       - key: EMBEDDING_PROVIDER
-        value: openai_compatible
-      - key: EMBEDDING_MODEL
-        value: text-embedding-3-small
+        # Use 'none' when using Gemini (uses internal stub embedder without requiring OpenAI)
+        value: none
       - key: EMBEDDING_DIM
         value: "1536"
+      - key: GEMINI_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: SEMANTICSCHOLAR_API_KEY
         sync: false
       - key: OPENALEX_MAILTO
+        # Simply your email (e.g. yourname@gmail.com) for polite pool access
         sync: false

@@ -85,7 +85,7 @@ func main() {
 	var ragService *appai.RAGService
 	if cfg.AIEnabled() {
 		var embedder domainai.EmbeddingProvider
-		if cfg.EmbeddingProviderName == "openai_compatible" {
+		if cfg.EmbeddingProviderName == "openai_compatible" || cfg.EmbeddingProviderName == "gemini" {
 			embedder = openaicompat.NewEmbedder(openaicompat.Config{
 				BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey,
 				Model: cfg.EmbeddingModel,
