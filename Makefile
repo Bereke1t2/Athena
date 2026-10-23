@@ -61,8 +61,8 @@ api: build-backend ## Run the Go API locally
 worker: ## Run the Go worker locally
 	cd backend && go run ./cmd/worker
 
-build-backend: ## Build api + worker binaries into backend/bin
-	mkdir -p backend/bin && cd backend && go build -o bin/api ./cmd/api && go build -o bin/worker ./cmd/worker
+build-backend: ## Build api + worker + migrate binaries into backend/bin
+	mkdir -p backend/bin && cd backend && go build -o bin/api ./cmd/api && go build -o bin/worker ./cmd/worker && go build -o bin/migrate ./cmd/migrate
 
 test-backend: ## Run backend unit tests
 	cd backend && go test ./...

@@ -62,7 +62,7 @@ func (c Config) AIEnabled() bool { return c.LLMProvider != "" }
 func FromEnv() (Config, error) {
 	cfg := Config{
 		AppEnv:                getEnv("ATHENA_APP_ENV", "development"),
-		HTTPAddr:              getEnv("ATHENA_HTTP_ADDR", ":8080"),
+		HTTPAddr:              getHTTPAddr(),
 		LogLevel:              getEnv("ATHENA_LOG_LEVEL", "info"),
 		LogFormat:             getEnv("ATHENA_LOG_FORMAT", ""),
 		ShutdownTimeout:       getDuration("ATHENA_SHUTDOWN_TIMEOUT", 15*time.Second),
@@ -147,6 +147,19 @@ func FromEnv() (Config, error) {
 		return Config{}, fmt.Errorf("invalid configuration: %s", strings.Join(problems, "; "))
 	}
 	return cfg, nil
+}
+
+func getHTTPAddr() string {
+	if addr := strings.TrimSpace(os.Getenv("ATHENA_HTTP_ADDR")); addr != "" {
+		return addr
+	}
+	if port := strings.TrimSpace(os.Getenv("PORT")); port != "" {
+		if !strings.HasPrefix(port, ":") {
+			return ":" + port
+		}
+		return port
+	}
+	return ":8080"
 }
 
 func getEnv(key, fallback string) string {

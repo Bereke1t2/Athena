@@ -11,7 +11,7 @@ import (
 func clearEnv(t *testing.T) {
 	t.Helper()
 	keys := []string{
-		"ATHENA_APP_ENV", "ATHENA_HTTP_ADDR", "ATHENA_LOG_LEVEL", "ATHENA_LOG_FORMAT",
+		"ATHENA_APP_ENV", "ATHENA_HTTP_ADDR", "PORT", "ATHENA_LOG_LEVEL", "ATHENA_LOG_FORMAT",
 		"ATHENA_SHUTDOWN_TIMEOUT", "ATHENA_DATABASE_URL", "ATHENA_DB_MAX_CONNS",
 		"ATHENA_REDIS_ADDR", "ATHENA_ADMIN_TOKEN", "ATHENA_WORKER_CONCURRENCY",
 		"ATHENA_INGESTION_ENABLED", "SEMANTICSCHOLAR_API_KEY", "OPENALEX_MAILTO",
@@ -52,6 +52,16 @@ func TestFromEnvProductionDefaultsToJSONLogs(t *testing.T) {
 	cfg, err := FromEnv()
 	require.NoError(t, err)
 	assert.Equal(t, "json", cfg.LogFormat)
+}
+
+func TestFromEnvPortFallback(t *testing.T) {
+	setEnv(t, map[string]string{
+		"ATHENA_DATABASE_URL": "postgres://localhost/test",
+		"PORT":                "10000",
+	})
+	cfg, err := FromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, ":10000", cfg.HTTPAddr)
 }
 
 func TestFromEnvCollectsValidationErrors(t *testing.T) {
