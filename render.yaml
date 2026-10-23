@@ -3,13 +3,6 @@
 
 version: "1"
 
-databases:
-  - name: athena-db
-    databaseName: athena
-    user: athena
-    plan: standard
-    postgresMajorVersion: "16"
-
 services:
   # Athena API Server (HTTP REST, SSE Chat, Search, Auth, Personalization)
   - type: web
@@ -29,13 +22,13 @@ services:
       - key: ATHENA_LOG_FORMAT
         value: json
       - key: ATHENA_DATABASE_URL
-        fromDatabase:
-          name: athena-db
-          property: connectionString
+        # Paste your Neon PostgreSQL connection string:
+        # e.g. postgresql://[user]:[password]@[endpoint].neon.tech/neondb?sslmode=require
+        sync: false
       - key: ATHENA_DB_MAX_CONNS
         value: "20"
       - key: ATHENA_REDIS_ADDR
-        # Point to your Redis instance (host:port) or Render Redis
+        # Point to your Redis instance (host:port) or leave empty for no cache
         value: ""
       - key: ATHENA_JWT_SECRET
         generateValue: true
@@ -77,9 +70,8 @@ services:
       - key: ATHENA_LOG_FORMAT
         value: json
       - key: ATHENA_DATABASE_URL
-        fromDatabase:
-          name: athena-db
-          property: connectionString
+        # Paste your Neon PostgreSQL connection string
+        sync: false
       - key: ATHENA_DB_MAX_CONNS
         value: "10"
       - key: ATHENA_REDIS_ADDR
