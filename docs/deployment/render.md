@@ -1,73 +1,75 @@
-# Deploying Athena on Render
+# Deploying Athena on Render with Neon PostgreSQL
 
 Athena backend consists of:
 1. **`athena-api`**: The Go REST API web service (HTTP endpoints, SSE streaming chat, auth, discovery).
 2. **`athena-worker`**: The River queue background worker (ingestion pipelines, RAG indexing, digest generation, notification fanout).
-3. **`athena-db`**: PostgreSQL 16 database with the `vector` (`pgvector`) extension enabled.
-4. **`athena-redis`**: Redis instance for search caching and rate limiting.
+3. **Database**: [Neon](https://neon.tech) Serverless PostgreSQL (supports `pgvector` out-of-the-box).
+4. **Cache (Optional)**: Redis instance for search caching and rate limiting.
 
 ---
 
-## Method 1: Automated Blueprint Deployment (Recommended)
+## Step 1: Create your Neon Database
 
-Athena includes a `render.yaml` Blueprint file at the repository root.
+1. Sign up / log in to [Neon Console](https://console.neon.tech/).
+2. Create a new project (e.g. `athena`).
+3. In the project dashboard under **Connection details**:
+   - Select **Direct connection** (preferred for persistent workers).
+   - Copy the connection string:
+     ```text
+     postgresql://[user]:[password]@[endpoint].neon.tech/neondb?sslmode=require
+     ```
+   *(Note: Neon natively supports `pgvector` and `pg_trgm`, which Athena's migrations enable automatically).*
+
+---
+
+## Step 2: Deploy on Render
+
+### Method 1: Automated Blueprint Deployment (Recommended)
 
 1. Log in to your [Render Dashboard](https://dashboard.render.com/).
 2. Click **New +** and select **Blueprint**.
 3. Connect your repository: `Bereke1t2/Athena`.
 4. Render will parse `render.yaml` and discover:
-   - PostgreSQL Database (`athena-db`)
    - Web Service (`athena-api`) with pre-deploy migrations
    - Background Worker (`athena-worker`)
-5. In the configuration preview:
-   - Enter your **`GEMINI_API_KEY`** (from [Google AI Studio](https://aistudio.google.com/apikey)).
-   - Enter your **`OPENALEX_MAILTO`**: Literally just your email address (e.g. `yourname@gmail.com`). No registration or API key required; OpenAlex uses it to grant you polite pool access (10 req/sec) and notify you of any issues.
-   - (Optional) Enter **`SEMANTICSCHOLAR_API_KEY`** if available.
-6. Click **Apply**. Render will automatically provision the database, run migrations via `preDeployCommand: ./bin/migrate`, build the binaries, and start both services.
+5. In the configuration preview, fill in:
+   - **`ATHENA_DATABASE_URL`**: Paste your Neon PostgreSQL connection string.
+   - **`GEMINI_API_KEY`**: Paste your Google AI Studio API key.
+   - **`OPENALEX_MAILTO`**: Your email address (e.g. `yourname@gmail.com`) for polite pool access.
+6. Click **Apply**. Render will automatically run migrations via `preDeployCommand: ./bin/migrate`, build the binaries, and start both services.
 
 ---
 
-## Method 2: Manual Service Setup
+### Method 2: Manual Web Service Setup
 
-If you prefer provisioning services manually:
+If you prefer configuring the Web Service manually on Render:
 
-### 1. PostgreSQL Database
-- Click **New +** -> **PostgreSQL**.
-- Name: `athena-db`
-- Database: `athena`
-- User: `athena`
-- Version: `16`
-- **Important**: Render PostgreSQL standard instances include `pgvector`. The migration scripts automatically run `CREATE EXTENSION IF NOT EXISTS vector;`.
+1. Click **New +** ➔ **Web Service**.
+2. Connect the `Athena` repository.
+3. Configure the fields:
+   - **Root Directory**: `backend`
+   - **Runtime**: `Go`
+   - **Build Command**: `go build -o bin/api ./cmd/api && go build -o bin/migrate ./cmd/migrate`
+   - **Start Command**: `./bin/api`
+   - **Pre-Deploy Command** *(under Advanced)*: `./bin/migrate`
+   - **Health Check Path** *(under Advanced)*: `/healthz`
+4. Environment Variables:
+   ```env
+   ATHENA_APP_ENV=production
+   ATHENA_LOG_LEVEL=info
+   ATHENA_LOG_FORMAT=json
+   ATHENA_DATABASE_URL=postgresql://[user]:[password]@[endpoint].neon.tech/neondb?sslmode=require
+   ATHENA_JWT_SECRET=<32+ character random string>
+   ATHENA_ADMIN_TOKEN=<random secure token>
+   LLM_PROVIDER=gemini
+   LLM_MODEL=gemini-2.0-flash
+   GEMINI_API_KEY=<your-google-ai-studio-api-key>
+   EMBEDDING_PROVIDER=none
+   EMBEDDING_DIM=1536
+   OPENALEX_MAILTO=<your-email@example.com>
+   ```
 
-### 2. Redis Instance
-- Provision a Redis instance on Render or use an external managed Redis (e.g., Upstash or Redis Cloud).
-- Note down the `host:port` address.
-
-### 3. Web Service (`athena-api`)
-- Click **New +** -> **Web Service**.
-- Connect the `Athena` repository.
-- Root Directory: `backend`
-- Runtime: `Go`
-- Build Command: `go build -o bin/api ./cmd/api && go build -o bin/migrate ./cmd/migrate`
-- Pre-Deploy Command: `./bin/migrate`
-- Start Command: `./bin/api`
-- Health Check Path: `/healthz`
-- Environment Variables:
-  ```env
-  ATHENA_APP_ENV=production
-  ATHENA_LOG_LEVEL=info
-  ATHENA_LOG_FORMAT=json
-  ATHENA_DATABASE_URL=<Internal Database URL from athena-db>
-  ATHENA_REDIS_ADDR=<Redis host:port>
-  ATHENA_JWT_SECRET=<32+ character random string>
-  ATHENA_ADMIN_TOKEN=<random secure token>
-  LLM_PROVIDER=gemini
-  LLM_MODEL=gemini-2.0-flash
-  GEMINI_API_KEY=<your-google-ai-studio-api-key>
-  EMBEDDING_PROVIDER=none
-  EMBEDDING_DIM=1536
-  OPENALEX_MAILTO=<your-email@example.com>
-  ```
+*(Repeat step 2 for a **Background Worker** with start command `./bin/worker` if you want continuous paper ingestion).*
   *(Note: Render automatically sets `$PORT`. The Athena config automatically binds to `:$PORT` when `ATHENA_HTTP_ADDR` is omitted).*
 
 ### 4. Background Worker (`athena-worker`)
