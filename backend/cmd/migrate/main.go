@@ -31,12 +31,16 @@ func main() {
 }
 
 func run() error {
-	dbURL := strings.TrimSpace(os.Getenv("ATHENA_DATABASE_URL"))
+	// Per Neon best practices, migrations should prioritize the direct unpooled connection.
+	dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL_UNPOOLED"))
+	if dbURL == "" {
+		dbURL = strings.TrimSpace(os.Getenv("ATHENA_DATABASE_URL"))
+	}
 	if dbURL == "" {
 		dbURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	}
 	if dbURL == "" {
-		return fmt.Errorf("neither ATHENA_DATABASE_URL nor DATABASE_URL is set")
+		return fmt.Errorf("no database URL configured (checked DATABASE_URL_UNPOOLED, ATHENA_DATABASE_URL, DATABASE_URL)")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -93,28 +97,16 @@ func run() error {
 			return fmt.Errorf("failed to read migration %s: %w", m.filename, err)
 		}
 
-		tx, err := conn.Begin(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to begin transaction for %s: %w", m.filename, err)
-		}
-
-		if _, err := tx.Exec(ctx, string(content)); err != nil {
-			_ = tx.Rollback(ctx)
+		if _, err := conn.Exec(ctx, string(content)); err != nil {
 			return fmt.Errorf("failed to execute migration %s: %w", m.filename, err)
 		}
 
 		// Update schema_migrations table to reflect new version.
-		_, err = tx.Exec(ctx, `
-			DELETE FROM schema_migrations;
-			INSERT INTO schema_migrations (version, dirty) VALUES ($1, false);
-		`, m.version)
-		if err != nil {
-			_ = tx.Rollback(ctx)
-			return fmt.Errorf("failed to update schema_migrations for %s: %w", m.filename, err)
+		if _, err := conn.Exec(ctx, `DELETE FROM schema_migrations;`); err != nil {
+			return fmt.Errorf("failed to clear schema_migrations for %s: %w", m.filename, err)
 		}
-
-		if err := tx.Commit(ctx); err != nil {
-			return fmt.Errorf("failed to commit migration %s: %w", m.filename, err)
+		if _, err := conn.Exec(ctx, `INSERT INTO schema_migrations (version, dirty) VALUES ($1, false);`, m.version); err != nil {
+			return fmt.Errorf("failed to update schema_migrations for %s: %w", m.filename, err)
 		}
 
 		log.Printf("Successfully applied %s", m.filename)

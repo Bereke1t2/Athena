@@ -33,3 +33,4 @@ Thumbs.db
 # --- Local data ---
 /data/
 *.log
+.neon

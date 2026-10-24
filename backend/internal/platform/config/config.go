@@ -69,6 +69,7 @@ func FromEnv() (Config, error) {
 		DatabaseURL: firstNonEmpty(
 			strings.TrimSpace(os.Getenv("ATHENA_DATABASE_URL")),
 			strings.TrimSpace(os.Getenv("DATABASE_URL")),
+			strings.TrimSpace(os.Getenv("DATABASE_URL_UNPOOLED")),
 		),
 		DBMaxConns:            getInt32("ATHENA_DB_MAX_CONNS", 20),
 		RedisAddr:             getEnv("ATHENA_REDIS_ADDR", "localhost:6379"),

@@ -1,0 +1,14 @@
+{
+  "name": "athena",
+  "version": "1.0.0",
+  "description": "Athena AI-powered research platform",
+  "scripts": {
+    "build": "cd backend && go build -o bin/api ./cmd/api && go build -o bin/worker ./cmd/worker && go build -o bin/migrate ./cmd/migrate",
+    "migrate": "cd backend && ./bin/migrate",
+    "start": "cd backend && ./bin/api"
+  },
+  "dependencies": {
+    "@neon/config": "^1.9.3",
+    "@neon/env": "^1.6.4"
+  }
+}
