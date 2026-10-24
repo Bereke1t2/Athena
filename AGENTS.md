@@ -37,10 +37,12 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Full Verification Complete (2026-10-20)**:
-   - `flutter analyze` clean (0 issues).
-   - `flutter test` all green (46 tests passed, 1 integration skipped).
-   - `go test -count=1 ./...` all green (100% tests passed across all packages).
+1. **Full Verification Complete (2026-10-24)**:
+   - **Render Production Deployment**: Live and healthy at `https://athena-r3uq.onrender.com/`. Probes `/healthz` and `/readyz` returning `200 OK`.
+   - **Neon PostgreSQL**: Migrated through version 11 (`red-flower-69685834`, Oregon) with auto-migration on boot.
+   - **Corpus & Paper Seeding**: 34 research papers ingested across AI, Quantum Computing, Neuroscience, Climate Change, and Biotechnology with full metadata, topics, and DOI/OA links.
+   - **Mobile Default Wiring**: Default API URL in `app_constants.dart` wired to `https://athena-r3uq.onrender.com/api/v1`.
+   - **Tests**: `flutter analyze` clean (0 issues), `flutter test` green (46 unit/widget tests + live contract integration test passed), `go test -count=1 ./...` 100% green.
 2. **Phase 5 & 6 Milestone Completed & Hardened (2026-10-20)**:
    - **Backend Reading History**: Migration `000011_reading_history`, PostgreSQL `HistoryStore`, API routes `/api/v1/me/history`.
    - **Mobile Reading History**: Domain models, `HistoryRepositoryImpl`, `HistoryNotifier`, Dual-Tab Library screen (`Saved` + `Reading History`), debounced progress hooks in `ArticleReaderScreen` and `PdfViewerScreen`.
