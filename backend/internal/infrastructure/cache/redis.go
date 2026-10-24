@@ -34,13 +34,24 @@ func New(addr string) *Cache {
 
 // Ping verifies connectivity (readiness probes).
 func (c *Cache) Ping(ctx context.Context) error {
+	if c == nil || c.rdb == nil {
+		return nil
+	}
 	return c.rdb.Ping(ctx).Err()
 }
 
 // Close releases the underlying connection pool.
-func (c *Cache) Close() error { return c.rdb.Close() }
+func (c *Cache) Close() error {
+	if c == nil || c.rdb == nil {
+		return nil
+	}
+	return c.rdb.Close()
+}
 
 func (c *Cache) key(ctx context.Context, namespace, raw string) (string, error) {
+	if c == nil || c.rdb == nil {
+		return "", fmt.Errorf("cache is nil")
+	}
 	gen, err := c.rdb.Get(ctx, genKey).Result()
 	if err == redis.Nil {
 		gen = "0"
@@ -52,6 +63,9 @@ func (c *Cache) key(ctx context.Context, namespace, raw string) (string, error) 
 
 // GetJSON returns the cached payload for namespaced raw key; miss = nil,nil.
 func (c *Cache) GetJSON(ctx context.Context, namespace, raw string) ([]byte, error) {
+	if c == nil || c.rdb == nil {
+		return nil, nil
+	}
 	k, err := c.key(ctx, namespace, raw)
 	if err != nil {
 		return nil, err
@@ -65,6 +79,9 @@ func (c *Cache) GetJSON(ctx context.Context, namespace, raw string) ([]byte, err
 
 // SetJSON stores the payload under the current generation.
 func (c *Cache) SetJSON(ctx context.Context, namespace, raw string, v any) error {
+	if c == nil || c.rdb == nil {
+		return nil
+	}
 	b, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("cache marshal: %w", err)
@@ -79,5 +96,8 @@ func (c *Cache) SetJSON(ctx context.Context, namespace, raw string, v any) error
 // InvalidateSearch bumps the generation, instantly orphaning all cached
 // search/feed responses. Called after successful ingestion runs.
 func (c *Cache) InvalidateSearch(ctx context.Context) error {
+	if c == nil || c.rdb == nil {
+		return nil
+	}
 	return c.rdb.Incr(ctx, genKey).Err()
 }

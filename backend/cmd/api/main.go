@@ -106,9 +106,11 @@ func run() error {
 
 	// Phase 2 discovery: FTS engine + optional Redis response cache.
 	engine := database.NewPgSearcher(pool)
-	var searchCache *cache.Cache
+	var rawCache *cache.Cache
+	var searchCache appsearch.Cache
 	if cfg.RedisAddr != "" {
-		searchCache = cache.New(cfg.RedisAddr)
+		rawCache = cache.New(cfg.RedisAddr)
+		searchCache = rawCache
 	}
 	searchSvc := appsearch.NewService(engine, searchCache)
 
@@ -226,12 +228,12 @@ func run() error {
 				return pool.Ping(cctx)
 			},
 			RedisPing: func() error {
-				if searchCache == nil {
+				if rawCache == nil {
 					return nil
 				}
 				cctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 				defer cancel()
-				return searchCache.Ping(cctx)
+				return rawCache.Ping(cctx)
 			},
 		}),
 		ReadHeaderTimeout: 10 * time.Second,

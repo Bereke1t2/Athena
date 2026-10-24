@@ -28,7 +28,7 @@ func Connect(ctx context.Context, url string, maxConns int32) (*pgxpool.Pool, er
 		return nil, fmt.Errorf("create pool: %w", err)
 	}
 
-	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	if err := pool.Ping(pingCtx); err != nil {
 		pool.Close()
