@@ -42,6 +42,8 @@ func TestFromEnvDefaultsRequireDatabaseURL(t *testing.T) {
 	assert.Equal(t, "text", cfg.LogFormat)
 	assert.Equal(t, int32(20), cfg.DBMaxConns)
 	assert.True(t, cfg.IngestionEnabled)
+	assert.True(t, cfg.AutoMigrate)
+	assert.Empty(t, cfg.RedisAddr)
 }
 
 func TestFromEnvProductionDefaultsToJSONLogs(t *testing.T) {

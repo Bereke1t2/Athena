@@ -21,6 +21,7 @@ type Config struct {
 	DatabaseURL string
 	DBMaxConns  int32
 	RedisAddr   string
+	AutoMigrate bool
 
 	AdminToken        string
 	WorkerConcurrency int
@@ -72,7 +73,8 @@ func FromEnv() (Config, error) {
 			strings.TrimSpace(os.Getenv("DATABASE_URL_UNPOOLED")),
 		),
 		DBMaxConns:            getInt32("ATHENA_DB_MAX_CONNS", 20),
-		RedisAddr:             getEnv("ATHENA_REDIS_ADDR", "localhost:6379"),
+		RedisAddr:             strings.TrimSpace(os.Getenv("ATHENA_REDIS_ADDR")),
+		AutoMigrate:           getBool("ATHENA_AUTO_MIGRATE", true),
 		AdminToken:            strings.TrimSpace(os.Getenv("ATHENA_ADMIN_TOKEN")),
 		WorkerConcurrency:     getInt("ATHENA_WORKER_CONCURRENCY", 4),
 		IngestionEnabled:      getBool("ATHENA_INGESTION_ENABLED", true),

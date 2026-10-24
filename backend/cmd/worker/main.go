@@ -32,6 +32,7 @@ import (
 	"athena/backend/internal/infrastructure/workers"
 	"athena/backend/internal/platform/config"
 	"athena/backend/internal/platform/logger"
+	"athena/backend/migrations"
 )
 
 func main() {
@@ -44,6 +45,18 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	if cfg.AutoMigrate {
+		log.Info("running database migrations...")
+		mctx, mcancel := context.WithTimeout(ctx, 2*time.Minute)
+		if err := migrations.Apply(mctx, cfg.DatabaseURL); err != nil {
+			mcancel()
+			log.Error("database auto-migration failed", "error", err)
+			os.Exit(1)
+		}
+		mcancel()
+		log.Info("database auto-migration completed")
+	}
 
 	pool, err := database.Connect(ctx, cfg.DatabaseURL, cfg.DBMaxConns)
 	if err != nil {
