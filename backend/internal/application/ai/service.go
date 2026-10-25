@@ -203,7 +203,10 @@ func (s *SummaryService) Summarize(ctx context.Context, paperID uuid.UUID,
 	})
 	if err != nil {
 		recordStatus("summary", s.LLM.Model(), "error")
-		return domainai.Summary{}, fmt.Errorf("generate summary: %w", err)
+		if errors.Is(err, domainai.ErrRateLimited) {
+			return domainai.Summary{}, err
+		}
+		return domainai.Summary{}, fmt.Errorf("generate summary: %w: %w", domainai.ErrLLMUnavailable, err)
 	}
 	recordUsage("summary", resp.Model, resp.Usage)
 

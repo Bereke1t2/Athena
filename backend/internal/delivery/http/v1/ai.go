@@ -330,6 +330,8 @@ func sseErrMessage(err error) string {
 		return "invalid question"
 	case errors.Is(err, domainai.ErrRateLimited):
 		return "AI is rate limited. Please wait a moment and try again."
+	case errors.Is(err, domainai.ErrLLMUnavailable):
+		return "AI service is currently unavailable. Please check provider status or API key."
 	default:
 		return "generation failed"
 	}
@@ -345,6 +347,9 @@ func (h *AIHandlers) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, domainai.ErrRateLimited):
 		status, code, msg = http.StatusTooManyRequests, CodeInternal,
 			"AI is rate limited. Please wait a moment and try again."
+	case errors.Is(err, domainai.ErrLLMUnavailable):
+		status, code, msg = http.StatusServiceUnavailable, CodeInternal,
+			"AI service is currently unavailable. Please verify provider settings or API key."
 	case errors.Is(err, appai.ErrNoPermittedFullText), errors.Is(err, domainai.ErrNotGrounded):
 		status, code, msg = http.StatusUnprocessableEntity, CodeInvalidRequest,
 			"no text-mining-permitted full text available for this paper"
