@@ -127,10 +127,11 @@ type SummarySource struct {
 
 // ErrInvalidQuery, ErrNotFound shared with other domains' semantics but namespaced.
 var (
-	ErrInvalidQuery = errors.New("invalid query")
-	ErrNotFound     = errors.New("not found")
-	ErrNotGrounded  = errors.New("answer failed citation validation")
-	ErrRateLimited  = errors.New("rate limited")
+	ErrInvalidQuery    = errors.New("invalid query")
+	ErrNotFound        = errors.New("not found")
+	ErrNotGrounded     = errors.New("answer failed citation validation")
+	ErrRateLimited     = errors.New("rate limited")
+	ErrLLMUnavailable  = errors.New("ai provider unavailable")
 )
 
 // ---- chunks & retrieval ----------------------------------------------------

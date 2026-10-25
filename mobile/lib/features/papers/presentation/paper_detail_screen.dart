@@ -325,6 +325,8 @@ class PaperDetailScreen extends ConsumerWidget {
                                 icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
                                 label: const Text(
                                   'Ask Paper AI',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
                                 ),
                               ),
@@ -348,6 +350,8 @@ class PaperDetailScreen extends ConsumerWidget {
                                 icon: const Icon(Icons.format_quote_rounded, size: 16),
                                 label: const Text(
                                   'Cite & Export',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                                 ),
                               ),
@@ -366,7 +370,9 @@ class PaperDetailScreen extends ConsumerWidget {
                                 onPressed: () => context.push('/compare?ids=${paper.summary.id}'),
                                 icon: const Icon(Icons.compare_arrows_rounded, size: 16),
                                 label: const Text(
-                                  'Compare Papers',
+                                  'Compare',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                                 ),
                               ),

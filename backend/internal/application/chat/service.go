@@ -129,13 +129,21 @@ func (s *Service) Ask(ctx context.Context, sessionID uuid.UUID, question string,
 	}
 
 	history := s.historyWindow(ctx, sessionID)
-	answer, usage, modelID := s.groundedAnswer(ctx, detail, chunks, history, question, onDelta)
+	answer, usage, modelID, err := s.groundedAnswer(ctx, detail, chunks, history, question, onDelta)
+	if err != nil {
+		s.Logger.Error("chat answer failed", "error", err, "session", sessionID)
+		return domainai.Message{}, err
+	}
 
 	cited := citedChunkIndices(answer, len(chunks))
 	refused := strings.Contains(answer, RefusalSentence)
 	if len(chunks) > 0 && len(cited) == 0 && !refused {
 		s.Logger.Warn("citation validation failed; regenerating", "session", sessionID)
-		answer2, usage2, model2 := s.groundedAnswerStrict(ctx, detail, chunks, question, answer, onDelta)
+		answer2, usage2, model2, err2 := s.groundedAnswerStrict(ctx, detail, chunks, question, answer, onDelta)
+		if err2 != nil {
+			s.Logger.Error("strict chat regeneration failed", "error", err2, "session", sessionID)
+			return domainai.Message{}, err2
+		}
 		usage.TotalTokens += usage2.TotalTokens
 		if idx2 := citedChunkIndices(answer2, len(chunks)); len(idx2) > 0 || strings.Contains(answer2, RefusalSentence) {
 			answer, modelID = answer2, model2
@@ -264,7 +272,7 @@ func (s *Service) runStream(ctx context.Context, system, prompt string, onDelta 
 
 func (s *Service) groundedAnswer(ctx context.Context, d research.PaperDetail,
 	chunks []domainai.RetrievedChunk, history []domainai.HistoryTurn,
-	question string, onDelta func(string)) (string, domainai.TokenUsage, string) {
+	question string, onDelta func(string)) (string, domainai.TokenUsage, string, error) {
 
 	system := appai.GroundingSystem()
 	if len(chunks) == 0 {
@@ -295,14 +303,14 @@ Rules you must never break:
 	text, usage, model, err := s.runStream(ctx, system, b.String(), onDelta)
 	if err != nil {
 		s.Logger.Error("chat generation failed", "error", err, "prompt", b.String())
-		return RefusalSentence, usage, "failed:" + model
+		return "", usage, "failed:" + model, fmt.Errorf("%w: %v", domainai.ErrLLMUnavailable, err)
 	}
 	s.Logger.Info("chat generated response", "text", text, "model", model)
-	return text, usage, model
+	return text, usage, model, nil
 }
 
 func (s *Service) groundedAnswerStrict(ctx context.Context, d research.PaperDetail,
-	chunks []domainai.RetrievedChunk, question, badAnswer string, onDelta func(string)) (string, domainai.TokenUsage, string) {
+	chunks []domainai.RetrievedChunk, question, badAnswer string, onDelta func(string)) (string, domainai.TokenUsage, string, error) {
 
 	system := appai.GroundingSystem() + `
 
@@ -316,9 +324,9 @@ CRITICAL: Your previous answer violated citation rules. Every claim must carry a
 
 	text, usage, model, err := s.runStream(ctx, system, prompt, onDelta)
 	if err != nil {
-		return RefusalSentence, usage, "failed:" + model
+		return "", usage, "failed:" + model, fmt.Errorf("%w: %v", domainai.ErrLLMUnavailable, err)
 	}
-	return text, usage, model
+	return text, usage, model, nil
 }
 
 // citedChunkIndices extracts [chunk N] references that exist in the retrieved

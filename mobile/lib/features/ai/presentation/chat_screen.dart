@@ -54,6 +54,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: Text(

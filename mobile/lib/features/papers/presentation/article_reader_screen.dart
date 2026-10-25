@@ -326,7 +326,7 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
         data: (article) {
           if (article.sections.isEmpty) {
             return Center(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
