@@ -544,34 +544,41 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            SegmentedButton<FeedSection>(
-                              segments: const [
-                                ButtonSegment(
-                                  value: FeedSection.latest,
-                                  label: Text('Latest'),
-                                  icon: Icon(Icons.schedule_rounded, size: 15),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: SegmentedButton<FeedSection>(
+                                  segments: const [
+                                    ButtonSegment(
+                                      value: FeedSection.latest,
+                                      label: Text('Latest'),
+                                      icon: Icon(Icons.schedule_rounded, size: 15),
+                                    ),
+                                    ButtonSegment(
+                                      value: FeedSection.trending,
+                                      label: Text('Trending'),
+                                      icon: Icon(Icons.trending_up_rounded, size: 15),
+                                    ),
+                                    ButtonSegment(
+                                      value: FeedSection.recommended,
+                                      label: Text('For you'),
+                                      icon: Icon(Icons.auto_awesome_rounded, size: 15),
+                                    ),
+                                  ],
+                                  selected: {_section},
+                                  showSelectedIcon: false,
+                                  onSelectionChanged: (s) {
+                                    setState(() => _section = s.first);
+                                    if (_scrollController.hasClients) {
+                                      _scrollController.jumpTo(0);
+                                    }
+                                  },
                                 ),
-                                ButtonSegment(
-                                  value: FeedSection.trending,
-                                  label: Text('Trending'),
-                                  icon: Icon(Icons.trending_up_rounded, size: 15),
-                                ),
-                                ButtonSegment(
-                                  value: FeedSection.recommended,
-                                  label: Text('For you'),
-                                  icon: Icon(Icons.auto_awesome_rounded, size: 15),
-                                ),
-                              ],
-                              selected: {_section},
-                              showSelectedIcon: false,
-                              onSelectionChanged: (s) {
-                                setState(() => _section = s.first);
-                                if (_scrollController.hasClients) {
-                                  _scrollController.jumpTo(0);
-                                }
-                              },
+                              ),
                             ),
-                            if (items.isNotEmpty)
+                            if (items.isNotEmpty) ...[
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
@@ -590,6 +597,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                   ),
                                 ),
                               ),
+                            ],
                           ],
                         ),
                       ),

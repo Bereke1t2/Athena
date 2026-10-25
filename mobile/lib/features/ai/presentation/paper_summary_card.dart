@@ -43,33 +43,39 @@ class _PaperSummaryCardState extends ConsumerState<PaperSummaryCard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.canaryYellow.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(8),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.canaryYellow.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.auto_awesome,
+                        size: 16,
+                        color: AppTheme.canaryYellow,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      size: 16,
-                      color: AppTheme.canaryYellow,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'AI RESEARCH SUMMARY',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.0,
+                          color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF141416),
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'AI RESEARCH SUMMARY',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.0,
-                      color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF141416),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              if (data is AsyncData<PaperSummaryAI> && data.value.cacheHit)
+              if (data is AsyncData<PaperSummaryAI> && data.value.cacheHit) ...[
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
@@ -92,6 +98,7 @@ class _PaperSummaryCardState extends ConsumerState<PaperSummaryCard> {
                     ],
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 12),
