@@ -38,7 +38,7 @@ services:
         # Choose: gemini (default if using Google AI Studio), openai_compatible, or stub
         value: gemini
       - key: LLM_MODEL
-        value: gemini-3.6-flash
+        value: gemini-3.5-flash-lite
       - key: EMBEDDING_PROVIDER
         # Use 'none' when using Gemini (uses internal stub embedder without requiring OpenAI)
         value: none
