@@ -209,6 +209,20 @@ func topicNamePatterns(slugs []string) []string {
 		}
 		b.WriteByte('%')
 		add(b.String())
+
+		// Expand AI and ML domain synonyms
+		parts := strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
+			return r == '-' || r == ' ' || r == '_'
+		})
+		for _, p := range parts {
+			switch p {
+			case "ai":
+				add("%artificial%intelligence%")
+				add("%ai%")
+			case "ml":
+				add("%machine%learning%")
+			}
+		}
 	}
 	return out
 }
