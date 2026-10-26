@@ -76,7 +76,7 @@ func TestFromEnvGeminiProviderDefaults(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "gemini", cfg.LLMProvider)
 	assert.Equal(t, "https://generativelanguage.googleapis.com/v1beta/openai/", cfg.LLMBaseURL)
-	assert.Equal(t, "gemini-3.6-flash", cfg.LLMModel)
+	assert.Equal(t, "gemini-3.5-flash-lite", cfg.LLMModel)
 	assert.Equal(t, "AIzaSyFakeKey123", cfg.LLMAPIKey)
 }
 
