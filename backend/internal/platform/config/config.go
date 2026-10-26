@@ -141,7 +141,7 @@ func FromEnv() (Config, error) {
 				cfg.LLMBaseURL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 			}
 			if cfg.LLMModel == "" {
-				cfg.LLMModel = "gemini-3.6-flash"
+				cfg.LLMModel = "gemini-3.5-flash-lite"
 			}
 		} else if cfg.LLMModel == "" {
 			cfg.LLMModel = "gpt-4o-mini"
