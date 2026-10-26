@@ -223,6 +223,10 @@ func topicNamePatterns(slugs []string) []string {
 				add("%machine%learning%")
 			case "llm", "llms":
 				add("%language%model%")
+			default:
+				if len(p) >= 4 {
+					add("%" + p + "%")
+				}
 			}
 		}
 	}
