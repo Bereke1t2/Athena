@@ -14,3 +14,23 @@ func TestSanitizeTokens(t *testing.T) {
 		t.Fatalf("expected no tokens, got %v", got)
 	}
 }
+
+func TestTopicNamePatterns(t *testing.T) {
+	patterns := topicNamePatterns([]string{"quantum-physics", "ai-tech"})
+	foundQuantum := false
+	foundAI := false
+	for _, p := range patterns {
+		if p == "%quantum%" {
+			foundQuantum = true
+		}
+		if p == "%artificial%intelligence%" {
+			foundAI = true
+		}
+	}
+	if !foundQuantum {
+		t.Fatalf("expected %%quantum%% subtoken pattern, got %v", patterns)
+	}
+	if !foundAI {
+		t.Fatalf("expected %%artificial%%intelligence%% synonym pattern, got %v", patterns)
+	}
+}
