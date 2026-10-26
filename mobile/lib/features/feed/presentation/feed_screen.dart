@@ -996,3 +996,53 @@ class _CollectionCard extends StatelessWidget {
     );
   }
 }
+
+class _TopicFilterChip extends StatelessWidget {
+  const _TopicFilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? (isDark ? AppTheme.canaryYellow : const Color(0xFF141416))
+                : (isDark ? const Color(0xFF1C2028) : Colors.white),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isSelected
+                  ? Colors.transparent
+                  : (isDark ? const Color(0xFF2E3340) : const Color(0xFFE5E7EB)),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected
+                  ? (isDark ? const Color(0xFF141416) : Colors.white)
+                  : (isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
