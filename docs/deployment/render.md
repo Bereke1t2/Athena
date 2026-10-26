@@ -62,7 +62,7 @@ If you prefer configuring the Web Service manually on Render:
    ATHENA_JWT_SECRET=<32+ character random string>
    ATHENA_ADMIN_TOKEN=<random secure token>
    LLM_PROVIDER=gemini
-   LLM_MODEL=gemini-2.0-flash
+   LLM_MODEL=gemini-3.5-flash-lite
    GEMINI_API_KEY=<your-google-ai-studio-api-key>
    EMBEDDING_PROVIDER=none
    EMBEDDING_DIM=1536
