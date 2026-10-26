@@ -60,9 +60,19 @@ class FeedNotifier extends _$FeedNotifier {
 
     state = AsyncData(current.copyWith(loadingMore: true));
     try {
+      final activeFilter = ref.read(activeTopicFilterProvider);
+      List<String> topics;
+      if (activeFilter == 'all') {
+        topics = const [];
+      } else if (activeFilter.isNotEmpty) {
+        topics = [activeFilter];
+      } else {
+        topics = ref.read(selectedTopicsProvider);
+      }
+
       final page = await ref.read(feedRepositoryProvider).load(
             section: section,
-            topics: ref.read(selectedTopicsProvider),
+            topics: topics,
             cursor: current.cursor,
             limit: Paging.defaultLimit,
           );
