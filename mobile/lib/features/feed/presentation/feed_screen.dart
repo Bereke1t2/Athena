@@ -510,25 +510,37 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                               title: 'Machine Learning',
                               subtitle: 'cs.LG · Deep representations',
                               colors: const [Color(0xFF1E3C72), Color(0xFF2A5298)],
-                              onTap: () => context.push('/topics/machine-learning'),
+                              onTap: () {
+                                ref.read(activeTopicFilterProvider.notifier).state = 'artificial-intelligence-applications';
+                                context.push('/topics/artificial-intelligence-applications');
+                              },
                             ),
                             _CollectionCard(
                               title: 'Frontier AI & LLMs',
                               subtitle: 'cs.AI · Reasoning & scaling',
                               colors: const [Color(0xFF134E5E), Color(0xFF71B280)],
-                              onTap: () => context.push('/topics/artificial-intelligence'),
+                              onTap: () {
+                                ref.read(activeTopicFilterProvider.notifier).state = 'artificial-intelligence-applications';
+                                context.push('/topics/artificial-intelligence-applications');
+                              },
                             ),
                             _CollectionCard(
-                              title: 'Quantum Physics',
+                              title: 'Quantum Computing',
                               subtitle: 'quant-ph · Entanglement',
                               colors: const [Color(0xFF4A00E0), Color(0xFF8E2DE2)],
-                              onTap: () => context.push('/topics/quantum-physics'),
+                              onTap: () {
+                                ref.read(activeTopicFilterProvider.notifier).state = 'quantum-computing-algorithms-and-architecture';
+                                context.push('/topics/quantum-computing-algorithms-and-architecture');
+                              },
                             ),
                             _CollectionCard(
                               title: 'Neuroscience',
                               subtitle: 'q-bio.NC · Neural dynamics',
                               colors: const [Color(0xFFD48166), Color(0xFF373B44)],
-                              onTap: () => context.push('/topics/neuroscience'),
+                              onTap: () {
+                                ref.read(activeTopicFilterProvider.notifier).state = 'neural-and-behavioral-psychology-studies';
+                                context.push('/topics/neural-and-behavioral-psychology-studies');
+                              },
                             ),
                           ],
                         ),
