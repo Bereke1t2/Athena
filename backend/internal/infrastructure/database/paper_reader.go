@@ -282,8 +282,11 @@ func (s *PaperStore) ListPapers(ctx context.Context, q research.ListQuery) ([]re
 	}
 
 	if q.TopicSlug != "" {
+		slug := strings.TrimSpace(q.TopicSlug)
+		t := arg(slug)
+		n := arg(topicNamePatterns([]string{slug}))
 		where = append(where, "EXISTS (SELECT 1 FROM paper_topics pt JOIN topics t ON t.id = pt.topic_id"+
-			" WHERE pt.paper_id = p.id AND t.slug = "+arg(q.TopicSlug)+")")
+			" WHERE pt.paper_id = p.id AND (t.slug = "+t+" OR t.name ILIKE ANY("+n+")))")
 	}
 	if len(q.TopicSlugs) > 0 {
 		slugs := make([]string, 0, len(q.TopicSlugs))
