@@ -164,6 +164,7 @@ func (s *Service) Get(ctx context.Context, section Section, topicSlugs []string,
 	papers, next, err := s.source.ListPapers(ctx, lq)
 	fellBack := false
 	if err == nil && len(papers) == 0 && len(topics) > 0 && !unfiltered && cursor == "" {
+		// Zero-result guard: widen query to corpus-wide discovery so user feed never starves
 		lq.TopicSlugs = nil
 		papers, next, err = s.source.ListPapers(ctx, lq)
 		fellBack = true
