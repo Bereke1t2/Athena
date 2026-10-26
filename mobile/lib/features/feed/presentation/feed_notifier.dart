@@ -25,8 +25,9 @@ sealed class FeedPageState with _$FeedPageState {
   }) = _FeedPageState;
 }
 
-/// Feed for one section, filtered to the user's onboarding interests. Watches
-/// [selectedTopicsProvider], so saving new topics refreshes automatically.
+/// Feed for one section, filtered by the active topic filter or onboarding interests.
+/// Watches [activeTopicFilterProvider] and [selectedTopicsProvider], so switching filters
+/// refreshes automatically.
 @riverpod
 class FeedNotifier extends _$FeedNotifier {
   @override
