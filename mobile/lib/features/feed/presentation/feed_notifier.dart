@@ -31,7 +31,16 @@ sealed class FeedPageState with _$FeedPageState {
 class FeedNotifier extends _$FeedNotifier {
   @override
   Future<FeedPageState> build(FeedSection section) async {
-    final topics = ref.watch(selectedTopicsProvider);
+    final activeFilter = ref.watch(activeTopicFilterProvider);
+    List<String> topics;
+    if (activeFilter == 'all') {
+      topics = const [];
+    } else if (activeFilter.isNotEmpty) {
+      topics = [activeFilter];
+    } else {
+      topics = ref.watch(selectedTopicsProvider);
+    }
+
     final page = await ref.watch(feedRepositoryProvider).load(
           section: section,
           topics: topics,
