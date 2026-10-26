@@ -605,6 +605,90 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     ),
                   ),
 
+                  // Topic Filter Chips (All Papers, AI, Quantum, etc.)
+                  SliverToBoxAdapter(
+                    child: AnimatedEntrance(
+                      delay: const Duration(milliseconds: 410),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                        child: SizedBox(
+                          height: 34,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              _TopicFilterChip(
+                                label: 'All Papers',
+                                isSelected: activeTopic == 'all',
+                                isDark: isDark,
+                                onTap: () {
+                                  ref.read(activeTopicFilterProvider.notifier).state = 'all';
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
+                                  }
+                                },
+                              ),
+                              _TopicFilterChip(
+                                label: 'AI & Tech',
+                                isSelected: activeTopic == 'artificial-intelligence-applications',
+                                isDark: isDark,
+                                onTap: () {
+                                  ref.read(activeTopicFilterProvider.notifier).state = 'artificial-intelligence-applications';
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
+                                  }
+                                },
+                              ),
+                              _TopicFilterChip(
+                                label: 'Quantum',
+                                isSelected: activeTopic == 'quantum-computing-algorithms-and-architecture',
+                                isDark: isDark,
+                                onTap: () {
+                                  ref.read(activeTopicFilterProvider.notifier).state = 'quantum-computing-algorithms-and-architecture';
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
+                                  }
+                                },
+                              ),
+                              _TopicFilterChip(
+                                label: 'Neuroscience',
+                                isSelected: activeTopic == 'neural-and-behavioral-psychology-studies',
+                                isDark: isDark,
+                                onTap: () {
+                                  ref.read(activeTopicFilterProvider.notifier).state = 'neural-and-behavioral-psychology-studies';
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
+                                  }
+                                },
+                              ),
+                              _TopicFilterChip(
+                                label: 'Biotechnology',
+                                isSelected: activeTopic == 'biotechnology-and-related-fields',
+                                isDark: isDark,
+                                onTap: () {
+                                  ref.read(activeTopicFilterProvider.notifier).state = 'biotechnology-and-related-fields';
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
+                                  }
+                                },
+                              ),
+                              _TopicFilterChip(
+                                label: 'Climate',
+                                isSelected: activeTopic == 'climate-change-and-environmental-impact',
+                                isDark: isDark,
+                                onTap: () {
+                                  ref.read(activeTopicFilterProvider.notifier).state = 'climate-change-and-environmental-impact';
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
                   // Feed list
                   if (items.isEmpty)
                     const SliverFillRemaining(
