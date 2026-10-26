@@ -185,7 +185,15 @@ func decodeCursor(tok string) (listCursor, error) {
 // "Machine Learning in Healthcare". Dashes (and other separators) become
 // wildcard separators; LIKE metacharacters are stripped defensively.
 func topicNamePatterns(slugs []string) []string {
-	out := make([]string, 0, len(slugs))
+	out := make([]string, 0, len(slugs)*2)
+	seen := make(map[string]bool)
+	add := func(p string) {
+		if len(p) > 2 && !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+
 	for _, s := range slugs {
 		var b strings.Builder
 		b.WriteByte('%')
@@ -200,9 +208,7 @@ func topicNamePatterns(slugs []string) []string {
 			}
 		}
 		b.WriteByte('%')
-		if b.Len() > 2 { // skip degenerate all-separator patterns ("%")
-			out = append(out, b.String())
-		}
+		add(b.String())
 	}
 	return out
 }
