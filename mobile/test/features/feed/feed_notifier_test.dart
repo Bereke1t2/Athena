@@ -95,6 +95,20 @@ void main() {
     expect(latest.items.single.paper.id, 'a');
     expect(trending.items, isEmpty);
   });
+
+  test('feed notifier loads unfiltered when activeTopicFilterProvider is all', () async {
+    final fake = FakeFeedRepository([
+      ['x', 'y'],
+    ]);
+    final container = ProviderContainer(overrides: [
+      feedRepositoryProvider.overrideWithValue(fake),
+    ]);
+    addTearDown(container.dispose);
+
+    expect(container.read(activeTopicFilterProvider), 'all');
+    final state = await container.read(feedNotifierProvider(FeedSection.latest).future);
+    expect(state.items.map((i) => i.paper.id).toList(), ['x', 'y']);
+  });
 }
 
 class _ThrowingRepo implements FeedRepository {
