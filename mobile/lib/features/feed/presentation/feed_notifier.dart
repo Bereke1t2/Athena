@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -8,6 +9,10 @@ import '../domain/feed.dart';
 
 part 'feed_notifier.g.dart';
 part 'feed_notifier.freezed.dart';
+
+/// The active topic filter on the discovery feed. Defaults to 'all' so users see
+/// the full discovery feed across Athena; specific topic slugs filter accordingly.
+final activeTopicFilterProvider = StateProvider<String>((ref) => 'all');
 
 /// Pagination state per conventions: {items, cursor, loadingMore}; top-level
 /// async states ride on the AsyncValue wrapper.
