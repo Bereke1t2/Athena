@@ -93,6 +93,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     final items = async.valueOrNull?.items ?? [];
     final audioState = ref.watch(audioPlayerProvider);
     final currentTrack = audioState.currentTrack;
+    final activeTopic = ref.watch(activeTopicFilterProvider);
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF8F9FB),
