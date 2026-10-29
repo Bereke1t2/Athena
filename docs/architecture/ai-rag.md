@@ -57,10 +57,10 @@ abstract when available; chat answers from abstract scope and say so.
 
 ## 5. Embeddings
 
-- Default model configurable (`EMBEDDING_MODEL`, `EMBEDDING_DIM=1536`).
-- Stored in `chunk_embeddings(chunk_id, model_id, embedding vector)` with HNSW
+- Default model configurable (`EMBEDDING_MODEL`, `EMBEDDING_DIM=768` default, aligned with Gemini `text-embedding-004`).
+- Stored in `chunk_embeddings(chunk_id, model_id, embedding vector(768))` with HNSW
   cosine index. Model changes → new `model_id` rows + backfill job; old rows
-  pruned after full backfill (no dimension migration pain mid-flight).
+  pruned after full backfill (no dimension migration pain mid-flight). Migration `000012` aligned the pgvector schema to 768 dims.
 
 ## 6. Retrieval & context assembly
 
