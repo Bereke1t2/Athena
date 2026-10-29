@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
+
 	appfeed "athena/backend/internal/application/feed"
 )
 
@@ -59,7 +61,12 @@ func (h *FeedHandlers) Get(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items, next, err := h.Svc.Get(r.Context(), appfeed.Section(q.Get("section")),
+	var userID uuid.UUID
+	if u, ok := UserFromContext(r.Context()); ok {
+		userID = u.ID
+	}
+
+	items, next, err := h.Svc.GetForUser(r.Context(), userID, appfeed.Section(q.Get("section")),
 		topicSlugs, q.Get("field"), q.Get("cursor"), limit)
 	if errors.Is(err, appfeed.ErrInvalidSection) {
 		WriteErrorWithDetails(w, r, http.StatusBadRequest, CodeInvalidRequest,
