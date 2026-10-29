@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Go)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.x'
+          cache-dependency-path: backend/go.sum
+
+      - name: Go Vet
+        run: cd backend && go vet ./...
+
+      - name: Run Backend Unit Tests
+        run: cd backend && go test -v -count=1 ./...
+
+      - name: Build Backend Binaries
+        run: make build-backend
+
+  mobile:
+    name: Mobile (Flutter)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Fetch Dependencies
+        run: cd mobile && flutter pub get
+
+      - name: Static Analysis
+        run: cd mobile && dart analyze
+
+      - name: Run Mobile Tests
+        run: cd mobile && flutter test

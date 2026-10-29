@@ -44,12 +44,23 @@ type Source interface {
 	Trending(ctx context.Context, topicSlugs []string, fieldSlug string, limit int) ([]research.PaperSummary, error)
 }
 
+// Recommender abstracts personalized paper ranking.
+type Recommender interface {
+	RecommendPapers(ctx context.Context, userID uuid.UUID, candidates []research.PaperSummary, explicitTopicSlugs []string, limit int) []domainrec.ScoredPaper
+}
+
 // Service produces feed pages.
 type Service struct {
-	source Source
+	source      Source
+	recommender Recommender
 }
 
 func NewService(s Source) *Service { return &Service{source: s} }
+
+func (s *Service) WithRecommender(r Recommender) *Service {
+	s.recommender = r
+	return s
+}
 
 const defaultReason = "fresh from the sources you follow"
 
@@ -67,15 +78,13 @@ const fallbackCursorPrefix = "~"
 
 func hasFallbackCursor(cursor string) bool { return strings.HasPrefix(cursor, fallbackCursorPrefix) }
 
-// Get returns one page of the requested section. topicSlugs OR-match the
-// user's followed topics (empty means unfiltered). Cursor applies to
-// latest (keyset on publication date) and is ignored for trending.
-//
-// Zero-result guard: when a topic-filtered first page comes back empty but
-// the corpus has content, the query is retried without the topic filter so
-// the feed never starves. Its continuation cursor is prefixed with
-// fallbackCursorPrefix; later pages then continue unfiltered.
+// Get returns one page of the requested section.
 func (s *Service) Get(ctx context.Context, section Section, topicSlugs []string, fieldSlug, cursor string, limit int) ([]Item, string, error) {
+	return s.GetForUser(ctx, uuid.Nil, section, topicSlugs, fieldSlug, cursor, limit)
+}
+
+// GetForUser returns one page of the requested section, incorporating authenticated user affinities when available.
+func (s *Service) GetForUser(ctx context.Context, userID uuid.UUID, section Section, topicSlugs []string, fieldSlug, cursor string, limit int) ([]Item, string, error) {
 	switch section {
 	case "", SectionLatest:
 	case SectionTrending:
@@ -131,14 +140,21 @@ func (s *Service) Get(ctx context.Context, section Section, topicSlugs []string,
 		if err != nil {
 			return nil, "", err
 		}
-		profile := domainrec.NewAffinityProfile(uuid.Nil)
-		for _, t := range topics {
-			profile.TopicWeights[t] = 1.0
+
+		var scored []domainrec.ScoredPaper
+		if s.recommender != nil {
+			scored = s.recommender.RecommendPapers(ctx, userID, papers, topics, limit)
+		} else {
+			profile := domainrec.NewAffinityProfile(userID)
+			for _, t := range topics {
+				profile.TopicWeights[t] = 1.0
+			}
+			scored = domainrec.RankPapers(papers, profile, time.Now().UTC())
+			if len(scored) > limit {
+				scored = scored[:limit]
+			}
 		}
-		scored := domainrec.RankPapers(papers, profile, time.Now().UTC())
-		if len(scored) > limit {
-			scored = scored[:limit]
-		}
+
 		items := make([]Item, 0, len(scored))
 		for _, sp := range scored {
 			reason := sp.MatchReason

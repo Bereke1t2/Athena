@@ -24,6 +24,7 @@ import (
 	appfollow "athena/backend/internal/application/follow"
 	apphistory "athena/backend/internal/application/history"
 	appnotif "athena/backend/internal/application/notification"
+	apprec "athena/backend/internal/application/recommendation"
 	appsearch "athena/backend/internal/application/search"
 	v1 "athena/backend/internal/delivery/http/v1"
 	"athena/backend/internal/infrastructure/cache"
@@ -123,7 +124,10 @@ func run() error {
 	}
 	discoverSvc := discover.NewService(liveProviders, store, searchCache, log)
 
-	feedSvc := appfeed.NewService(store) // PaperStore satisfies feed.Source
+	// Phase 5 follows: topics and authors subscriptions.
+	followStore := database.NewFollowStore(pool)
+	recSvc := apprec.NewService(followStore)
+	feedSvc := appfeed.NewService(store).WithRecommender(recSvc)
 	topics := v1.NewTopicsHandlers(database.NewTopicReader(pool), research, log)
 
 	// Phase 5 auth: password accounts with opaque bearer sessions. The user
@@ -136,14 +140,13 @@ func run() error {
 	bookmarkHandlers := v1.NewBookmarksHandlers(
 		appbookmark.NewService(database.NewBookmarkStore(pool)), log)
 
-	// Phase 5 follows: topics and authors subscriptions.
-	followStore := database.NewFollowStore(pool)
 	followHandlers := v1.NewFollowsHandlers(
 		appfollow.NewService(followStore), log)
 
 	// Phase 5 notifications: user in-app alerts and updates.
+	notifStore := database.NewNotificationStore(pool)
 	notifHandlers := v1.NewNotificationsHandlers(
-		appnotif.NewService(database.NewNotificationStore(pool)), log)
+		appnotif.NewService(notifStore).WithDevices(notifStore, nil), log)
 
 	// Phase 4 AI layer: only wired when an LLM provider is configured.
 	var aiHandlers *v1.AIHandlers
@@ -169,8 +172,10 @@ func run() error {
 		var embedder domainai.EmbeddingProvider
 		if cfg.EmbeddingProviderName == "openai_compatible" || cfg.EmbeddingProviderName == "gemini" {
 			embedder = openaicompat.NewEmbedder(openaicompat.Config{
-				BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey,
-				Model: cfg.EmbeddingModel,
+				BaseURL:    cfg.LLMBaseURL,
+				APIKey:     cfg.LLMAPIKey,
+				Model:      cfg.EmbeddingModel,
+				Dimensions: cfg.EmbeddingDim,
 			})
 		} else {
 			embedder = stubai.NewEmbedder(cfg.EmbeddingDim)
@@ -188,6 +193,7 @@ func run() error {
 
 		aiHandlers = v1.NewAIHandlers(summarySvc, chatSvc, log)
 		aiHandlers.Comparison = appai.NewComparisonService(llm, paperStore, aiStore, log)
+		aiHandlers.Audio = appai.NewAudioService(llm, paperStore, log)
 		if cfg.LLMProvider != "stub" && cfg.LLMAPIKey == "" {
 			log.Warn("LLM_API_KEY is empty; AI requests are sent unauthenticated and will likely fail")
 		}
@@ -203,7 +209,8 @@ func run() error {
 		apphistory.NewService(historyStore), log)
 
 	exportHandlers := v1.NewExportHandlers(appexport.NewService(store), log)
-	digestHandlers := v1.NewDigestHandlers(appdigest.NewService(store, followStore, nil, log), log)
+	digestStore := database.NewDigestStore(pool)
+	digestHandlers := v1.NewDigestHandlers(appdigest.NewService(store, followStore, digestStore, log), log)
 
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
@@ -219,9 +226,10 @@ func run() error {
 			Follows:       followHandlers,
 			Notifications: notifHandlers,
 			History:       historyHandlers,
-			Export:        exportHandlers,
-			Digest:        digestHandlers,
-			Logger:        log,
+			Export:         exportHandlers,
+			Digest:         digestHandlers,
+			AllowedOrigins: cfg.CORSAllowedOrigins,
+			Logger:         log,
 			Ping: func() error {
 				cctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()

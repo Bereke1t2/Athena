@@ -80,6 +80,20 @@ func TestFromEnvGeminiProviderDefaults(t *testing.T) {
 	assert.Equal(t, "AIzaSyFakeKey123", cfg.LLMAPIKey)
 }
 
+func TestFromEnvGeminiEmbeddingDefaults(t *testing.T) {
+	setEnv(t, map[string]string{
+		"ATHENA_DATABASE_URL": "postgres://localhost/test",
+		"LLM_PROVIDER":        "gemini",
+		"GEMINI_API_KEY":      "AIzaSyFakeKey123",
+		"EMBEDDING_PROVIDER":  "gemini",
+	})
+	cfg, err := FromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, "gemini", cfg.EmbeddingProviderName)
+	assert.Equal(t, "text-embedding-004", cfg.EmbeddingModel)
+	assert.Equal(t, 768, cfg.EmbeddingDim)
+}
+
 func TestFromEnvDatabaseURLFallback(t *testing.T) {
 	setEnv(t, map[string]string{
 		"DATABASE_URL": "postgres://neon-user:neon-pass@ep-cool-db.neon.tech/neondb?sslmode=require",

@@ -23,15 +23,18 @@ var (
 	// ErrSessionExpired / ErrSessionUnknown both mean "present no user".
 	ErrSessionExpired = errors.New("user: session expired")
 	ErrSessionUnknown = errors.New("user: session unknown")
+	// ErrInvalidResetToken indicates an expired, used, or nonexistent reset token.
+	ErrInvalidResetToken = errors.New("user: invalid or expired reset token")
 )
 
 // User is the public projection of an account — never carries credentials.
 type User struct {
-	ID          uuid.UUID `json:"id"`
-	Email       string    `json:"email"`
-	DisplayName string    `json:"display_name"`
-	AvatarURL   string    `json:"avatar_url,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID               uuid.UUID `json:"id"`
+	Email            string    `json:"email"`
+	DisplayName      string    `json:"display_name"`
+	AvatarURL        string    `json:"avatar_url,omitempty"`
+	ExplanationLevel string    `json:"explanation_level,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 // NewUser is a registration request after application-level validation; the
@@ -46,6 +49,11 @@ type Store interface {
 	Create(ctx context.Context, nu NewUser) (User, error)
 	ByEmail(ctx context.Context, email string) (Credential, error)
 	ByID(ctx context.Context, id uuid.UUID) (User, error)
+	Delete(ctx context.Context, id uuid.UUID) error
+	UpdateExplanationLevel(ctx context.Context, id uuid.UUID, level string) error
+	UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error
+	CreatePasswordReset(ctx context.Context, userID uuid.UUID, tokenHash []byte, expiresAt time.Time) error
+	ConsumePasswordReset(ctx context.Context, tokenHash []byte) (uuid.UUID, error)
 }
 
 // Credential pairs an account with its stored password hash for login checks.

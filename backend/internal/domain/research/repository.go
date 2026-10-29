@@ -114,11 +114,30 @@ type GraphNode struct {
 	IsSeed       bool      `json:"is_seed"`
 }
 
+// CitationStance classifies the relationship from citing paper to cited paper.
+type CitationStance string
+
+const (
+	StanceSupports    CitationStance = "supports"
+	StanceContradicts CitationStance = "contradicts"
+	StanceMentions    CitationStance = "mentions"
+)
+
 // GraphEdge represents a directed citation relationship from Source citing Target.
 type GraphEdge struct {
-	Source        uuid.UUID `json:"source"`
-	Target        uuid.UUID `json:"target"`
-	IsInfluential bool      `json:"is_influential"`
+	Source        uuid.UUID      `json:"source"`
+	Target        uuid.UUID      `json:"target"`
+	IsInfluential bool           `json:"is_influential"`
+	Stance        CitationStance `json:"stance,omitempty"`
+	Context       string         `json:"context,omitempty"`
+}
+
+// CitationItem pairs a cited/citing paper summary with edge stance context.
+type CitationItem struct {
+	Paper         PaperSummary   `json:"paper"`
+	IsInfluential bool           `json:"is_influential"`
+	Stance        CitationStance `json:"stance"`
+	Context       string         `json:"context,omitempty"`
 }
 
 // CitationGraph represents the multi-hop network of citations surrounding a seed paper.
@@ -131,6 +150,22 @@ type CitationGraph struct {
 	TotalEdges int         `json:"total_edges"`
 }
 
+// TopicVelocity represents publication momentum for a topic.
+type TopicVelocity struct {
+	TopicSlug  string  `json:"topic_slug"`
+	TopicName  string  `json:"topic_name"`
+	PaperCount int     `json:"paper_count"`
+	GrowthRate float64 `json:"growth_rate"`
+}
+
+// TrendReport aggregates topic velocities and breakthrough momentum papers.
+type TrendReport struct {
+	WindowDays         int             `json:"window_days"`
+	GeneratedAt        time.Time       `json:"generated_at"`
+	TopTopics          []TopicVelocity `json:"top_topics"`
+	BreakthroughPapers []PaperSummary  `json:"breakthrough_papers"`
+}
+
 // PaperReader is the query-side port used by application services and HTTP
 // handlers. Cursor semantics are owned by the implementation.
 type PaperReader interface {
@@ -138,6 +173,8 @@ type PaperReader interface {
 	FindIDByIdentifier(ctx context.Context, t IdentifierType, value string) (uuid.UUID, error)
 	ListPapers(ctx context.Context, q ListQuery) ([]PaperSummary, string, error)
 	ListCitations(ctx context.Context, paperID uuid.UUID, dir CitationDirection, limit int) ([]PaperSummary, error)
+	ListCitationDetails(ctx context.Context, paperID uuid.UUID, dir CitationDirection, limit int) ([]CitationItem, error)
 	RelatedBySharedTopics(ctx context.Context, paperID uuid.UUID, limit int) ([]PaperSummary, error)
 	GetCitationGraph(ctx context.Context, paperID uuid.UUID, maxDepth int, limitPerLevel int) (CitationGraph, error)
+	GetResearchTrends(ctx context.Context, windowDays int, limit int) (TrendReport, error)
 }

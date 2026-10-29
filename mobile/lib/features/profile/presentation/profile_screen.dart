@@ -216,6 +216,48 @@ class ProfileScreen extends ConsumerWidget {
               },
               isDark: isDark,
             ),
+            const SizedBox(height: 6),
+            _Tile(
+              icon: Icons.delete_forever_rounded,
+              title: 'Delete Account',
+              subtitle: 'Permanently remove your account and data',
+              iconColor: const Color(0xFFE53935),
+              onTap: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete Account?'),
+                    content: const Text(
+                      'This action is permanent and cannot be undone. All your bookmarks, reading history, and account settings will be erased.',
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Delete Permanently', style: TextStyle(color: Color(0xFFE53935), fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  try {
+                    await ref.read(authNotifierProvider.notifier).deleteAccount();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Account deleted successfully')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to delete account: $e')),
+                      );
+                    }
+                  }
+                }
+              },
+              isDark: isDark,
+            ),
           ],
         ],
       ),

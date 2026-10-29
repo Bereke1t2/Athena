@@ -17,6 +17,15 @@ class AudioChapter {
   final Duration duration;
 
   Duration get endOffset => startOffset + duration;
+
+  factory AudioChapter.fromJson(Map<String, dynamic> json) {
+    return AudioChapter(
+      index: (json['index'] as num?)?.toInt() ?? 1,
+      title: json['title'] as String? ?? '',
+      startOffset: Duration(seconds: (json['start_offset_seconds'] as num?)?.toInt() ?? 0),
+      duration: Duration(seconds: (json['duration_seconds'] as num?)?.toInt() ?? 0),
+    );
+  }
 }
 
 class AudioQuote {
@@ -29,6 +38,14 @@ class AudioQuote {
   final String quote;
   final String context;
   final Duration timestamp;
+
+  factory AudioQuote.fromJson(Map<String, dynamic> json) {
+    return AudioQuote(
+      quote: json['quote'] as String? ?? '',
+      context: json['context'] as String? ?? '',
+      timestamp: Duration(seconds: (json['timestamp_seconds'] as num?)?.toInt() ?? 0),
+    );
+  }
 }
 
 class AudioTrack {
@@ -55,6 +72,30 @@ class AudioTrack {
   final AudioQuote? pullQuote;
   final List<String> tags;
   final int gradientThemeIndex;
+
+  factory AudioTrack.fromJson(Map<String, dynamic> json) {
+    final rawChapters = json['chapters'] as List<dynamic>? ?? [];
+    final rawTakeaways = json['takeaways'] as List<dynamic>? ?? [];
+    final rawTags = json['tags'] as List<dynamic>? ?? [];
+    final rawQuote = json['pull_quote'] as Map<String, dynamic>?;
+
+    final id = json['id'] as String? ?? 'gen-${DateTime.now().millisecondsSinceEpoch}';
+    final paperId = json['paper_id'] as String?;
+    final totalSeconds = (json['total_duration_seconds'] as num?)?.toInt() ?? 720;
+
+    return AudioTrack(
+      id: id,
+      paperId: paperId,
+      title: json['title'] as String? ?? '',
+      authorVenue: json['author_venue'] as String? ?? 'Athena AI Synthesis',
+      totalDuration: Duration(seconds: totalSeconds),
+      chapters: rawChapters.map((c) => AudioChapter.fromJson(c as Map<String, dynamic>)).toList(),
+      takeaways: rawTakeaways.map((t) => t.toString()).toList(),
+      pullQuote: rawQuote != null ? AudioQuote.fromJson(rawQuote) : null,
+      tags: rawTags.map((t) => t.toString()).toList(),
+      gradientThemeIndex: id.hashCode.abs() % 4,
+    );
+  }
 
   /// Helper factory to generate a rich AudioTrack from a PaperSummary.
   factory AudioTrack.fromPaper({

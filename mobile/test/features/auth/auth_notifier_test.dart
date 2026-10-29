@@ -55,6 +55,15 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> logout() async {}
+
+  @override
+  Future<void> deleteAccount() async {}
+
+  @override
+  Future<String> forgotPassword(String email) async => 'Password recovery email dispatched.';
+
+  @override
+  Future<void> resetPassword({required String token, required String newPassword}) async {}
 }
 
 void main() {
@@ -113,5 +122,37 @@ void main() {
     final state = container.read(authNotifierProvider);
     expect(state.isAuthenticated, isFalse);
     expect(state.errorMessage, isNotNull);
+  });
+
+  test('auth notifier deleteAccount clears auth session', () async {
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final notifier = container.read(authNotifierProvider.notifier);
+    await notifier.login(email: 'test@example.com', password: 'password');
+    expect(container.read(authNotifierProvider).isAuthenticated, isTrue);
+
+    await notifier.deleteAccount();
+    expect(container.read(authNotifierProvider).isAuthenticated, isFalse);
+  });
+
+  test('auth notifier forgotPassword and resetPassword dispatch successfully', () async {
+    final container = ProviderContainer(
+      overrides: [
+        authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final notifier = container.read(authNotifierProvider.notifier);
+    final msg = await notifier.forgotPassword('user@example.com');
+    expect(msg, equals('Password recovery email dispatched.'));
+
+    final resetOk = await notifier.resetPassword(token: 'token-123', newPassword: 'new-password-123');
+    expect(resetOk, isTrue);
   });
 }

@@ -429,6 +429,178 @@ func (s *PaperStore) RelatedBySharedTopics(ctx context.Context, paperID uuid.UUI
 	return out, rows.Err()
 }
 
+// ClassifyStance analyzes citation context to detect support, contradiction, or mention.
+func ClassifyStance(contextText string) research.CitationStance {
+	lower := strings.ToLower(contextText)
+	if lower == "" {
+		return research.StanceMentions
+	}
+
+	contradictionPhrases := []string{
+		"contradict", "differ", "disagree", "contrast", "contrary", "in contrast",
+		"disprove", "refute", "fails to", "discrepancy", "limitation", "challenged by",
+		"inconsistent with", "fail to replicate", "counter to", "conflict",
+	}
+	for _, phrase := range contradictionPhrases {
+		if strings.Contains(lower, phrase) {
+			return research.StanceContradicts
+		}
+	}
+
+	supportPhrases := []string{
+		"confirm", "support", "consistent with", "corroborate", "validate",
+		"agree", "demonstrate similarly", "adopts", "builds upon", "extends",
+		"in accordance with", "replicate", "aligns with", "following",
+	}
+	for _, phrase := range supportPhrases {
+		if strings.Contains(lower, phrase) {
+			return research.StanceSupports
+		}
+	}
+
+	return research.StanceMentions
+}
+
+// ListCitationDetails returns citing or cited papers alongside stance and citation context.
+func (s *PaperStore) ListCitationDetails(ctx context.Context, paperID uuid.UUID, dir research.CitationDirection, limit int) ([]research.CitationItem, error) {
+	if limit <= 0 {
+		limit = 25
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	join, filter := "", ""
+	switch dir {
+	case research.CitedBy:
+		join, filter = "JOIN citations c ON c.citing_paper_id = p.id", "c.cited_paper_id = $1"
+	case research.References:
+		join, filter = "JOIN citations c ON c.cited_paper_id = p.id", "c.citing_paper_id = $1"
+	default:
+		return nil, fmt.Errorf("%w: unknown citation direction %q", research.ErrInvalidInput, dir)
+	}
+
+	rows, err := s.pool.Query(ctx, `
+		SELECT COALESCE(c.is_influential, false), COALESCE(c.stance, 'mentions'), COALESCE(c.context, ''), `+summaryCols+`
+		FROM papers p `+join+`
+		WHERE `+filter+` AND p.deleted_at IS NULL
+		ORDER BY p.cited_by_count DESC, p.id DESC
+		LIMIT $2`, paperID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list citation details: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]research.CitationItem, 0, limit)
+	for rows.Next() {
+		var isInfluential bool
+		var dbStance, contextText string
+		var ps research.PaperSummary
+		var pubType, oaStatus string
+		if err := rows.Scan(
+			&isInfluential, &dbStance, &contextText,
+			&ps.ID, &ps.Title, &ps.Abstract, &ps.PublishedOn, &ps.Year,
+			&ps.VenueName, &pubType, &oaStatus, &ps.IsOpenAccess, &ps.CitedByCount,
+		); err != nil {
+			return nil, err
+		}
+		ps.PublicationType = research.PublicationType(pubType)
+		ps.OAStatus = research.OAStatus(oaStatus)
+
+		stance := research.CitationStance(dbStance)
+		if stance == "" || stance == research.StanceMentions {
+			if detected := ClassifyStance(contextText); detected != research.StanceMentions {
+				stance = detected
+			}
+		}
+		out = append(out, research.CitationItem{
+			Paper:         ps,
+			IsInfluential: isInfluential,
+			Stance:        stance,
+			Context:       contextText,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// GetResearchTrends calculates publication momentum and identifies breakthrough papers.
+func (s *PaperStore) GetResearchTrends(ctx context.Context, windowDays int, limit int) (research.TrendReport, error) {
+	if windowDays <= 0 {
+		windowDays = 90
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50
+	}
+
+	now := time.Now().UTC()
+
+	// 1. Top Accelerating Topics: calculate publication volume and citation weight
+	topicRows, err := s.pool.Query(ctx, `
+		SELECT t.slug, t.name,
+		       COUNT(p.id) AS paper_count,
+		       COALESCE(SUM(p.cited_by_count), 0) AS total_citations
+		FROM topics t
+		JOIN paper_topics pt ON pt.topic_id = t.id
+		JOIN papers p ON p.id = pt.paper_id AND p.deleted_at IS NULL
+		GROUP BY t.slug, t.name
+		ORDER BY paper_count DESC, total_citations DESC
+		LIMIT $1`, limit)
+	if err != nil {
+		return research.TrendReport{}, fmt.Errorf("trend topics: %w", err)
+	}
+	defer topicRows.Close()
+
+	var topTopics []research.TopicVelocity
+	for topicRows.Next() {
+		var tv research.TopicVelocity
+		var totalCit int
+		if err := topicRows.Scan(&tv.TopicSlug, &tv.TopicName, &tv.PaperCount, &totalCit); err != nil {
+			return research.TrendReport{}, err
+		}
+		tv.GrowthRate = float64(tv.PaperCount)*1.5 + float64(totalCit)*0.1
+		topTopics = append(topTopics, tv)
+	}
+	if err := topicRows.Err(); err != nil {
+		return research.TrendReport{}, err
+	}
+
+	// 2. Breakthrough Papers: High citation momentum papers
+	paperRows, err := s.pool.Query(ctx, `
+		SELECT `+summaryCols+`
+		FROM papers p
+		WHERE p.deleted_at IS NULL AND p.cited_by_count > 0
+		ORDER BY p.cited_by_count DESC, p.publication_year DESC, p.id DESC
+		LIMIT $1`, limit)
+	if err != nil {
+		return research.TrendReport{}, fmt.Errorf("trend papers: %w", err)
+	}
+	defer paperRows.Close()
+
+	var breakthrough []research.PaperSummary
+	for paperRows.Next() {
+		ps, err := scanSummary(paperRows)
+		if err != nil {
+			return research.TrendReport{}, err
+		}
+		breakthrough = append(breakthrough, ps)
+	}
+	if err := paperRows.Err(); err != nil {
+		return research.TrendReport{}, err
+	}
+
+	return research.TrendReport{
+		WindowDays:         windowDays,
+		GeneratedAt:        now,
+		TopTopics:          topTopics,
+		BreakthroughPapers: breakthrough,
+	}, nil
+}
+
 // GetCitationGraph traverses citation edges up to maxDepth and returns the connected graph.
 func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, maxDepth int, limitPerLevel int) (research.CitationGraph, error) {
 	if maxDepth <= 0 {
@@ -475,6 +647,7 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 	// 2. Query Level 1 citations (incoming and outgoing)
 	rows, err := s.pool.Query(ctx, `
 		SELECT c.citing_paper_id, c.cited_paper_id, COALESCE(c.is_influential, false),
+		       COALESCE(c.stance, 'mentions'), COALESCE(c.context, ''),
 		       p.id, p.title, COALESCE(p.publication_year, 0), COALESCE(p.venue_name, ''), p.cited_by_count
 		FROM citations c
 		JOIN papers p ON p.id = (CASE WHEN c.citing_paper_id = $1 THEN c.cited_paper_id ELSE c.citing_paper_id END)
@@ -490,9 +663,9 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 	for rows.Next() {
 		var citingID, citedID, pID uuid.UUID
 		var isInfluential bool
-		var title, venue string
+		var dbStance, contextText, title, venue string
 		var year, citations int
-		if err := rows.Scan(&citingID, &citedID, &isInfluential, &pID, &title, &year, &venue, &citations); err != nil {
+		if err := rows.Scan(&citingID, &citedID, &isInfluential, &dbStance, &contextText, &pID, &title, &year, &venue, &citations); err != nil {
 			return research.CitationGraph{}, err
 		}
 		if _, exists := nodesMap[pID]; !exists {
@@ -508,10 +681,18 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 			level1IDs = append(level1IDs, pID)
 		}
 		edgeKey := citingID.String() + "->" + citedID.String()
+		stance := research.CitationStance(dbStance)
+		if stance == "" || stance == research.StanceMentions {
+			if detected := ClassifyStance(contextText); detected != research.StanceMentions {
+				stance = detected
+			}
+		}
 		edgeSet[edgeKey] = research.GraphEdge{
 			Source:        citingID,
 			Target:        citedID,
 			IsInfluential: isInfluential,
+			Stance:        stance,
+			Context:       contextText,
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -527,6 +708,7 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 
 		l2Rows, err := s.pool.Query(ctx, `
 			SELECT c.citing_paper_id, c.cited_paper_id, COALESCE(c.is_influential, false),
+			       COALESCE(c.stance, 'mentions'), COALESCE(c.context, ''),
 			       p.id, p.title, COALESCE(p.publication_year, 0), COALESCE(p.venue_name, ''), p.cited_by_count
 			FROM citations c
 			JOIN papers p ON p.id = (CASE WHEN c.citing_paper_id = ANY($1) THEN c.cited_paper_id ELSE c.citing_paper_id END)
@@ -539,9 +721,9 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 			for l2Rows.Next() {
 				var citingID, citedID, pID uuid.UUID
 				var isInfluential bool
-				var title, venue string
+				var dbStance, contextText, title, venue string
 				var year, citations int
-				if err := l2Rows.Scan(&citingID, &citedID, &isInfluential, &pID, &title, &year, &venue, &citations); err == nil {
+				if err := l2Rows.Scan(&citingID, &citedID, &isInfluential, &dbStance, &contextText, &pID, &title, &year, &venue, &citations); err == nil {
 					if _, exists := nodesMap[pID]; !exists {
 						nodesMap[pID] = research.GraphNode{
 							ID:           pID,
@@ -554,10 +736,18 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 						}
 					}
 					edgeKey := citingID.String() + "->" + citedID.String()
+					stance := research.CitationStance(dbStance)
+					if stance == "" || stance == research.StanceMentions {
+						if detected := ClassifyStance(contextText); detected != research.StanceMentions {
+							stance = detected
+						}
+					}
 					edgeSet[edgeKey] = research.GraphEdge{
 						Source:        citingID,
 						Target:        citedID,
 						IsInfluential: isInfluential,
+						Stance:        stance,
+						Context:       contextText,
 					}
 				}
 			}

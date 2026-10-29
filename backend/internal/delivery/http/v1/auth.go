@@ -37,11 +37,30 @@ type loginRequestDTO struct {
 }
 
 type userDTO struct {
-	ID          string `json:"id"`
-	Email       string `json:"email"`
-	DisplayName string `json:"display_name"`
-	AvatarURL   string `json:"avatar_url,omitempty"`
-	CreatedAt   string `json:"created_at"`
+	ID               string `json:"id"`
+	Email            string `json:"email"`
+	DisplayName      string `json:"display_name"`
+	AvatarURL        string `json:"avatar_url,omitempty"`
+	ExplanationLevel string `json:"explanation_level,omitempty"`
+	CreatedAt        string `json:"created_at"`
+}
+
+type updateExplanationLevelDTO struct {
+	Level string `json:"level"`
+}
+
+type forgotPasswordRequestDTO struct {
+	Email string `json:"email"`
+}
+
+type resetPasswordRequestDTO struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+type messageResponseDTO struct {
+	Message string `json:"message"`
+	Token   string `json:"token,omitempty"`
 }
 
 type sessionResponseDTO struct {
@@ -52,11 +71,12 @@ type sessionResponseDTO struct {
 
 func newUserDTO(u domainuser.User) userDTO {
 	return userDTO{
-		ID:          u.ID.String(),
-		Email:       u.Email,
-		DisplayName: u.DisplayName,
-		AvatarURL:   u.AvatarURL,
-		CreatedAt:   u.CreatedAt.Format(timeFormatRFC3339),
+		ID:               u.ID.String(),
+		Email:            u.Email,
+		DisplayName:      u.DisplayName,
+		AvatarURL:        u.AvatarURL,
+		ExplanationLevel: u.ExplanationLevel,
+		CreatedAt:        u.CreatedAt.Format(timeFormatRFC3339),
 	}
 }
 
@@ -114,6 +134,52 @@ func (h *AuthHandlers) writeSession(w http.ResponseWriter, r *http.Request, stat
 	})
 }
 
+// ---- POST /api/v1/auth/forgot-password --------------------------------------
+
+func (h *AuthHandlers) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req forgotPasswordRequestDTO
+	if err := decodeJSON(r, &req); err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid JSON body")
+		return
+	}
+	token, err := h.Svc.RequestPasswordReset(r.Context(), req.Email)
+	if err != nil {
+		h.Logger.Error("forgot-password failed", "error", err, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+		return
+	}
+	WriteJSON(w, http.StatusOK, messageResponseDTO{
+		Message: "If the email is registered, a password recovery link has been dispatched.",
+		Token:   token,
+	})
+}
+
+// ---- POST /api/v1/auth/reset-password ---------------------------------------
+
+func (h *AuthHandlers) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req resetPasswordRequestDTO
+	if err := decodeJSON(r, &req); err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid JSON body")
+		return
+	}
+	err := h.Svc.ResetPassword(r.Context(), req.Token, req.NewPassword)
+	switch {
+	case errors.Is(err, appauth.ErrInvalidInput):
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, err.Error())
+		return
+	case errors.Is(err, domainuser.ErrInvalidResetToken):
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid or expired password reset token")
+		return
+	case err != nil:
+		h.Logger.Error("reset-password failed", "error", err, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+		return
+	}
+	WriteJSON(w, http.StatusOK, messageResponseDTO{
+		Message: "Password updated successfully. Please log in with your new credentials.",
+	})
+}
+
 // ---- GET /api/v1/me ---------------------------------------------------------
 
 func (h *AuthHandlers) Me(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +188,77 @@ func (h *AuthHandlers) Me(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "authentication required")
 		return
 	}
+	WriteJSON(w, http.StatusOK, newUserDTO(u))
+}
+
+// ---- POST /api/v1/auth/refresh ----------------------------------------------
+
+func (h *AuthHandlers) Refresh(w http.ResponseWriter, r *http.Request) {
+	token := bearerToken(r)
+	if token == "" {
+		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "bearer token required")
+		return
+	}
+	sess, err := h.Svc.Refresh(r.Context(), token)
+	if errors.Is(err, domainuser.ErrSessionUnknown) || errors.Is(err, domainuser.ErrSessionExpired) {
+		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "session expired or invalid")
+		return
+	}
+	if err != nil {
+		h.Logger.Error("refresh failed", "error", err, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+		return
+	}
+	WriteJSON(w, http.StatusOK, sessionResponseDTO{
+		Token:     sess.Token,
+		ExpiresAt: sess.ExpiresAt.Format(timeFormatRFC3339),
+		User:      newUserDTO(sess.User),
+	})
+}
+
+// ---- DELETE /api/v1/me ------------------------------------------------------
+
+func (h *AuthHandlers) DeleteMe(w http.ResponseWriter, r *http.Request) {
+	u, ok := UserFromContext(r.Context())
+	if !ok {
+		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "authentication required")
+		return
+	}
+	if err := h.Svc.DeleteAccount(r.Context(), u.ID); err != nil {
+		if errors.Is(err, domainuser.ErrNotFound) {
+			WriteError(w, r, http.StatusNotFound, CodeNotFound, "user not found")
+			return
+		}
+		h.Logger.Error("delete account failed", "error", err, "user_id", u.ID, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---- PUT /api/v1/me/explanation-level ---------------------------------------
+
+func (h *AuthHandlers) UpdateExplanationLevel(w http.ResponseWriter, r *http.Request) {
+	u, ok := UserFromContext(r.Context())
+	if !ok {
+		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "authentication required")
+		return
+	}
+	var req updateExplanationLevelDTO
+	if err := decodeJSON(r, &req); err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid JSON body")
+		return
+	}
+	if err := h.Svc.UpdateExplanationLevel(r.Context(), u.ID, req.Level); err != nil {
+		if errors.Is(err, appauth.ErrInvalidInput) {
+			WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, err.Error())
+			return
+		}
+		h.Logger.Error("update explanation level failed", "error", err, "user_id", u.ID, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+		return
+	}
+	u.ExplanationLevel = strings.ToLower(strings.TrimSpace(req.Level))
 	WriteJSON(w, http.StatusOK, newUserDTO(u))
 }
 

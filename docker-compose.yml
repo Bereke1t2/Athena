@@ -52,6 +52,23 @@ services:
         condition: service_healthy
     profiles: ["app"]
 
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: athena-worker
+    command: ["/app/worker"]
+    env_file: .env
+    environment:
+      ATHENA_DATABASE_URL: postgres://${POSTGRES_USER:-athena}:${POSTGRES_PASSWORD:-athena_dev_password}@postgres:5432/${POSTGRES_DB:-athena}?sslmode=disable
+      ATHENA_REDIS_ADDR: redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles: ["app"]
+
   migrate:
     image: migrate/migrate:v4.18.1
     container_name: athena-migrate

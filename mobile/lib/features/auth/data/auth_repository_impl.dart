@@ -62,11 +62,45 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<void> deleteAccount() async {
+    try {
+      await _dio.delete<void>('/me');
+    } catch (e) {
+      throw failureFromDio(e);
+    }
+  }
+
+  @override
   Future<UserProfile> getCurrentUser() async {
     try {
       final res = await _dio.get<Map<String, dynamic>>('/me');
       final dto = UserDto.fromJson(res.data!);
       return dto.toDomain();
+    } catch (e) {
+      throw failureFromDio(e);
+    }
+  }
+
+  @override
+  Future<String> forgotPassword(String email) async {
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/auth/forgot-password',
+        data: {'email': email},
+      );
+      return res.data?['message'] as String? ?? 'Password recovery email dispatched.';
+    } catch (e) {
+      throw failureFromDio(e);
+    }
+  }
+
+  @override
+  Future<void> resetPassword({required String token, required String newPassword}) async {
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        '/auth/reset-password',
+        data: {'token': token, 'new_password': newPassword},
+      );
     } catch (e) {
       throw failureFromDio(e);
     }

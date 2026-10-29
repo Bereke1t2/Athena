@@ -101,7 +101,10 @@ GoRouter buildAppRouter() {
         path: '/create-audio',
         name: 'create-audio',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const CreateAudioScreen(),
+        builder: (context, state) => CreateAudioScreen(
+          paperId: state.uri.queryParameters['paperId'],
+          initialTitle: state.uri.queryParameters['title'],
+        ),
       ),
       GoRoute(
         path: '/player',
@@ -157,13 +160,13 @@ GoRouter buildAppRouter() {
           return ComparisonScreen(initialPaperIds: idsList);
         },
       ),
-      // Custom-scheme deep link landing zone: athena://paper/{uuid} parses to
-      // path /{uuid}. Only UUID-shaped segments are treated as paper links.
+      // Custom-scheme deep link landing zone: athena://paper/{token} parses to
+      // path /{token}. UUID, arXiv ID, or DOI segments are treated as paper links.
       GoRoute(
         path: '/:token',
         redirect: (context, state) {
           final token = state.pathParameters['token']!;
-          return isUuid(token) ? '/papers/$token' : '/';
+          return isPaperToken(token) ? '/papers/$token' : '/';
         },
       ),
     ],
@@ -192,6 +195,15 @@ final RegExp _uuidRe = RegExp(
 );
 
 bool isUuid(String s) => _uuidRe.hasMatch(s);
+
+bool isPaperToken(String s) {
+  if (_uuidRe.hasMatch(s)) return true;
+  // arXiv ID format: e.g. 2403.12345 or 2301.00001v2
+  if (RegExp(r'^\d{4}\.\d{4,5}(v\d+)?$').hasMatch(s) || s.startsWith('arxiv:')) return true;
+  // DOI format: e.g. 10.1145/... or doi:...
+  if (s.startsWith('10.') || s.startsWith('doi:')) return true;
+  return false;
+}
 
 class _HomeShell extends StatelessWidget {
   const _HomeShell(this.shell);

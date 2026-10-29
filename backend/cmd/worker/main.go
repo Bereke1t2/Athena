@@ -91,7 +91,7 @@ func main() {
 	workers.AddAll(riverWorkers, service, log)
 	workers.AddNotifications(riverWorkers, pool, log)
 
-	digestSvc := appdigest.NewService(store, database.NewFollowStore(pool), nil, log)
+	digestSvc := appdigest.NewService(store, database.NewFollowStore(pool), database.NewDigestStore(pool), log)
 	workers.AddDigest(riverWorkers, digestSvc, pool, log)
 
 	// Phase 4: full-text RAG indexing when an LLM/embedding stack is set.
@@ -100,8 +100,10 @@ func main() {
 		var embedder domainai.EmbeddingProvider
 		if cfg.EmbeddingProviderName == "openai_compatible" || cfg.EmbeddingProviderName == "gemini" {
 			embedder = openaicompat.NewEmbedder(openaicompat.Config{
-				BaseURL: cfg.LLMBaseURL, APIKey: cfg.LLMAPIKey,
-				Model: cfg.EmbeddingModel,
+				BaseURL:    cfg.LLMBaseURL,
+				APIKey:     cfg.LLMAPIKey,
+				Model:      cfg.EmbeddingModel,
+				Dimensions: cfg.EmbeddingDim,
 			})
 		} else {
 			embedder = stubai.NewEmbedder(cfg.EmbeddingDim)

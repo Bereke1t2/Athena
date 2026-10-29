@@ -4,6 +4,7 @@ import 'package:athena/core/router/app_router.dart';
 import 'package:athena/features/feed/domain/feed.dart';
 import 'package:athena/features/feed/domain/feed_repository.dart';
 import 'package:athena/features/papers/domain/article_content.dart';
+import 'package:athena/features/papers/domain/audio_playback.dart';
 import 'package:athena/features/papers/domain/citation_graph.dart';
 import 'package:athena/features/papers/domain/paper.dart';
 import 'package:athena/features/papers/domain/paper_repository.dart';
@@ -37,6 +38,10 @@ class _NoopPaperRepo implements PaperRepository {
 
   @override
   Future<CitationGraph> getCitationGraph(String id, {int depth = 1, int limit = 25}) => throw UnimplementedError();
+
+  @override
+  Future<AudioTrack> synthesizeAudio(String id, {String voice = 'Alloy', String length = 'standard', String focus = 'general'}) =>
+      throw UnimplementedError();
 }
 
 

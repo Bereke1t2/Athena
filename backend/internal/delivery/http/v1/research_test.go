@@ -72,6 +72,31 @@ func (f *fakeReader) GetCitationGraph(context.Context, uuid.UUID, int, int) (res
 	return f.graph, f.graphErr
 }
 
+func (f *fakeReader) ListCitationDetails(_ context.Context, _ uuid.UUID, dir research.CitationDirection, _ int) ([]research.CitationItem, error) {
+	f.lastDirection = dir
+	items := make([]research.CitationItem, 0, len(f.citations))
+	for _, p := range f.citations {
+		items = append(items, research.CitationItem{
+			Paper:         p,
+			IsInfluential: true,
+			Stance:        research.StanceSupports,
+			Context:       "This work confirms the findings of prior literature.",
+		})
+	}
+	return items, f.citErr
+}
+
+func (f *fakeReader) GetResearchTrends(_ context.Context, windowDays int, limit int) (research.TrendReport, error) {
+	return research.TrendReport{
+		WindowDays:  windowDays,
+		GeneratedAt: time.Now().UTC(),
+		TopTopics: []research.TopicVelocity{
+			{TopicSlug: "neural-nets", TopicName: "Neural Networks", PaperCount: 42, GrowthRate: 85.0},
+		},
+		BreakthroughPapers: f.list,
+	}, nil
+}
+
 func summary(id string) research.PaperSummary {
 	return research.PaperSummary{
 		ID:              uuid.MustParse(id),
@@ -93,6 +118,7 @@ func newResearchServer(r *fakeReader) http.Handler {
 	mux.HandleFunc("GET /api/v1/research/papers/{id}/citations", h.Citations)
 	mux.HandleFunc("GET /api/v1/research/papers/{id}/related", h.Related)
 	mux.HandleFunc("GET /api/v1/research/papers/{id}/graph", h.Graph)
+	mux.HandleFunc("GET /api/v1/research/trends", h.Trends)
 	return WithRequestID(mux)
 }
 
@@ -203,6 +229,45 @@ func TestGetNotFound(t *testing.T) {
 		t.Fatalf("status = %d, want 404", rec.Code)
 	}
 	assertErrorEnvelope(t, rec, CodeNotFound)
+}
+
+func TestGetETagAndIfNoneMatch(t *testing.T) {
+	fixture := detailFixture()
+	fixture.UpdatedAt = time.Unix(1700000000, 0)
+	r := &fakeReader{detail: fixture}
+	srv := newResearchServer(r)
+
+	// 1. Initial GET -> 200 OK with ETag header
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/research/papers/"+paperUUID, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	etag := rec.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("expected ETag header in response")
+	}
+
+	// 2. Conditional GET with matching If-None-Match -> 304 Not Modified
+	rec304 := httptest.NewRecorder()
+	req304 := httptest.NewRequest(http.MethodGet, "/api/v1/research/papers/"+paperUUID, nil)
+	req304.Header.Set("If-None-Match", etag)
+	srv.ServeHTTP(rec304, req304)
+	if rec304.Code != http.StatusNotModified {
+		t.Fatalf("status = %d, want 304 Not Modified", rec304.Code)
+	}
+	if rec304.Body.Len() > 0 {
+		t.Fatalf("expected empty body on 304, got %s", rec304.Body.String())
+	}
+
+	// 3. Conditional GET with non-matching If-None-Match -> 200 OK
+	recMismatch := httptest.NewRecorder()
+	reqMismatch := httptest.NewRequest(http.MethodGet, "/api/v1/research/papers/"+paperUUID, nil)
+	reqMismatch.Header.Set("If-None-Match", `W/"other-etag"`)
+	srv.ServeHTTP(recMismatch, reqMismatch)
+	if recMismatch.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 OK", recMismatch.Code)
+	}
 }
 
 // ---- citations / related ---------------------------------------------------------
@@ -495,5 +560,62 @@ func TestCitationGraphNotFound(t *testing.T) {
 		t.Fatalf("status = %d, want 404, body: %s", rec.Code, rec.Body.String())
 	}
 	assertErrorEnvelope(t, rec, CodeNotFound)
+}
+
+func TestCitationDetailsWithStance(t *testing.T) {
+	rootID := uuid.MustParse("01918a20-0000-7000-8000-000000000001")
+	r := &fakeReader{
+		findID: rootID,
+		citations: []research.PaperSummary{
+			summary("01918a20-0000-7000-8000-000000000002"),
+		},
+	}
+	srv := newResearchServer(r)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/research/papers/"+rootID.String()+"/citations?details=true", nil)
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+	}
+
+	var res struct {
+		Items []citationItemDTO `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(res.Items))
+	}
+	if res.Items[0].Stance != research.StanceSupports {
+		t.Errorf("expected supports stance, got %s", res.Items[0].Stance)
+	}
+}
+
+func TestResearchTrendsEndpoint(t *testing.T) {
+	r := &fakeReader{
+		list: []research.PaperSummary{
+			summary("01918a20-0000-7000-8000-000000000003"),
+		},
+	}
+	srv := newResearchServer(r)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/research/trends?window_days=90&limit=10", nil)
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+	}
+
+	var report research.TrendReport
+	if err := json.Unmarshal(rec.Body.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if len(report.TopTopics) != 1 || report.TopTopics[0].TopicSlug != "neural-nets" {
+		t.Errorf("unexpected trends report: %+v", report)
+	}
 }
 

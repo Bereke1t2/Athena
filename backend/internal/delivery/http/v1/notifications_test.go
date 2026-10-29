@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,11 +17,15 @@ import (
 )
 
 type fakeNotifDeliveryStore struct {
-	items map[uuid.UUID][]domainnotif.Notification
+	items   map[uuid.UUID][]domainnotif.Notification
+	devices map[uuid.UUID][]domainnotif.Device
 }
 
 func newFakeNotifDeliveryStore() *fakeNotifDeliveryStore {
-	return &fakeNotifDeliveryStore{items: make(map[uuid.UUID][]domainnotif.Notification)}
+	return &fakeNotifDeliveryStore{
+		items:   make(map[uuid.UUID][]domainnotif.Notification),
+		devices: make(map[uuid.UUID][]domainnotif.Device),
+	}
 }
 
 func (f *fakeNotifDeliveryStore) Create(ctx context.Context, n domainnotif.Notification) (domainnotif.Notification, error) {
@@ -64,9 +69,38 @@ func (f *fakeNotifDeliveryStore) UnreadCount(ctx context.Context, userID uuid.UU
 	return c, nil
 }
 
+func (f *fakeNotifDeliveryStore) RegisterDevice(ctx context.Context, d domainnotif.Device) error {
+	list := f.devices[d.UserID]
+	for i, existing := range list {
+		if existing.Token == d.Token {
+			list[i] = d
+			return nil
+		}
+	}
+	f.devices[d.UserID] = append(list, d)
+	return nil
+}
+
+func (f *fakeNotifDeliveryStore) UnregisterDevice(ctx context.Context, userID uuid.UUID, token string) error {
+	list := f.devices[userID]
+	out := make([]domainnotif.Device, 0, len(list))
+	for _, d := range list {
+		if d.Token != token {
+			out = append(out, d)
+		}
+	}
+	f.devices[userID] = out
+	return nil
+}
+
+func (f *fakeNotifDeliveryStore) ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]domainnotif.Device, error) {
+	return f.devices[userID], nil
+}
+
 func notifTestHandler() (*NotificationsHandlers, *fakeNotifDeliveryStore) {
 	store := newFakeNotifDeliveryStore()
-	return NewNotificationsHandlers(appnotif.NewService(store), testLogger()), store
+	svc := appnotif.NewService(store).WithDevices(store, nil)
+	return NewNotificationsHandlers(svc, testLogger()), store
 }
 
 func TestNotificationsRequireAuth(t *testing.T) {
@@ -137,5 +171,54 @@ func TestNotificationsFlow(t *testing.T) {
 	h.MarkAllRead(w4, r4)
 	if w4.Code != http.StatusNoContent {
 		t.Fatalf("mark all read code: %d", w4.Code)
+	}
+}
+
+func TestRegisterAndUnregisterDevice(t *testing.T) {
+	h, store := notifTestHandler()
+	userID := uuid.New()
+	userCtx := context.WithValue(context.Background(), userKey{}, domainuser.User{ID: userID, Email: "device@x.io"})
+
+	// 1. Unauthenticated -> 401
+	wUnauth := httptest.NewRecorder()
+	h.RegisterDevice(wUnauth, httptest.NewRequest(http.MethodPost, "/api/v1/devices", strings.NewReader(`{"token":"tok1","platform":"ios"}`)))
+	if wUnauth.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for unauthenticated register device, got %d", wUnauth.Code)
+	}
+
+	// 2. Invalid platform -> 400
+	wInv := httptest.NewRecorder()
+	h.RegisterDevice(wInv, httptest.NewRequest(http.MethodPost, "/api/v1/devices", strings.NewReader(`{"token":"tok1","platform":"windows"}`)).WithContext(userCtx))
+	if wInv.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid platform, got %d", wInv.Code)
+	}
+
+	// 3. Register device -> 201
+	wReg := httptest.NewRecorder()
+	h.RegisterDevice(wReg, httptest.NewRequest(http.MethodPost, "/api/v1/devices", strings.NewReader(`{"token":"device-token-123","platform":"ios","device_name":"iPhone 15"}`)).WithContext(userCtx))
+	if wReg.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for register device, got %d: %s", wReg.Code, wReg.Body.String())
+	}
+
+	devices, err := store.ListDevicesByUser(context.Background(), userID)
+	if err != nil || len(devices) != 1 {
+		t.Fatalf("expected 1 registered device, got %v (err: %v)", devices, err)
+	}
+	if devices[0].Token != "device-token-123" || devices[0].Platform != domainnotif.PlatformIOS {
+		t.Errorf("unexpected registered device fields: %+v", devices[0])
+	}
+
+	// 4. Unregister device -> 204
+	rUnreg := httptest.NewRequest(http.MethodDelete, "/api/v1/devices/device-token-123", nil).WithContext(userCtx)
+	rUnreg.SetPathValue("token", "device-token-123")
+	wUnreg := httptest.NewRecorder()
+	h.UnregisterDevice(wUnreg, rUnreg)
+	if wUnreg.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 for unregister device, got %d", wUnreg.Code)
+	}
+
+	devicesAfter, _ := store.ListDevicesByUser(context.Background(), userID)
+	if len(devicesAfter) != 0 {
+		t.Fatalf("expected 0 devices after unregister, got %d", len(devicesAfter))
 	}
 }

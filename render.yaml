@@ -40,10 +40,12 @@ services:
       - key: LLM_MODEL
         value: gemini-3.5-flash-lite
       - key: EMBEDDING_PROVIDER
-        # Use 'none' when using Gemini (uses internal stub embedder without requiring OpenAI)
-        value: none
+        # Native Google Gemini embedding provider (text-embedding-004)
+        value: gemini
+      - key: EMBEDDING_MODEL
+        value: text-embedding-004
       - key: EMBEDDING_DIM
-        value: "1536"
+        value: "768"
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENAI_API_KEY
@@ -86,10 +88,12 @@ services:
       - key: LLM_MODEL
         value: gemini-3.5-flash-lite
       - key: EMBEDDING_PROVIDER
-        # Use 'none' when using Gemini (uses internal stub embedder without requiring OpenAI)
-        value: none
+        # Native Google Gemini embedding provider (text-embedding-004)
+        value: gemini
+      - key: EMBEDDING_MODEL
+        value: text-embedding-004
       - key: EMBEDDING_DIM
-        value: "1536"
+        value: "768"
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENAI_API_KEY

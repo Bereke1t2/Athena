@@ -4,6 +4,7 @@ import 'package:athena/core/router/app_router.dart';
 import 'package:athena/features/feed/domain/feed.dart';
 import 'package:athena/features/feed/domain/feed_repository.dart';
 import 'package:athena/features/papers/domain/article_content.dart';
+import 'package:athena/features/papers/domain/audio_playback.dart';
 import 'package:athena/features/papers/domain/citation_graph.dart';
 import 'package:athena/features/papers/domain/paper.dart';
 import 'package:athena/features/papers/domain/paper_repository.dart';
@@ -69,6 +70,20 @@ class FakePaperRepo implements PaperRepository {
   @override
   Future<CitationGraph> getCitationGraph(String id, {int depth = 1, int limit = 25}) async =>
       CitationGraph(rootId: id);
+
+  @override
+  Future<AudioTrack> synthesizeAudio(String id, {String voice = 'Alloy', String length = 'standard', String focus = 'general'}) async =>
+      AudioTrack(
+        id: 'test-track-$id',
+        title: 'Test Audio Track',
+        authorVenue: 'Test Author',
+        totalDuration: const Duration(minutes: 5),
+        chapters: const [],
+        takeaways: const [],
+        pullQuote: const AudioQuote(quote: 'Test quote', context: 'Test', timestamp: Duration.zero),
+        tags: const ['AI'],
+        gradientThemeIndex: 0,
+      );
 }
 
 
@@ -118,5 +133,13 @@ void main() {
   test('isUuid guards the catch-all route', () {
     expect(isUuid('0197c0de-0000-7000-8000-000000000001'), isTrue);
     expect(isUuid('not-a-uuid'), isFalse);
+  });
+
+  test('isPaperToken validates UUIDs, arXiv IDs, and DOIs', () {
+    expect(isPaperToken('0197c0de-0000-7000-8000-000000000001'), isTrue);
+    expect(isPaperToken('2403.12345'), isTrue);
+    expect(isPaperToken('2301.00001v2'), isTrue);
+    expect(isPaperToken('10.1145/3637528'), isTrue);
+    expect(isPaperToken('not-a-paper'), isFalse);
   });
 }

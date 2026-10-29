@@ -37,7 +37,30 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Gemini 3.5 Migration & Feed Topic Chips (2026-10-26)**:
+1. **Protocol, Security & Mobile Experience Hardening (2026-10-29)**:
+   - **Password Reset Flow**: Added migration `000015_password_resets`, implemented `RequestPasswordReset` and `ResetPassword` on domain user store and auth service. Exposed `POST /api/v1/auth/forgot-password` and `POST /api/v1/auth/reset-password` on Go backend. Added "Forgot Password?" dialog and repository/notifier dispatch in Flutter `LoginScreen`.
+   - **Push Device Registration & Seam**: Added migration `000016_user_devices`, implemented `RegisterDevice`, `UnregisterDevice`, and `ListDevicesByUser` on PostgreSQL `NotificationStore`. Exposed `POST /api/v1/devices` and `DELETE /api/v1/devices/{token}`. Connected push dispatch seam to `NotificationFanoutWorker`.
+   - **Idempotency-Key Deduplication**: Implemented `v1.WithIdempotency` middleware with in-memory TTL caching and replaying of responses with `X-Cache-Lookup: HIT` for duplicate requests.
+   - **ETag / If-None-Match Conditional Caching**: Added weak ETag calculation and `304 Not Modified` empty response handling on `GET /api/v1/research/papers/{id}`, and exposed `ETag` in CORS.
+   - **Mobile Audio Studio & Paper Linking**: Connected `CreateAudioScreen` to backend `POST /api/v1/research/papers/{id}/audio` with parameter extraction (`paperId`), and added "Generate Audio Brief" CTA and AppBar actions in `PaperDetailScreen`.
+   - **Full Verification**: Go backend tests `go test -count=1 ./...` 100% green (all packages); Flutter `dart analyze` clean (0 issues); `flutter test` green (50 passed, 1 skipped); binaries `bin/api`, `bin/worker`, `bin/migrate` compiled cleanly.
+
+2. **Inbound Rate Limiting & Account Lifecycle (2026-10-28)**:
+   - **Inbound Rate Limiter**: Implemented `v1.WithRateLimit` and `MemoryRateLimiter` sliding window; emits `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, and `Retry-After` on 429 `rate_limited` responses per `api-specification.md §1`. Supports 300 req/min authenticated, 60 req/min anonymous, 10 req/min live search, and 20 req/min generative AI. Exposed via CORS headers.
+   - **Account Deletion (App Store Guideline 5.1.1(v))**: Implemented `DELETE /api/v1/me` in Go backend (soft-deletes account, cascades session revocations) and added "Delete Account" confirmation dialog and repository/notifier action in Flutter `ProfileScreen`.
+   - **Session Refresh & Explanation Preference**: Added `POST /api/v1/auth/refresh` and `PUT /api/v1/me/explanation-level`, reading and updating PostgreSQL `users.preferred_explanation_level`.
+   - **Verification**: `go test -count=1 ./...` 100% green (all packages); `dart analyze` clean (0 issues); `flutter test` green (49 tests passed).
+
+2. **Core Architecture Alignment & Hardening (2026-10-28)**:
+   - **Schema Migration 000012 (pgvector 768 dims)**: Added `000012_embedding_dim_768` (`.up.sql` and `.down.sql`) to migrate `chunk_embeddings.embedding` to `vector(768)` and `dim` default to `768`, aligning with Google Gemini `text-embedding-004`.
+   - **Config & Default Dimension**: Updated `config.go`, `config.example.env`, `.env.example`, `.env`, and `render.yaml` to default `EMBEDDING_DIM=768` and `EMBEDDING_MODEL=text-embedding-004` when `EMBEDDING_PROVIDER=gemini`.
+   - **OpenAI-Compatible Dimensions Support**: Updated `openaicompat.Embedder` to support explicit `Dimensions` on request payloads for models supporting Matryoshka reduction (e.g. `text-embedding-3-small` at 768 dims).
+   - **Stub Embedder**: Updated `stubai.NewEmbedder` fallback dimension to 768.
+   - **Schema Migration 000013 (Digest Persistence)**: Created `000013_user_digests` (`.up.sql` and `.down.sql`) and PostgreSQL `database.DigestStore` implementing `domaindigest.DigestRepository`; wired `DigestStore` into `cmd/api` and `cmd/worker` composition roots.
+   - **CORS Middleware**: Implemented standard CORS middleware in `httpserver/server.go` honoring `ATHENA_CORS_ALLOWED_ORIGINS` with full preflight handling and unit tests.
+   - **CI/CD & Docker Compose Worker**: Created `.github/workflows/ci.yml` (automated Go vet, Go test, Go build, Flutter analyze, Flutter test) and added `athena-worker` container to `docker-compose.yml`.
+
+2. **Gemini 3.5 Migration & Feed Topic Chips (2026-10-26)**:
    - **Google Gemini Model Upgrade**: Switched default LLM provider model to `gemini-3.5-flash-lite` across `config.go`, `render.yaml`, and `.env.example` following upstream deprecation of `gemini-2.0-flash`.
    - **Database Topic Reader**: Enhanced `topicNamePatterns` with tokenization and domain synonym expansion (`ai`, `ml`, `llm`, length >= 4 subtokens); enabled name pattern resolution on single-topic queries in `ListPapers`.
    - **Mobile Home Feed**: Added interactive `_TopicFilterChip` bar to `FeedScreen` (`All Papers`, `AI & Tech`, `Quantum`, `Neuroscience`, `Biotech`, `Climate`); defaulted to `all` so feed delivers continuous discovery without 4-paper starvation.

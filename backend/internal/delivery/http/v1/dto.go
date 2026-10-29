@@ -25,6 +25,13 @@ type versionLineDTO struct {
 	IsPreprint bool   `json:"is_preprint"`
 }
 
+type citationItemDTO struct {
+	Paper         paperSummaryDTO         `json:"paper"`
+	IsInfluential bool                    `json:"is_influential"`
+	Stance        research.CitationStance `json:"stance"`
+	Context       string                  `json:"context,omitempty"`
+}
+
 type paperDetailDTO struct {
 	paperSummaryDTO
 	Language       string           `json:"language,omitempty"`
