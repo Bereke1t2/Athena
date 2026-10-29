@@ -22,11 +22,17 @@ type AIHandlers struct {
 	Summary    *appai.SummaryService
 	Chat       *appchat.Service
 	Comparison *appai.ComparisonService
+	Audio      *appai.AudioService
 	Logger     *slog.Logger
 }
 
 func NewAIHandlers(summary *appai.SummaryService, chat *appchat.Service, log *slog.Logger) *AIHandlers {
 	return &AIHandlers{Summary: summary, Chat: chat, Logger: log}
+}
+
+func (h *AIHandlers) WithAudio(audio *appai.AudioService) *AIHandlers {
+	h.Audio = audio
+	return h
 }
 
 // ---- DTOs -------------------------------------------------------------------
@@ -401,4 +407,38 @@ func (h *AIHandlers) Compare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	WriteJSON(w, http.StatusOK, report)
+}
+
+// ---- POST /api/v1/research/papers/{id}/audio ---------------------------------
+
+type audioRequestDTO struct {
+	Voice  string `json:"voice"`
+	Length string `json:"length"`
+	Focus  string `json:"focus"`
+}
+
+func (h *AIHandlers) SynthesizeAudio(w http.ResponseWriter, r *http.Request) {
+	if h.Audio == nil {
+		WriteError(w, r, http.StatusServiceUnavailable, CodeNotImplemented, "audio synthesis not configured")
+		return
+	}
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid paper id")
+		return
+	}
+
+	var req audioRequestDTO
+	if r.Body != nil && r.ContentLength > 0 {
+		_ = decodeJSON(r, &req)
+	}
+
+	narration, err := h.Audio.Synthesize(r.Context(), id, req.Voice, req.Length, req.Focus)
+	if err != nil {
+		h.Logger.Error("audio synthesis failed", "error", err, "paper_id", id, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "failed to synthesize audio episode")
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, narration)
 }
