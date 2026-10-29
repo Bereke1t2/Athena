@@ -123,6 +123,81 @@ func (s *Service) UserFromToken(ctx context.Context, token string) (domainuser.U
 	return u, nil
 }
 
+// Refresh validates the presented token, revokes it, and issues a fresh session.
+func (s *Service) Refresh(ctx context.Context, token string) (domainuser.Session, error) {
+	u, err := s.UserFromToken(ctx, token)
+	if err != nil {
+		return domainuser.Session{}, err
+	}
+	if fullUser, err := s.users.ByID(ctx, u.ID); err == nil {
+		u = fullUser
+	}
+	_ = s.sessions.Revoke(ctx, tokenHash(token))
+	return s.issueSession(ctx, u)
+}
+
+// DeleteAccount soft-deletes the user's account and revokes their active sessions.
+func (s *Service) DeleteAccount(ctx context.Context, userID uuid.UUID) error {
+	return s.users.Delete(ctx, userID)
+}
+
+// UpdateExplanationLevel validates and updates the user's preferred summary detail level.
+func (s *Service) UpdateExplanationLevel(ctx context.Context, userID uuid.UUID, level string) error {
+	level = strings.ToLower(strings.TrimSpace(level))
+	switch level {
+	case "beginner", "intermediate", "advanced", "expert":
+	default:
+		return fmt.Errorf("%w: invalid explanation level %q", ErrInvalidInput, level)
+	}
+	return s.users.UpdateExplanationLevel(ctx, userID, level)
+}
+
+// RequestPasswordReset generates a single-use password recovery token for the email.
+// If the email is unknown, it returns an empty token without error to prevent account enumeration.
+func (s *Service) RequestPasswordReset(ctx context.Context, email string) (string, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	cred, err := s.users.ByEmail(ctx, email)
+	if errors.Is(err, domainuser.ErrNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", fmt.Errorf("reset token entropy: %w", err)
+	}
+	token := base64.RawURLEncoding.EncodeToString(raw)
+	expiresAt := time.Now().UTC().Add(1 * time.Hour)
+
+	if err := s.users.CreatePasswordReset(ctx, cred.User.ID, tokenHash(token), expiresAt); err != nil {
+		return "", fmt.Errorf("store password reset: %w", err)
+	}
+	return token, nil
+}
+
+// ResetPassword consumes the recovery token and sets a new password hash.
+func (s *Service) ResetPassword(ctx context.Context, token, newPassword string) error {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return domainuser.ErrInvalidResetToken
+	}
+	if len(newPassword) < minPasswordLength || len(newPassword) > maxPasswordLength {
+		return fmt.Errorf("%w: password must be %d-%d characters",
+			ErrInvalidInput, minPasswordLength, maxPasswordLength)
+	}
+	userID, err := s.users.ConsumePasswordReset(ctx, tokenHash(token))
+	if err != nil {
+		return err
+	}
+	hash, err := s.hasher.Hash(newPassword)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+	return s.users.UpdatePassword(ctx, userID, hash)
+}
+
 // Token returns the bearer value for an existing session row (used by tests
 // and future token rotation); not part of the HTTP surface.
 func (s *Service) issueSession(ctx context.Context, u domainuser.User) (domainuser.Session, error) {
