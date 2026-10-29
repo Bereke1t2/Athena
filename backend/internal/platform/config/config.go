@@ -26,6 +26,7 @@ type Config struct {
 	AdminToken        string
 	WorkerConcurrency int
 	IngestionEnabled  bool
+	CORSAllowedOrigins []string
 
 	SemanticScholarAPIKey string
 	OpenAlexMailto        string
@@ -78,6 +79,7 @@ func FromEnv() (Config, error) {
 		AdminToken:            strings.TrimSpace(os.Getenv("ATHENA_ADMIN_TOKEN")),
 		WorkerConcurrency:     getInt("ATHENA_WORKER_CONCURRENCY", 4),
 		IngestionEnabled:      getBool("ATHENA_INGESTION_ENABLED", true),
+		CORSAllowedOrigins:    parseCommaSlice(os.Getenv("ATHENA_CORS_ALLOWED_ORIGINS")),
 		SemanticScholarAPIKey: strings.TrimSpace(os.Getenv("SEMANTICSCHOLAR_API_KEY")),
 		OpenAlexMailto:        strings.TrimSpace(os.Getenv("OPENALEX_MAILTO")),
 		OpenAlexBaseURL:       strings.TrimSpace(os.Getenv("OPENALEX_BASE_URL")),
@@ -100,7 +102,7 @@ func FromEnv() (Config, error) {
 		LLMModel:              strings.TrimSpace(os.Getenv("LLM_MODEL")),
 		EmbeddingProviderName: strings.TrimSpace(os.Getenv("EMBEDDING_PROVIDER")),
 		EmbeddingModel:        strings.TrimSpace(os.Getenv("EMBEDDING_MODEL")),
-		EmbeddingDim:          getInt("EMBEDDING_DIM", 1536),
+		EmbeddingDim:          getInt("EMBEDDING_DIM", 768),
 		LLMOverrideBaseURL:    strings.TrimSpace(os.Getenv("LLM_OVERRIDE_BASE_URL")),
 	}
 	if cfg.LogFormat == "" {
@@ -154,6 +156,9 @@ func FromEnv() (Config, error) {
 				} else {
 					cfg.EmbeddingModel = "text-embedding-3-small"
 				}
+			}
+			if cfg.EmbeddingProviderName == "gemini" && os.Getenv("EMBEDDING_DIM") == "" {
+				cfg.EmbeddingDim = 768
 			}
 		case "", "none":
 			cfg.EmbeddingProviderName = ""
@@ -249,4 +254,18 @@ func getBool(key string, fallback bool) bool {
 		return fallback
 	}
 	return b
+}
+
+func parseCommaSlice(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	var out []string
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
