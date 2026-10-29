@@ -121,4 +121,38 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await UserPreferences.instance.clearAuthSession();
     state = const AuthState();
   }
+
+  Future<void> deleteAccount() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await _repo.deleteAccount();
+    } finally {
+      await UserPreferences.instance.clearAuthSession();
+      state = const AuthState();
+    }
+  }
+
+  Future<String?> forgotPassword(String email) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final msg = await _repo.forgotPassword(email);
+      state = state.copyWith(isLoading: false);
+      return msg;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return null;
+    }
+  }
+
+  Future<bool> resetPassword({required String token, required String newPassword}) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _repo.resetPassword(token: token, newPassword: newPassword);
+      state = state.copyWith(isLoading: false);
+      return true;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      return false;
+    }
+  }
 }
