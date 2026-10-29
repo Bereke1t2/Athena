@@ -57,3 +57,35 @@ type Store interface {
 	// UnreadCount returns the number of unread notifications for a user.
 	UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 }
+
+// Platform indicates client OS or environment for push routing.
+type Platform string
+
+const (
+	PlatformIOS     Platform = "ios"
+	PlatformAndroid Platform = "android"
+	PlatformWeb     Platform = "web"
+)
+
+// Device represents a registered push notification destination.
+type Device struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	Token      string
+	Platform   Platform
+	DeviceName string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+// DeviceStore persists and manages user device tokens.
+type DeviceStore interface {
+	RegisterDevice(ctx context.Context, d Device) error
+	UnregisterDevice(ctx context.Context, userID uuid.UUID, token string) error
+	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
+}
+
+// PushSender abstracts pushing alerts to external APNs/FCM gateways.
+type PushSender interface {
+	SendPush(ctx context.Context, d Device, n Notification) error
+}

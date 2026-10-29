@@ -133,3 +133,73 @@ func TestNotificationService(t *testing.T) {
 		t.Fatalf("MarkAllAsRead failed: %v", err)
 	}
 }
+
+type mockDeviceStore struct {
+	devices map[uuid.UUID][]domainnotif.Device
+}
+
+func (m *mockDeviceStore) RegisterDevice(ctx context.Context, d domainnotif.Device) error {
+	m.devices[d.UserID] = append(m.devices[d.UserID], d)
+	return nil
+}
+
+func (m *mockDeviceStore) UnregisterDevice(ctx context.Context, userID uuid.UUID, token string) error {
+	list := m.devices[userID]
+	out := make([]domainnotif.Device, 0, len(list))
+	for _, d := range list {
+		if d.Token != token {
+			out = append(out, d)
+		}
+	}
+	m.devices[userID] = out
+	return nil
+}
+
+func (m *mockDeviceStore) ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]domainnotif.Device, error) {
+	return m.devices[userID], nil
+}
+
+func TestDeviceManagement(t *testing.T) {
+	ctx := context.Background()
+	store := newMockNotifStore()
+	devStore := &mockDeviceStore{devices: make(map[uuid.UUID][]domainnotif.Device)}
+	svc := appnotif.NewService(store).WithDevices(devStore, nil)
+	userID := uuid.New()
+
+	// 1. Invalid input validation
+	if err := svc.RegisterDevice(ctx, uuid.Nil, "tok", "ios", "iPhone"); !errors.Is(err, domainnotif.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for nil user_id, got %v", err)
+	}
+	if err := svc.RegisterDevice(ctx, userID, "", "ios", "iPhone"); !errors.Is(err, domainnotif.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for empty token, got %v", err)
+	}
+	if err := svc.RegisterDevice(ctx, userID, "tok", "badplatform", "iPhone"); !errors.Is(err, domainnotif.ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for bad platform, got %v", err)
+	}
+
+	// 2. Register valid devices
+	if err := svc.RegisterDevice(ctx, userID, "token-ios", "ios", "iPhone 16"); err != nil {
+		t.Fatalf("register ios device failed: %v", err)
+	}
+	if err := svc.RegisterDevice(ctx, userID, "token-web", "web", "Chrome"); err != nil {
+		t.Fatalf("register web device failed: %v", err)
+	}
+
+	// 3. List devices
+	devices, err := svc.ListDevices(ctx, userID)
+	if err != nil || len(devices) != 2 {
+		t.Fatalf("expected 2 devices, got %d (err: %v)", len(devices), err)
+	}
+
+	// 4. Unregister device
+	if err := svc.UnregisterDevice(ctx, userID, "token-ios"); err != nil {
+		t.Fatalf("unregister device failed: %v", err)
+	}
+	devicesAfter, err := svc.ListDevices(ctx, userID)
+	if err != nil || len(devicesAfter) != 1 {
+		t.Fatalf("expected 1 device after unregister, got %d", len(devicesAfter))
+	}
+	if devicesAfter[0].Token != "token-web" {
+		t.Errorf("expected token-web to remain, got %s", devicesAfter[0].Token)
+	}
+}

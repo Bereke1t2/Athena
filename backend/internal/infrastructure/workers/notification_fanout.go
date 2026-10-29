@@ -26,6 +26,7 @@ type NotificationFanoutWorker struct {
 
 	Pool   *pgxpool.Pool
 	Logger *slog.Logger
+	Push   domainnotif.PushSender
 }
 
 func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[NotificationFanoutArgs]) error {
@@ -54,7 +55,7 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 		if err := rows.Scan(&userID, &topicName, &paperTitle); err != nil {
 			return fmt.Errorf("scan topic subscriber: %w", err)
 		}
-		_, err := notifStore.Create(ctx, domainnotif.Notification{
+		notif, err := notifStore.Create(ctx, domainnotif.Notification{
 			UserID:       userID,
 			Type:         domainnotif.TypeNewPapersTopic,
 			Title:        fmt.Sprintf("New paper in %s", topicName),
@@ -67,6 +68,12 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 		})
 		if err != nil && w.Logger != nil {
 			w.Logger.Warn("create topic notification failed", "user_id", userID, "paper_id", paperID, "error", err)
+		} else if w.Push != nil {
+			if devices, err := notifStore.ListDevicesByUser(ctx, userID); err == nil {
+				for _, d := range devices {
+					_ = w.Push.SendPush(ctx, d, notif)
+				}
+			}
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -91,7 +98,7 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 		if err := authorRows.Scan(&userID, &authorName, &paperTitle); err != nil {
 			return fmt.Errorf("scan author subscriber: %w", err)
 		}
-		_, err := notifStore.Create(ctx, domainnotif.Notification{
+		notif, err := notifStore.Create(ctx, domainnotif.Notification{
 			UserID:       userID,
 			Type:         domainnotif.TypeNewPapersAuthor,
 			Title:        fmt.Sprintf("New paper by %s", authorName),
@@ -104,6 +111,12 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 		})
 		if err != nil && w.Logger != nil {
 			w.Logger.Warn("create author notification failed", "user_id", userID, "paper_id", paperID, "error", err)
+		} else if w.Push != nil {
+			if devices, err := notifStore.ListDevicesByUser(ctx, userID); err == nil {
+				for _, d := range devices {
+					_ = w.Push.SendPush(ctx, d, notif)
+				}
+			}
 		}
 	}
 	if err := authorRows.Err(); err != nil {

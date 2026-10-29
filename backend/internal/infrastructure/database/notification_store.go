@@ -171,3 +171,59 @@ func (s *NotificationStore) UnreadCount(ctx context.Context, userID uuid.UUID) (
 	}
 	return count, nil
 }
+
+// RegisterDevice inserts or updates a device token for push notifications.
+func (s *NotificationStore) RegisterDevice(ctx context.Context, d domainnotification.Device) error {
+	if d.ID == uuid.Nil {
+		d.ID = uuid.New()
+	}
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO user_devices (id, user_id, token, platform, device_name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, now(), now())
+		ON CONFLICT (token) DO UPDATE SET
+			user_id = EXCLUDED.user_id,
+			platform = EXCLUDED.platform,
+			device_name = EXCLUDED.device_name,
+			updated_at = now()`,
+		d.ID, d.UserID, d.Token, string(d.Platform), d.DeviceName)
+	if err != nil {
+		return fmt.Errorf("register device: %w", err)
+	}
+	return nil
+}
+
+// UnregisterDevice removes a device token for a user.
+func (s *NotificationStore) UnregisterDevice(ctx context.Context, userID uuid.UUID, token string) error {
+	_, err := s.pool.Exec(ctx, `
+		DELETE FROM user_devices
+		WHERE user_id = $1 AND token = $2`, userID, token)
+	if err != nil {
+		return fmt.Errorf("unregister device: %w", err)
+	}
+	return nil
+}
+
+// ListDevicesByUser retrieves all registered devices for a user.
+func (s *NotificationStore) ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]domainnotification.Device, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, user_id, token, platform, COALESCE(device_name, ''), created_at, updated_at
+		FROM user_devices
+		WHERE user_id = $1
+		ORDER BY updated_at DESC`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list user devices: %w", err)
+	}
+	defer rows.Close()
+
+	var devices []domainnotification.Device
+	for rows.Next() {
+		var d domainnotification.Device
+		var platformStr string
+		if err := rows.Scan(&d.ID, &d.UserID, &d.Token, &platformStr, &d.DeviceName, &d.CreatedAt, &d.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan device: %w", err)
+		}
+		d.Platform = domainnotification.Platform(platformStr)
+		devices = append(devices, d)
+	}
+	return devices, rows.Err()
+}

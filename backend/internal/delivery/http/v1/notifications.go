@@ -44,6 +44,16 @@ type unreadCountResponseDTO struct {
 	Count int `json:"count"`
 }
 
+type registerDeviceRequestDTO struct {
+	Token      string `json:"token"`
+	Platform   string `json:"platform"`
+	DeviceName string `json:"device_name,omitempty"`
+}
+
+type registerDeviceResponseDTO struct {
+	Message string `json:"message"`
+}
+
 // List: GET /api/v1/me/notifications
 func (h *NotificationsHandlers) List(w http.ResponseWriter, r *http.Request) {
 	user, ok := UserFromContext(r.Context())
@@ -152,4 +162,48 @@ func (h *NotificationsHandlers) UnreadCount(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	WriteJSON(w, http.StatusOK, unreadCountResponseDTO{Count: count})
+}
+
+// RegisterDevice: POST /api/v1/devices
+func (h *NotificationsHandlers) RegisterDevice(w http.ResponseWriter, r *http.Request) {
+	user, ok := UserFromContext(r.Context())
+	if !ok {
+		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "authentication required")
+		return
+	}
+	var req registerDeviceRequestDTO
+	if err := decodeJSON(r, &req); err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid JSON body")
+		return
+	}
+	if err := h.Svc.RegisterDevice(r.Context(), user.ID, req.Token, req.Platform, req.DeviceName); err != nil {
+		if errors.Is(err, domainnotif.ErrInvalidInput) {
+			WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, err.Error())
+			return
+		}
+		h.Logger.Error("register device failed", "error", err, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+		return
+	}
+	WriteJSON(w, http.StatusCreated, registerDeviceResponseDTO{Message: "device registered"})
+}
+
+// UnregisterDevice: DELETE /api/v1/devices/{token}
+func (h *NotificationsHandlers) UnregisterDevice(w http.ResponseWriter, r *http.Request) {
+	user, ok := UserFromContext(r.Context())
+	if !ok {
+		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "authentication required")
+		return
+	}
+	token := r.PathValue("token")
+	if token == "" {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "device token required")
+		return
+	}
+	if err := h.Svc.UnregisterDevice(r.Context(), user.ID, token); err != nil {
+		h.Logger.Error("unregister device failed", "error", err, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
