@@ -34,11 +34,15 @@ class CitationGraphEdge {
   final String source;
   final String target;
   final bool isInfluential;
+  final String stance;
+  final String context;
 
   const CitationGraphEdge({
     required this.source,
     required this.target,
     this.isInfluential = false,
+    this.stance = 'mentions',
+    this.context = '',
   });
 
   factory CitationGraphEdge.fromJson(Map<String, dynamic> json) {
@@ -46,6 +50,8 @@ class CitationGraphEdge {
       source: json['source'] as String? ?? '',
       target: json['target'] as String? ?? '',
       isInfluential: json['is_influential'] as bool? ?? false,
+      stance: json['stance'] as String? ?? 'mentions',
+      context: json['context'] as String? ?? '',
     );
   }
 }

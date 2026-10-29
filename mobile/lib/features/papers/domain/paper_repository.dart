@@ -1,4 +1,5 @@
 import 'article_content.dart';
+import 'audio_playback.dart';
 import 'citation_graph.dart';
 import 'paper.dart';
 
@@ -10,5 +11,6 @@ abstract interface class PaperRepository {
   Future<List<PaperSummary>> getCitations(String id, {String direction = 'in', int limit = 20});
   Future<List<PaperSummary>> getRelated(String id, {int limit = 10});
   Future<CitationGraph> getCitationGraph(String id, {int depth = 1, int limit = 25});
+  Future<AudioTrack> synthesizeAudio(String id, {String voice = 'Alloy', String length = 'standard', String focus = 'general'});
 }
 

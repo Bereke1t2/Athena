@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/network/api_client.dart';
 import '../domain/article_content.dart';
+import '../domain/audio_playback.dart';
 import '../domain/citation_graph.dart';
 import '../domain/paper.dart';
 import '../domain/paper_repository.dart';
@@ -89,6 +90,28 @@ class PaperRepositoryImpl implements PaperRepository {
         queryParameters: {'depth': depth, 'limit': limit},
       );
       return CitationGraph.fromJson(res.data ?? <String, dynamic>{});
+    } catch (e) {
+      throw failureFromDio(e);
+    }
+  }
+
+  @override
+  Future<AudioTrack> synthesizeAudio(
+    String id, {
+    String voice = 'Alloy',
+    String length = 'standard',
+    String focus = 'general',
+  }) async {
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/research/papers/$id/audio',
+        data: {
+          'voice': voice,
+          'length': length,
+          'focus': focus,
+        },
+      );
+      return AudioTrack.fromJson(res.data ?? <String, dynamic>{});
     } catch (e) {
       throw failureFromDio(e);
     }

@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../ai/presentation/paper_summary_card.dart';
+import '../../follows/presentation/follows_notifier.dart';
 import '../../history/presentation/history_notifier.dart';
 import '../domain/citation_graph.dart';
 import '../domain/paper.dart';
@@ -70,6 +71,13 @@ class PaperDetailScreen extends ConsumerWidget {
             },
           ),
           if (paper != null) ...[
+            IconButton(
+              tooltip: 'Audio Brief',
+              icon: const Icon(Icons.headphones_outlined, size: 20),
+              onPressed: () => context.push(
+                '/create-audio?paperId=${paper.summary.id}&title=${Uri.encodeComponent(paper.title)}',
+              ),
+            ),
             IconButton(
               tooltip: 'Cite & Export',
               icon: const Icon(Icons.format_quote_rounded, size: 20),
@@ -149,30 +157,34 @@ class PaperDetailScreen extends ConsumerWidget {
                         runSpacing: 6,
                         children: [
                           for (final a in paper.authors)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF1E222D) : const Color(0xFFEFF2F6),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.person_outline_rounded,
-                                    size: 13,
-                                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    a.name,
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF374151),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () => _showAuthorModal(context, a),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF1E222D) : const Color(0xFFEFF2F6),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.person_outline_rounded,
+                                      size: 13,
+                                      color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      a.name,
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF374151),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                         ],
@@ -378,6 +390,30 @@ class PaperDetailScreen extends ConsumerWidget {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5),
+                              side: BorderSide(
+                                color: isDark ? const Color(0xFF4338CA).withValues(alpha: 0.6) : const Color(0xFFC7D2FE),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () => context.push(
+                              '/create-audio?paperId=${paper.summary.id}&title=${Uri.encodeComponent(paper.title)}',
+                            ),
+                            icon: const Icon(Icons.headphones_rounded, size: 16),
+                            label: const Text(
+                              'Generate Audio Brief (AI Voice Synthesis)',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -635,6 +671,115 @@ class PaperDetailScreen extends ConsumerWidget {
         );
       }
     }
+  }
+
+  void _showAuthorModal(BuildContext context, AuthorLine author) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF161922) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final follows = ref.watch(followsNotifierProvider);
+            final following = follows.isAuthorFollowed(author.id);
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: AppTheme.canaryYellow,
+                          child: Text(
+                            author.name.isNotEmpty ? author.name[0].toUpperCase() : 'A',
+                            style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF141416), fontSize: 20),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                author.name,
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                              ),
+                              if (author.affiliations.isNotEmpty)
+                                Text(
+                                  author.affiliations.join(' · '),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                  ),
+                                ),
+                              if (author.orcid != null && author.orcid!.isNotEmpty)
+                                Text(
+                                  'ORCID: ${author.orcid}',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFFA6C8E0)),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: isDark ? Colors.white : const Color(0xFF141416),
+                              side: BorderSide(color: isDark ? const Color(0xFF3F475A) : const Color(0xFFD1D5DB)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              context.push('/search?q=${Uri.encodeComponent(author.name)}');
+                            },
+                            icon: const Icon(Icons.search_rounded, size: 16),
+                            label: const Text('Find Papers', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: following ? (isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB)) : AppTheme.canaryYellow,
+                              foregroundColor: following ? (isDark ? Colors.white : const Color(0xFF141416)) : const Color(0xFF141416),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            onPressed: () {
+                              ref.read(followsNotifierProvider.notifier).toggleAuthorFollow(author.id, author.name);
+                            },
+                            icon: Icon(following ? Icons.check_rounded : Icons.add_rounded, size: 16),
+                            label: Text(
+                              following ? 'Following' : 'Follow',
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _details(BuildContext context, PaperDetail paper) {
@@ -1200,59 +1345,115 @@ class _CitationGraphExplorerCardState extends ConsumerState<_CitationGraphExplor
                         ),
                       ),
                       for (final node in nonSeedNodes.take(8)) ...[
-                        InkWell(
-                          onTap: () => context.push('/papers/${node.id}'),
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: node.depth == 1
-                                        ? const Color(0xFF3B82F6).withValues(alpha: 0.15)
-                                        : const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    node.depth == 1 ? 'HOP 1' : 'HOP 2',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: node.depth == 1
-                                          ? const Color(0xFF60A5FA)
-                                          : const Color(0xFFA78BFA),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        node.title,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                        Builder(
+                          builder: (context) {
+                            final edge = graph.edges.firstWhere(
+                              (e) =>
+                                  (e.source == node.id && e.target == graph.rootId) ||
+                                  (e.target == node.id && e.source == graph.rootId),
+                              orElse: () => const CitationGraphEdge(source: '', target: ''),
+                            );
+                            return InkWell(
+                              onTap: () => context.push('/papers/${node.id}'),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: node.depth == 1
+                                            ? const Color(0xFF3B82F6).withValues(alpha: 0.15)
+                                            : const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '${node.venueName.isNotEmpty ? node.venueName : "arXiv"} · ${node.year > 0 ? node.year : "Recent"} · ${node.citedByCount} citations',
+                                      child: Text(
+                                        node.depth == 1 ? 'HOP 1' : 'HOP 2',
                                         style: TextStyle(
-                                          fontSize: 11,
-                                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: node.depth == 1
+                                              ? const Color(0xFF60A5FA)
+                                              : const Color(0xFFA78BFA),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            node.title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Wrap(
+                                            spacing: 6,
+                                            crossAxisAlignment: WrapCrossAlignment.center,
+                                            children: [
+                                              Text(
+                                                '${node.venueName.isNotEmpty ? node.venueName : "arXiv"} · ${node.year > 0 ? node.year : "Recent"} · ${node.citedByCount} citations',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                                ),
+                                              ),
+                                              if (edge.stance == 'supports')
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFF55EFC4).withValues(alpha: 0.2),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: const Text('✓ Supports', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF00B894))),
+                                                ),
+                                              if (edge.stance == 'contradicts')
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color: const Color(0xFFFF7675).withValues(alpha: 0.2),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: const Text('⚠ Contradicts', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFD63031))),
+                                                ),
+                                              if (edge.isInfluential)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                                  decoration: BoxDecoration(
+                                                    color: AppTheme.canaryYellow.withValues(alpha: 0.2),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: const Text('★ Influential', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.canaryYellow)),
+                                                ),
+                                            ],
+                                          ),
+                                          if (edge.context.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '"${edge.context}"',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontStyle: FontStyle.italic,
+                                                color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF4B5563),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.chevron_right_rounded, size: 18),
+                                  ],
                                 ),
-                                const Icon(Icons.chevron_right_rounded, size: 18),
-                              ],
-                            ),
-                          ),
+                              ),
+                            );
+                          },
                         ),
                         if (node != nonSeedNodes.take(8).last)
                           Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/di.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
 import '../../papers/domain/audio_playback.dart';
@@ -13,14 +14,21 @@ import 'user_credits_notifier.dart';
 
 /// Screen 3: Create Audio / Research Synthesis Studio Screen
 class CreateAudioScreen extends ConsumerStatefulWidget {
-  const CreateAudioScreen({super.key});
+  final String? paperId;
+  final String? initialTitle;
+
+  const CreateAudioScreen({
+    super.key,
+    this.paperId,
+    this.initialTitle,
+  });
 
   @override
   ConsumerState<CreateAudioScreen> createState() => _CreateAudioScreenState();
 }
 
 class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
-  final _urlController = TextEditingController(text: 'https://arxiv.org/abs/2403.12345');
+  late final TextEditingController _urlController;
   final _notesController = TextEditingController();
   int _selectedSource = 0; // 0: Link, 1: PDF, 2: Notes, 3: Voice
   String _selectedVoice = 'Mara';
@@ -30,6 +38,15 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
   int _recordedSeconds = 0;
   bool _isGenerating = false;
   String _generationStep = '';
+
+  @override
+  void initState() {
+    super.initState();
+    final defaultUrl = widget.paperId != null && widget.paperId!.isNotEmpty
+        ? widget.paperId!
+        : 'https://arxiv.org/abs/2403.12345';
+    _urlController = TextEditingController(text: defaultUrl);
+  }
 
   @override
   void dispose() {
@@ -48,6 +65,18 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
     if (_selectedLength.startsWith('Brief')) return '~5 min · 1,020 words · English';
     if (_selectedLength.startsWith('Standard')) return '~12 min · 2,450 words · English';
     return '~25 min · 5,100 words · English';
+  }
+
+  String? _extractPaperId(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return null;
+    final arxivMatch = RegExp(r'arxiv\.org/abs/([0-9]+\.[0-9]+)').firstMatch(trimmed);
+    if (arxivMatch != null) return arxivMatch.group(1);
+    final isUuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(trimmed);
+    if (isUuid) return trimmed;
+    if (RegExp(r'^\d{4}\.\d{4,5}(v\d+)?$').hasMatch(trimmed) || trimmed.startsWith('arxiv:')) return trimmed;
+    if (trimmed.startsWith('10.') || trimmed.startsWith('doi:')) return trimmed;
+    return null;
   }
 
   Future<void> _pasteFromClipboard() async {
@@ -87,19 +116,36 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
       _generationStep = 'Extracting key findings & semantic structure…';
     });
 
-    await Future.delayed(const Duration(milliseconds: 600));
+    AudioTrack? backendTrack;
+    final targetId = widget.paperId ?? _extractPaperId(_urlController.text);
+    if (targetId != null && targetId.isNotEmpty) {
+      try {
+        final lengthCode = _selectedLength.startsWith('Brief')
+            ? 'brief'
+            : (_selectedLength.startsWith('Standard') ? 'standard' : 'deep');
+        backendTrack = await ref.read(paperRepositoryProvider).synthesizeAudio(
+          targetId,
+          voice: _selectedVoice,
+          length: lengthCode,
+          focus: 'general',
+        );
+      } catch (_) {
+        // Fall back gracefully to offline/local synthesis track
+      }
+    }
+
     if (!mounted) return;
 
     setState(() {
       _generationStep = 'Generating voice narration with $_selectedVoice…';
     });
 
-    await Future.delayed(const Duration(milliseconds: 700));
+    await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
 
     ref.read(userCreditsProvider.notifier).deduct(_requiredCredits);
 
-    final newTrack = AudioTrack(
+    final newTrack = backendTrack ?? AudioTrack(
       id: 'gen-${DateTime.now().millisecondsSinceEpoch}',
       title: title,
       authorVenue: 'AI Audio Synthesis · $_selectedVoice · $_selectedLength',
