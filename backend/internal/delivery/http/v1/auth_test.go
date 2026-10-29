@@ -17,10 +17,17 @@ import (
 	domainuser "athena/backend/internal/domain/user"
 )
 
+type fakeAuthResetRow struct {
+	userID    uuid.UUID
+	expiresAt time.Time
+	used      bool
+}
+
 type fakeAuthUsers struct {
-	mu    sync.Mutex
-	mail  map[string]domainuser.Credential
-	taken bool
+	mu     sync.Mutex
+	mail   map[string]domainuser.Credential
+	resets map[string]fakeAuthResetRow
+	taken  bool
 }
 
 func (f *fakeAuthUsers) Create(_ context.Context, nu domainuser.NewUser) (domainuser.User, error) {
@@ -55,6 +62,71 @@ func (f *fakeAuthUsers) ByID(_ context.Context, id uuid.UUID) (domainuser.User, 
 		}
 	}
 	return domainuser.User{}, domainuser.ErrNotFound
+}
+
+func (f *fakeAuthUsers) Delete(_ context.Context, id uuid.UUID) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for email, c := range f.mail {
+		if c.User.ID == id {
+			delete(f.mail, email)
+			return nil
+		}
+	}
+	return domainuser.ErrNotFound
+}
+
+func (f *fakeAuthUsers) UpdatePassword(_ context.Context, id uuid.UUID, passwordHash string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for email, c := range f.mail {
+		if c.User.ID == id {
+			c.PasswordHash = passwordHash
+			f.mail[email] = c
+			return nil
+		}
+	}
+	return domainuser.ErrNotFound
+}
+
+func (f *fakeAuthUsers) CreatePasswordReset(_ context.Context, userID uuid.UUID, tokenHash []byte, expiresAt time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.resets == nil {
+		f.resets = make(map[string]fakeAuthResetRow)
+	}
+	f.resets[string(tokenHash)] = fakeAuthResetRow{
+		userID:    userID,
+		expiresAt: expiresAt,
+		used:      false,
+	}
+	return nil
+}
+
+func (f *fakeAuthUsers) ConsumePasswordReset(_ context.Context, tokenHash []byte) (uuid.UUID, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	row, ok := f.resets[string(tokenHash)]
+	if !ok || row.used || time.Now().UTC().After(row.expiresAt) {
+		return uuid.Nil, domainuser.ErrInvalidResetToken
+	}
+	row.used = true
+	f.resets[string(tokenHash)] = row
+	return row.userID, nil
+}
+
+func (f *fakeAuthUsers) UpdateExplanationLevel(_ context.Context, id uuid.UUID, level string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for email, c := range f.mail {
+		if c.User.ID == id {
+			u := c.User
+			u.ExplanationLevel = level
+			f.mail[email] = domainuser.Credential{User: u, PasswordHash: c.PasswordHash}
+			return nil
+		}
+	}
+	return domainuser.ErrNotFound
 }
 
 // adaID is the fixed account resolved for bearer token "tok-1".
@@ -224,5 +296,159 @@ func TestLogoutHandler204(t *testing.T) {
 	h.Logout(w2, httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil))
 	if w2.Code != http.StatusUnauthorized {
 		t.Fatalf("missing token logout: %d", w2.Code)
+	}
+}
+
+func TestRefreshHandler(t *testing.T) {
+	h, _ := newTestAuthHandlers(false)
+
+	// Missing token -> 401
+	wMissing := httptest.NewRecorder()
+	h.Refresh(wMissing, httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil))
+	if wMissing.Code != http.StatusUnauthorized {
+		t.Fatalf("missing token refresh: %d", wMissing.Code)
+	}
+
+	// Valid token -> 200 with new session
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil)
+	r.Header.Set("Authorization", "Bearer tok-1")
+	w := httptest.NewRecorder()
+	h.Refresh(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("refresh status %d: %s", w.Code, w.Body.String())
+	}
+	var res sessionResponseDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Token == "" || res.User.ID != adaID.String() {
+		t.Errorf("unexpected refresh response: %+v", res)
+	}
+}
+
+func TestDeleteMeHandler(t *testing.T) {
+	h, svc := newTestAuthHandlers(false)
+
+	// Unauthenticated -> 401
+	wUnauth := httptest.NewRecorder()
+	h.DeleteMe(wUnauth, httptest.NewRequest(http.MethodDelete, "/api/v1/me", nil))
+	if wUnauth.Code != http.StatusUnauthorized {
+		t.Fatalf("unauth delete me: %d", wUnauth.Code)
+	}
+
+	// Register user
+	sess, err := svc.Register(context.Background(), "delete@x.io", "password123", "Deleter")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Authenticated -> 204
+	r := httptest.NewRequest(http.MethodDelete, "/api/v1/me", nil)
+	ctx := context.WithValue(r.Context(), userKey{}, sess.User)
+	w := httptest.NewRecorder()
+	h.DeleteMe(w, r.WithContext(ctx))
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("delete me status %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateExplanationLevelHandler(t *testing.T) {
+	h, svc := newTestAuthHandlers(false)
+
+	// Unauthenticated -> 401
+	wUnauth := httptest.NewRecorder()
+	h.UpdateExplanationLevel(wUnauth, httptest.NewRequest(http.MethodPut, "/api/v1/me/explanation-level", strings.NewReader(`{"level":"expert"}`)))
+	if wUnauth.Code != http.StatusUnauthorized {
+		t.Fatalf("unauth update level: %d", wUnauth.Code)
+	}
+
+	// Register user
+	sess, err := svc.Register(context.Background(), "level@x.io", "password123", "LevelUser")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Invalid level -> 400
+	rInv := httptest.NewRequest(http.MethodPut, "/api/v1/me/explanation-level", strings.NewReader(`{"level":"superhero"}`))
+	ctx := context.WithValue(rInv.Context(), userKey{}, sess.User)
+	wInv := httptest.NewRecorder()
+	h.UpdateExplanationLevel(wInv, rInv.WithContext(ctx))
+	if wInv.Code != http.StatusBadRequest {
+		t.Fatalf("invalid level status %d: %s", wInv.Code, wInv.Body.String())
+	}
+
+	// Valid level -> 200
+	r := httptest.NewRequest(http.MethodPut, "/api/v1/me/explanation-level", strings.NewReader(`{"level":"advanced"}`))
+	w := httptest.NewRecorder()
+	h.UpdateExplanationLevel(w, r.WithContext(ctx))
+	if w.Code != http.StatusOK {
+		t.Fatalf("valid level status %d: %s", w.Code, w.Body.String())
+	}
+	var res userDTO
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.ExplanationLevel != "advanced" {
+		t.Errorf("expected advanced, got %s", res.ExplanationLevel)
+	}
+}
+
+func TestForgotPasswordAndResetPasswordHandlers(t *testing.T) {
+	h, svc := newTestAuthHandlers(false)
+	ctx := context.Background()
+
+	// Register user
+	_, err := svc.Register(ctx, "forgot@x.io", "initialpass123", "ForgotUser")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 1. ForgotPassword - invalid JSON
+	wBadJSON := httptest.NewRecorder()
+	h.ForgotPassword(wBadJSON, httptest.NewRequest(http.MethodPost, "/api/v1/auth/forgot-password", strings.NewReader(`invalid-json`)))
+	if wBadJSON.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for bad JSON, got %d", wBadJSON.Code)
+	}
+
+	// 2. ForgotPassword - success
+	wForgot := httptest.NewRecorder()
+	h.ForgotPassword(wForgot, httptest.NewRequest(http.MethodPost, "/api/v1/auth/forgot-password", strings.NewReader(`{"email":"forgot@x.io"}`)))
+	if wForgot.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", wForgot.Code, wForgot.Body.String())
+	}
+	var forgotRes messageResponseDTO
+	if err := json.Unmarshal(wForgot.Body.Bytes(), &forgotRes); err != nil {
+		t.Fatal(err)
+	}
+	if forgotRes.Token == "" {
+		t.Fatal("expected non-empty reset token")
+	}
+
+	// 3. ResetPassword - invalid token
+	wInvalidToken := httptest.NewRecorder()
+	h.ResetPassword(wInvalidToken, httptest.NewRequest(http.MethodPost, "/api/v1/auth/reset-password", strings.NewReader(`{"token":"bad-token","new_password":"newpassword123"}`)))
+	if wInvalidToken.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for bad token, got %d", wInvalidToken.Code)
+	}
+
+	// 4. ResetPassword - short password
+	wShort := httptest.NewRecorder()
+	h.ResetPassword(wShort, httptest.NewRequest(http.MethodPost, "/api/v1/auth/reset-password", strings.NewReader(`{"token":"`+forgotRes.Token+`","new_password":"short"}`)))
+	if wShort.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for short password, got %d", wShort.Code)
+	}
+
+	// 5. ResetPassword - success
+	wSuccess := httptest.NewRecorder()
+	h.ResetPassword(wSuccess, httptest.NewRequest(http.MethodPost, "/api/v1/auth/reset-password", strings.NewReader(`{"token":"`+forgotRes.Token+`","new_password":"updatedpass123"}`)))
+	if wSuccess.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", wSuccess.Code, wSuccess.Body.String())
+	}
+
+	// 6. Login with new password
+	wLogin := httptest.NewRecorder()
+	h.Login(wLogin, httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"email":"forgot@x.io","password":"updatedpass123"}`)))
+	if wLogin.Code != http.StatusOK {
+		t.Fatalf("expected 200 login with new password, got %d: %s", wLogin.Code, wLogin.Body.String())
 	}
 }
