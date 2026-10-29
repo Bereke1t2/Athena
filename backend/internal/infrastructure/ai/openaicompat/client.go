@@ -23,10 +23,11 @@ import (
 
 // Config configures one adapter instance.
 type Config struct {
-	BaseURL string // e.g. https://api.openai.com/v1
-	APIKey  string
-	Model   string
-	Timeout time.Duration
+	BaseURL    string // e.g. https://api.openai.com/v1
+	APIKey     string
+	Model      string
+	Dimensions int // Optional explicit vector dimension (e.g. 768 for text-embedding-3-*)
+	Timeout    time.Duration
 }
 
 type message struct {
@@ -346,8 +347,9 @@ func (r *streamReader) Close() error { return r.body.Close() }
 // ---- embeddings -------------------------------------------------------------
 
 type embeddingsRequest struct {
-	Model string   `json:"model"`
-	Input []string `json:"input"`
+	Model      string   `json:"model"`
+	Input      []string `json:"input"`
+	Dimensions int      `json:"dimensions,omitempty"`
 }
 
 type embeddingsResponse struct {
@@ -388,7 +390,11 @@ func (e *Embedder) Embed(ctx context.Context, texts []string) ([][]float32, erro
 	if len(texts) == 0 {
 		return nil, nil
 	}
-	payload, err := json.Marshal(embeddingsRequest{Model: e.model, Input: texts})
+	embReq := embeddingsRequest{Model: e.model, Input: texts}
+	if e.cfg.Dimensions > 0 && e.model != "text-embedding-004" {
+		embReq.Dimensions = e.cfg.Dimensions
+	}
+	payload, err := json.Marshal(embReq)
 	if err != nil {
 		return nil, err
 	}

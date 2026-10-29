@@ -150,7 +150,7 @@ type Embedder struct {
 // NewEmbedder builds a stub embedding provider with the given dimension.
 func NewEmbedder(dim int) *Embedder {
 	if dim <= 0 {
-		dim = 1536
+		dim = 768
 	}
 	return &Embedder{Dim: dim}
 }
