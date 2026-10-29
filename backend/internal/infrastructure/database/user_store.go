@@ -20,13 +20,15 @@ type UserStore struct {
 
 func NewUserStore(pool *pgxpool.Pool) *UserStore { return &UserStore{pool: pool} }
 
-const userCols = `id, email, display_name, COALESCE(avatar_url,''), created_at`
+const userCols = `id, email, display_name, COALESCE(avatar_url,''), preferred_explanation_level::text, created_at`
 
 func scanUser(row pgx.Row) (domainuser.User, error) {
 	var u domainuser.User
 	var email string
-	err := row.Scan(&u.ID, &email, &u.DisplayName, &u.AvatarURL, &u.CreatedAt)
+	var level string
+	err := row.Scan(&u.ID, &email, &u.DisplayName, &u.AvatarURL, &level, &u.CreatedAt)
 	u.Email = email
+	u.ExplanationLevel = level
 	return u, err
 }
 
@@ -55,11 +57,12 @@ func (s *UserStore) ByEmail(ctx context.Context, email string) (domainuser.Crede
 	var c domainuser.Credential
 	var emailOut string
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, email::text, display_name, COALESCE(avatar_url,''), created_at,
+		SELECT id, email::text, display_name, COALESCE(avatar_url,''),
+		       preferred_explanation_level::text, created_at,
 		       COALESCE(password_hash,'')
 		FROM users WHERE lower(email::text) = $1 AND deleted_at IS NULL`, email).
 		Scan(&c.User.ID, &emailOut, &c.User.DisplayName, &c.User.AvatarURL,
-			&c.User.CreatedAt, &c.PasswordHash)
+			&c.User.ExplanationLevel, &c.User.CreatedAt, &c.PasswordHash)
 	c.User.Email = emailOut
 	if errors.Is(err, pgx.ErrNoRows) {
 		return c, domainuser.ErrNotFound
@@ -73,7 +76,7 @@ func (s *UserStore) ByEmail(ctx context.Context, email string) (domainuser.Crede
 // ByID returns one account by primary key.
 func (s *UserStore) ByID(ctx context.Context, id uuid.UUID) (domainuser.User, error) {
 	u, err := scanUser(s.pool.QueryRow(ctx,
-		`SELECT id, email::text, display_name, COALESCE(avatar_url,''), created_at
+		`SELECT `+userCols+`
 		 FROM users WHERE id = $1 AND deleted_at IS NULL`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return u, domainuser.ErrNotFound
@@ -82,6 +85,94 @@ func (s *UserStore) ByID(ctx context.Context, id uuid.UUID) (domainuser.User, er
 		return u, fmt.Errorf("user by id: %w", err)
 	}
 	return u, nil
+}
+
+// Delete soft-deletes an account and revokes its sessions.
+func (s *UserStore) Delete(ctx context.Context, id uuid.UUID) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("delete user begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, `UPDATE users SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL`, id)
+	if err != nil {
+		return fmt.Errorf("update user deleted_at: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domainuser.ErrNotFound
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM sessions WHERE user_id = $1`, id); err != nil {
+		return fmt.Errorf("delete user sessions: %w", err)
+	}
+	return tx.Commit(ctx)
+}
+
+// UpdateExplanationLevel updates the preferred explanation level for an account.
+func (s *UserStore) UpdateExplanationLevel(ctx context.Context, id uuid.UUID, level string) error {
+	tag, err := s.pool.Exec(ctx,
+		`UPDATE users SET preferred_explanation_level = $1::explanation_level, updated_at = now()
+		 WHERE id = $2 AND deleted_at IS NULL`, level, id)
+	if err != nil {
+		return fmt.Errorf("update explanation level: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domainuser.ErrNotFound
+	}
+	return nil
+}
+
+// UpdatePassword sets a new password hash for the user and revokes their active sessions.
+func (s *UserStore) UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("update password begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx,
+		`UPDATE users SET password_hash = $1, updated_at = now()
+		 WHERE id = $2 AND deleted_at IS NULL`, passwordHash, id)
+	if err != nil {
+		return fmt.Errorf("update password hash: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domainuser.ErrNotFound
+	}
+
+	if _, err := tx.Exec(ctx, `DELETE FROM sessions WHERE user_id = $1`, id); err != nil {
+		return fmt.Errorf("revoke sessions on password update: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+// CreatePasswordReset inserts a recovery token hash for a user.
+func (s *UserStore) CreatePasswordReset(ctx context.Context, userID uuid.UUID, tokenHash []byte, expiresAt time.Time) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO password_resets (id, user_id, token_hash, expires_at)
+		VALUES ($1, $2, $3, $4)`, uuid.New(), userID, tokenHash, expiresAt)
+	if err != nil {
+		return fmt.Errorf("create password reset: %w", err)
+	}
+	return nil
+}
+
+// ConsumePasswordReset verifies and consumes a recovery token, returning the user ID.
+func (s *UserStore) ConsumePasswordReset(ctx context.Context, tokenHash []byte) (uuid.UUID, error) {
+	var userID uuid.UUID
+	err := s.pool.QueryRow(ctx, `
+		UPDATE password_resets
+		SET used_at = now()
+		WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+		RETURNING user_id`, tokenHash).Scan(&userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, domainuser.ErrInvalidResetToken
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("consume password reset: %w", err)
+	}
+	return userID, nil
 }
 
 // Issue persists a new session row keyed by token hash.
@@ -111,10 +202,10 @@ func (s *UserStore) UserByTokenHash(ctx context.Context, tokenHash []byte) (doma
 	var expiresAt time.Time
 	err := s.pool.QueryRow(ctx, `
 		SELECT us.id, us.email::text, us.display_name, COALESCE(us.avatar_url,''),
-		       us.created_at, sn.expires_at
+		       us.preferred_explanation_level::text, us.created_at, sn.expires_at
 		FROM sessions sn JOIN users us ON us.id = sn.user_id AND us.deleted_at IS NULL
 		WHERE sn.token_hash = $1 AND sn.expires_at > now()`, tokenHash).
-		Scan(&u.ID, &u.Email, &u.DisplayName, &u.AvatarURL, &u.CreatedAt, &expiresAt)
+		Scan(&u.ID, &u.Email, &u.DisplayName, &u.AvatarURL, &u.ExplanationLevel, &u.CreatedAt, &expiresAt)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		// Distinguish expired from unknown so callers can log out stale clients.
