@@ -6,6 +6,8 @@ package httpserver
 import (
 	"log/slog"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -28,6 +30,12 @@ type Deps struct {
 	Export        *v1.ExportHandlers
 	Digest        *v1.DigestHandlers
 	Logger        *slog.Logger
+
+	// Limiter enforces inbound rate limiting per API spec (MemoryRateLimiter if nil).
+	Limiter v1.RateLimiter
+
+	// AllowedOrigins configures CORS allow-listing (empty disables CORS headers).
+	AllowedOrigins []string
 
 	// Ping checks database connectivity for readiness probes.
 	Ping func() error
@@ -64,8 +72,17 @@ func New(deps Deps) http.Handler {
 	registerAPI(mux, deps)
 
 	var handler http.Handler = mux
+	limiter := deps.Limiter
+	if limiter == nil {
+		limiter = v1.NewMemoryRateLimiter()
+	}
+	handler = v1.WithRateLimit(limiter, deps.Logger, handler)
+	handler = v1.WithIdempotency(v1.NewMemoryIdempotencyStore(), 10*time.Minute, handler)
 	if deps.Auth != nil {
 		handler = v1.WithAuth(deps.Auth.Svc, deps.Logger, handler)
+	}
+	if len(deps.AllowedOrigins) > 0 {
+		handler = WithCORS(deps.AllowedOrigins, handler)
 	}
 
 	log := deps.Logger
@@ -75,6 +92,41 @@ func New(deps Deps) http.Handler {
 	return v1.WithRequestID(v1.WithLogging(log, v1.Recover(log, handler)))
 }
 
+// WithCORS wraps the handler with standard Cross-Origin Resource Sharing headers.
+func WithCORS(allowedOrigins []string, next http.Handler) http.Handler {
+	if len(allowedOrigins) == 0 {
+		return next
+	}
+	allowedMap := make(map[string]bool, len(allowedOrigins))
+	allowAll := false
+	for _, o := range allowedOrigins {
+		o = strings.TrimSpace(o)
+		if o == "*" {
+			allowAll = true
+		} else if o != "" {
+			allowedMap[o] = true
+		}
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin != "" && (allowAll || allowedMap[origin]) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID, Idempotency-Key, If-None-Match")
+			w.Header().Set("Access-Control-Expose-Headers", "X-Request-ID, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After, ETag")
+			w.Header().Set("Access-Control-Max-Age", "86400")
+		}
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func registerAPI(mux *http.ServeMux, deps Deps) {
 	if deps.Research != nil {
 		mux.HandleFunc("GET /api/v1/research/papers", deps.Research.List)
@@ -82,6 +134,7 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/citations", deps.Research.Citations)
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/related", deps.Research.Related)
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/graph", deps.Research.Graph)
+		mux.HandleFunc("GET /api/v1/research/trends", deps.Research.Trends)
 	}
 	if deps.Export != nil {
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/export", deps.Export.ExportPaper)
@@ -99,6 +152,9 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		}
 		if deps.AI.Comparison != nil {
 			mux.HandleFunc("POST /api/v1/research/compare", deps.AI.Compare)
+		}
+		if deps.AI.Audio != nil {
+			mux.HandleFunc("POST /api/v1/research/papers/{id}/audio", deps.AI.SynthesizeAudio)
 		}
 	}
 
@@ -118,8 +174,13 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 	if deps.Auth != nil {
 		mux.HandleFunc("POST /api/v1/auth/register", deps.Auth.Register)
 		mux.HandleFunc("POST /api/v1/auth/login", deps.Auth.Login)
+		mux.HandleFunc("POST /api/v1/auth/refresh", deps.Auth.Refresh)
+		mux.HandleFunc("POST /api/v1/auth/forgot-password", deps.Auth.ForgotPassword)
+		mux.HandleFunc("POST /api/v1/auth/reset-password", deps.Auth.ResetPassword)
 		mux.HandleFunc("POST /api/v1/auth/logout", deps.Auth.Logout)
 		mux.HandleFunc("GET /api/v1/me", deps.Auth.Me)
+		mux.Handle("DELETE /api/v1/me", v1.RequireAuth(deps.Auth.DeleteMe))
+		mux.Handle("PUT /api/v1/me/explanation-level", v1.RequireAuth(deps.Auth.UpdateExplanationLevel))
 	}
 
 	if deps.Auth != nil && deps.Bookmarks != nil {
@@ -142,6 +203,8 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.Handle("POST /api/v1/me/notifications/{id}/read", v1.RequireAuth(deps.Notifications.MarkRead))
 		mux.Handle("POST /api/v1/me/notifications/read-all", v1.RequireAuth(deps.Notifications.MarkAllRead))
 		mux.Handle("GET /api/v1/me/notifications/unread-count", v1.RequireAuth(deps.Notifications.UnreadCount))
+		mux.Handle("POST /api/v1/devices", v1.RequireAuth(deps.Notifications.RegisterDevice))
+		mux.Handle("DELETE /api/v1/devices/{token}", v1.RequireAuth(deps.Notifications.UnregisterDevice))
 	}
 
 	if deps.Auth != nil && deps.History != nil {

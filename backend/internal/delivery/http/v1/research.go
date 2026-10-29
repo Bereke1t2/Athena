@@ -200,6 +200,16 @@ func (h *ResearchHandlers) Get(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err, "loading paper")
 		return
 	}
+
+	etag := fmt.Sprintf(`W/"%s-%d"`, detail.Summary.ID.String(), detail.UpdatedAt.Unix())
+	w.Header().Set("ETag", etag)
+	if match := r.Header.Get("If-None-Match"); match != "" {
+		if match == etag || match == "*" {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+	}
+
 	WriteJSON(w, http.StatusOK, newDetailDTO(detail))
 }
 
@@ -227,6 +237,25 @@ func (h *ResearchHandlers) Citations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.URL.Query().Get("details") == "true" {
+		items, err := h.Reader.ListCitationDetails(r.Context(), id, dir, limit)
+		if err != nil {
+			h.fail(w, r, err, "listing citation details")
+			return
+		}
+		outItems := make([]citationItemDTO, 0, len(items))
+		for _, it := range items {
+			outItems = append(outItems, citationItemDTO{
+				Paper:         newSummaryDTO(it.Paper),
+				IsInfluential: it.IsInfluential,
+				Stance:        it.Stance,
+				Context:       it.Context,
+			})
+		}
+		WriteJSON(w, http.StatusOK, map[string]any{"items": outItems})
+		return
+	}
+
 	items, err := h.Reader.ListCitations(r.Context(), id, dir, limit)
 	if err != nil {
 		h.fail(w, r, err, "traversing citations")
@@ -237,6 +266,25 @@ func (h *ResearchHandlers) Citations(w http.ResponseWriter, r *http.Request) {
 		out.Items = append(out.Items, newSummaryDTO(it))
 	}
 	WriteJSON(w, http.StatusOK, out)
+}
+
+func (h *ResearchHandlers) Trends(w http.ResponseWriter, r *http.Request) {
+	windowDays := 90
+	if raw := r.URL.Query().Get("window_days"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 7 && n <= 365 {
+			windowDays = n
+		}
+	}
+	limit, okLimit := h.clampLimit(w, r, 10, 50)
+	if !okLimit {
+		return
+	}
+	report, err := h.Reader.GetResearchTrends(r.Context(), windowDays, limit)
+	if err != nil {
+		h.fail(w, r, err, "fetching research trends")
+		return
+	}
+	WriteJSON(w, http.StatusOK, report)
 }
 
 func (h *ResearchHandlers) Related(w http.ResponseWriter, r *http.Request) {
