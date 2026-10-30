@@ -203,3 +203,63 @@ func TestDeviceManagement(t *testing.T) {
 		t.Errorf("expected token-web to remain, got %s", devicesAfter[0].Token)
 	}
 }
+
+type mockPushSender struct {
+	dispatched []domainnotif.Notification
+	failOn     map[string]error
+}
+
+func (m *mockPushSender) SendPush(_ context.Context, d domainnotif.Device, n domainnotif.Notification) error {
+	if m.failOn != nil && m.failOn[d.Token] != nil {
+		return m.failOn[d.Token]
+	}
+	m.dispatched = append(m.dispatched, n)
+	return nil
+}
+
+func TestNotificationService_PushDispatchAndAutoUnregister(t *testing.T) {
+	ctx := context.Background()
+	store := newMockNotifStore()
+	devStore := &mockDeviceStore{devices: make(map[uuid.UUID][]domainnotif.Device)}
+	pushSender := &mockPushSender{
+		failOn: map[string]error{
+			"stale-token": domainnotif.ErrDeviceUnregistered,
+		},
+	}
+	svc := appnotif.NewService(store).WithDevices(devStore, pushSender)
+	userID := uuid.New()
+
+	// Register 2 devices: one valid, one stale
+	_ = svc.RegisterDevice(ctx, userID, "valid-token", "android", "Pixel 9")
+	_ = svc.RegisterDevice(ctx, userID, "stale-token", "ios", "iPhone 15")
+
+	// Create notification triggers push dispatch
+	notif, err := svc.Create(ctx, domainnotif.Notification{
+		UserID: userID,
+		Title:  "Breaking Paper",
+		Body:   "New discovery in quantum teleportation.",
+	})
+	if err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if notif.ID == uuid.Nil {
+		t.Fatal("expected assigned notification ID")
+	}
+
+	// Verify push was dispatched to the valid device
+	if len(pushSender.dispatched) != 1 {
+		t.Fatalf("expected 1 successful push dispatch, got %d", len(pushSender.dispatched))
+	}
+
+	// Verify stale device was automatically unregistered
+	devices, err := svc.ListDevices(ctx, userID)
+	if err != nil {
+		t.Fatalf("ListDevices failed: %v", err)
+	}
+	if len(devices) != 1 {
+		t.Fatalf("expected 1 remaining device, got %d", len(devices))
+	}
+	if devices[0].Token != "valid-token" {
+		t.Errorf("expected valid-token to remain, got %s", devices[0].Token)
+	}
+}
