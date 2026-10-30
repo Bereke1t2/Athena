@@ -65,4 +65,63 @@ func TestSynthesizeAudioEndpoint(t *testing.T) {
 	if res.Voice != "Echo" {
 		t.Errorf("expected voice Echo, got %s", res.Voice)
 	}
+	expectedAudioURL := "/api/v1/research/papers/" + paperID.String() + "/audio/stream"
+	if res.AudioURL != expectedAudioURL {
+		t.Errorf("expected audio_url %s, got %s", expectedAudioURL, res.AudioURL)
+	}
+}
+
+func TestStreamAudioEndpoint(t *testing.T) {
+	paperID := uuid.New()
+	abstract := "Audio streaming verification abstract."
+	store := &fakePaperStoreForComp{
+		papers: map[uuid.UUID]research.PaperDetail{
+			paperID: {
+				Summary: research.PaperSummary{
+					ID:        paperID,
+					Title:     "Streaming Audio Validation",
+					Abstract:  &abstract,
+					Year:      2025,
+					VenueName: "NeurIPS",
+				},
+			},
+		},
+	}
+
+	audioSvc := appai.NewAudioService(nil, store, discardLogger())
+	h := &AIHandlers{
+		Audio:  audioSvc,
+		Logger: discardLogger(),
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/research/papers/{id}/audio/stream", h.StreamAudio)
+
+	// 1. Full stream request
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/research/papers/"+paperID.String()+"/audio/stream", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("stream status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "audio/mpeg" {
+		t.Errorf("expected Content-Type audio/mpeg, got %s", ct)
+	}
+	if ar := rec.Header().Get("Accept-Ranges"); ar != "bytes" {
+		t.Errorf("expected Accept-Ranges bytes, got %s", ar)
+	}
+
+	// 2. HTTP Range request (seeking)
+	rangeReq := httptest.NewRequest(http.MethodGet, "/api/v1/research/papers/"+paperID.String()+"/audio/stream", nil)
+	rangeReq.Header.Set("Range", "bytes=0-3")
+	rangeRec := httptest.NewRecorder()
+	mux.ServeHTTP(rangeRec, rangeReq)
+
+	if rangeRec.Code != http.StatusPartialContent {
+		t.Fatalf("range request status = %d, want 206", rangeRec.Code)
+	}
+	if rangeRec.Body.Len() != 4 {
+		t.Errorf("expected 4 bytes for range 0-3, got %d", rangeRec.Body.Len())
+	}
 }
