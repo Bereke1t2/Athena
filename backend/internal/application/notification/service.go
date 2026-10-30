@@ -3,6 +3,7 @@ package notification
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -55,7 +56,9 @@ func (s *Service) Create(ctx context.Context, n domainnotification.Notification)
 	if s.push != nil && s.devices != nil {
 		if devices, err := s.devices.ListDevicesByUser(ctx, created.UserID); err == nil {
 			for _, d := range devices {
-				_ = s.push.SendPush(ctx, d, created)
+				if pushErr := s.push.SendPush(ctx, d, created); errors.Is(pushErr, domainnotification.ErrDeviceUnregistered) {
+					_ = s.devices.UnregisterDevice(ctx, d.UserID, d.Token)
+				}
 			}
 		}
 	}
