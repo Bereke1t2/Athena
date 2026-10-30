@@ -14,6 +14,8 @@ var (
 	ErrNotFound = errors.New("notification: not found")
 	// ErrInvalidInput marks malformed IDs or payloads.
 	ErrInvalidInput = errors.New("notification: invalid input")
+	// ErrDeviceUnregistered indicates the remote APNs/FCM service reported the token as expired or invalid.
+	ErrDeviceUnregistered = errors.New("notification: device token unregistered")
 )
 
 // Type enumerates the categories of notifications.
