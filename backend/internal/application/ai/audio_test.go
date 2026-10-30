@@ -2,11 +2,13 @@ package ai
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
 
 	domainai "athena/backend/internal/domain/ai"
+	domainaudio "athena/backend/internal/domain/audio"
 	"athena/backend/internal/domain/research"
 )
 
@@ -128,5 +130,76 @@ func TestAudioServiceLLMSynthesize(t *testing.T) {
 	}
 	if narration.PullQuote.TimestampSeconds != 200 {
 		t.Errorf("expected timestamp 200, got %d", narration.PullQuote.TimestampSeconds)
+	}
+}
+
+type mockSynth struct {
+	calledWithText string
+}
+
+func (m *mockSynth) SynthesizeSpeech(_ context.Context, text, _ string) ([]byte, error) {
+	m.calledWithText = text
+	return []byte{0xFF, 0xFB, 0x90, 0x64, 0x01, 0x02}, nil
+}
+
+type mockMedia struct {
+	data map[string][]byte
+}
+
+func (m *mockMedia) SaveAudio(_ context.Context, key string, data []byte) error {
+	if m.data == nil {
+		m.data = make(map[string][]byte)
+	}
+	m.data[key] = data
+	return nil
+}
+
+func (m *mockMedia) GetAudio(_ context.Context, key string) ([]byte, error) {
+	if d, ok := m.data[key]; ok {
+		return d, nil
+	}
+	return nil, domainaudio.ErrAudioNotFound
+}
+
+func TestAudioService_WithTTSAndStreaming(t *testing.T) {
+	paperID := uuid.New()
+	paperSource := &mockAudioPaperSource{
+		detail: research.PaperDetail{
+			Summary: research.PaperSummary{
+				ID:        paperID,
+				Title:     "Quantum Teleportation Protocols",
+				VenueName: "Nature Physics",
+				Year:      2024,
+			},
+		},
+	}
+
+	synth := &mockSynth{}
+	media := &mockMedia{}
+
+	svc := NewAudioService(nil, paperSource, nil).WithTTS(synth, media)
+
+	ctx := context.Background()
+	narration, err := svc.Synthesize(ctx, paperID, "Alloy", "brief", "general")
+	if err != nil {
+		t.Fatalf("Synthesize failed: %v", err)
+	}
+
+	expectedURL := fmt.Sprintf("/api/v1/research/papers/%s/audio/stream", paperID.String())
+	if narration.AudioURL != expectedURL {
+		t.Errorf("expected AudioURL %s, got %s", expectedURL, narration.AudioURL)
+	}
+
+	if synth.calledWithText == "" {
+		t.Error("expected synthesizer to be called with script text")
+	}
+
+	// Verify stream retrieval
+	streamBytes, err := svc.GetAudioStream(ctx, paperID)
+	if err != nil {
+		t.Fatalf("GetAudioStream failed: %v", err)
+	}
+	if len(streamBytes) != 6 || streamBytes[0] != 0xFF {
+		t.Errorf("unexpected stream audio bytes: %v", streamBytes)
 	}
 }
