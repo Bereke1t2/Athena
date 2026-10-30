@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"athena/backend/internal/domain/research"
+	"athena/backend/internal/domain/taxonomy"
 )
 
 // isUniqueViolation reports whether err is a Postgres 23505 constraint
@@ -30,15 +32,21 @@ func isUniqueViolation(err error) bool {
 // PostgreSQL. Every UpsertPaper runs in one transaction and is idempotent:
 // replaying an equivalent record updates provenance but never duplicates rows.
 type PaperStore struct {
-	pool   *pgxpool.Pool
-	logger *slog.Logger
+	pool     *pgxpool.Pool
+	logger   *slog.Logger
+	fieldsMu sync.RWMutex
+	fieldIDs map[string]uuid.UUID
 }
 
 func NewPaperStore(pool *pgxpool.Pool, logger *slog.Logger) *PaperStore {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &PaperStore{pool: pool, logger: logger}
+	return &PaperStore{
+		pool:     pool,
+		logger:   logger,
+		fieldIDs: make(map[string]uuid.UUID),
+	}
 }
 
 const coreCols = `id, title, abstract, publication_date, publication_year, venue_name,
@@ -500,6 +508,45 @@ func slugifyTopic(name string) string {
 	return out
 }
 
+func (s *PaperStore) resolveFieldID(ctx context.Context, topicName, topicSlug string) *uuid.UUID {
+	fieldSlug := taxonomy.Classify(topicName, topicSlug)
+	if fieldSlug == "" || fieldSlug == topicSlug {
+		return nil
+	}
+
+	s.fieldsMu.RLock()
+	if id, ok := s.fieldIDs[fieldSlug]; ok {
+		s.fieldsMu.RUnlock()
+		return &id
+	}
+	s.fieldsMu.RUnlock()
+
+	s.fieldsMu.Lock()
+	defer s.fieldsMu.Unlock()
+	if id, ok := s.fieldIDs[fieldSlug]; ok {
+		return &id
+	}
+
+	if s.pool != nil {
+		rows, err := s.pool.Query(ctx, `SELECT id, slug FROM topics WHERE kind = 'field'`)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var fID uuid.UUID
+				var fSlug string
+				if err := rows.Scan(&fID, &fSlug); err == nil {
+					s.fieldIDs[fSlug] = fID
+				}
+			}
+		}
+	}
+
+	if id, ok := s.fieldIDs[fieldSlug]; ok {
+		return &id
+	}
+	return nil
+}
+
 func (s *PaperStore) upsertTopics(ctx context.Context, tx pgx.Tx, paperID uuid.UUID, topics []research.TopicRef) error {
 	for i, t := range topics {
 		name := strings.TrimSpace(t.Name)
@@ -515,19 +562,19 @@ func (s *PaperStore) upsertTopics(ctx context.Context, tx pgx.Tx, paperID uuid.U
 		}
 		isPrimary := t.IsPrimary || i == 0
 
+		parentID := s.resolveFieldID(ctx, name, slug)
+
 		var topicID uuid.UUID
-		err := tx.QueryRow(ctx, `SELECT id FROM topics WHERE slug = $1 LIMIT 1`, slug).Scan(&topicID)
-		switch {
-		case errors.Is(err, pgx.ErrNoRows):
-			topicID = uuid.New()
-			if _, err := tx.Exec(ctx, `
-				INSERT INTO topics (id, slug, name, kind, provider_key)
-				VALUES ($1,$2,$3,'topic',NULLIF($4,''))
-				ON CONFLICT (slug) DO NOTHING`, topicID, slug, name, t.ProviderKey); err != nil {
-				return fmt.Errorf("create topic: %w", err)
-			}
-		case err != nil:
-			return fmt.Errorf("topic lookup: %w", err)
+		newID := uuid.New()
+		err := tx.QueryRow(ctx, `
+			INSERT INTO topics (id, slug, name, kind, provider_key, parent_id)
+			VALUES ($1,$2,$3,'topic',NULLIF($4,''),$5)
+			ON CONFLICT (slug) DO UPDATE
+			SET parent_id = CASE WHEN topics.kind = 'field' THEN NULL ELSE COALESCE(topics.parent_id, EXCLUDED.parent_id) END,
+			    provider_key = COALESCE(topics.provider_key, EXCLUDED.provider_key)
+			RETURNING id`, newID, slug, name, t.ProviderKey, parentID).Scan(&topicID)
+		if err != nil {
+			return fmt.Errorf("upsert topic: %w", err)
 		}
 
 		score := t.Score
