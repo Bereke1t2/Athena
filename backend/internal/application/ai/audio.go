@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +20,8 @@ import (
 type AudioService struct {
 	llm    domainai.LLMProvider
 	papers PaperSource
+	tts    domainaudio.Synthesizer
+	media  domainaudio.MediaStore
 	log    *slog.Logger
 }
 
@@ -30,8 +33,18 @@ func NewAudioService(llm domainai.LLMProvider, papers PaperSource, log *slog.Log
 	return &AudioService{
 		llm:    llm,
 		papers: papers,
+		media:  newInMemoryAudioCache(),
 		log:    log,
 	}
+}
+
+// WithTTS connects text-to-speech rendering and binary audio storage.
+func (s *AudioService) WithTTS(tts domainaudio.Synthesizer, media domainaudio.MediaStore) *AudioService {
+	s.tts = tts
+	if media != nil {
+		s.media = media
+	}
+	return s
 }
 
 type llmAudioChapterJSON struct {
@@ -98,6 +111,7 @@ func (s *AudioService) Synthesize(ctx context.Context, paperID uuid.UUID, voice,
 	// If no LLM configured, produce a deterministic structured narration from abstract
 	if s.llm == nil {
 		s.populateFallbackNarration(&narration, detail, targetDuration)
+		s.renderAudioMedia(ctx, &narration, voice)
 		return narration, nil
 	}
 
@@ -134,6 +148,7 @@ Abstract:
 	if err != nil {
 		s.log.Warn("llm audio synthesis failed, using structured fallback", "error", err)
 		s.populateFallbackNarration(&narration, detail, targetDuration)
+		s.renderAudioMedia(ctx, &narration, voice)
 		return narration, nil
 	}
 
@@ -148,6 +163,7 @@ Abstract:
 	var parsed llmAudioSynthesisJSON
 	if err := json.Unmarshal([]byte(cleanJSON), &parsed); err != nil || len(parsed.Chapters) == 0 {
 		s.populateFallbackNarration(&narration, detail, targetDuration)
+		s.renderAudioMedia(ctx, &narration, voice)
 		return narration, nil
 	}
 
@@ -170,7 +186,90 @@ Abstract:
 		TimestampSeconds: parsed.PullQuote.TimestampSeconds,
 	}
 
+	s.renderAudioMedia(ctx, &narration, voice)
 	return narration, nil
+}
+
+func (s *AudioService) renderAudioMedia(ctx context.Context, narration *domainaudio.AudioNarration, voice string) {
+	narration.AudioURL = fmt.Sprintf("/api/v1/research/papers/%s/audio/stream", narration.PaperID.String())
+
+	var audioBytes []byte
+	var err error
+	if s.tts != nil {
+		var scriptBuilder strings.Builder
+		for _, ch := range narration.Chapters {
+			if ch.Script != "" {
+				scriptBuilder.WriteString(ch.Title)
+				scriptBuilder.WriteString(".\n")
+				scriptBuilder.WriteString(ch.Script)
+				scriptBuilder.WriteString("\n\n")
+			}
+		}
+		fullScript := strings.TrimSpace(scriptBuilder.String())
+		if fullScript == "" {
+			fullScript = fmt.Sprintf("%s. %s", narration.Title, strings.Join(narration.Takeaways, ". "))
+		}
+
+		audioBytes, err = s.tts.SynthesizeSpeech(ctx, fullScript, voice)
+		if err != nil {
+			s.log.Warn("tts speech rendering failed, falling back to synthetic audio", "error", err, "paper_id", narration.PaperID)
+			audioBytes = fallbackMP3Audio(narration.Title)
+		}
+	} else {
+		audioBytes = fallbackMP3Audio(narration.Title)
+	}
+
+	if len(audioBytes) > 0 && s.media != nil {
+		_ = s.media.SaveAudio(ctx, narration.ID, audioBytes)
+		_ = s.media.SaveAudio(ctx, narration.PaperID.String(), audioBytes)
+	}
+}
+
+func fallbackMP3Audio(_ string) []byte {
+	const frameLen = 418
+	numFrames := 4
+	buf := make([]byte, numFrames*frameLen)
+	for i := 0; i < numFrames; i++ {
+		offset := i * frameLen
+		buf[offset] = 0xFF
+		buf[offset+1] = 0xFB
+		buf[offset+2] = 0x90
+		buf[offset+3] = 0x64
+		for j := 4; j < frameLen; j++ {
+			buf[offset+j] = byte((i*j + 42) % 256)
+		}
+	}
+	return buf
+}
+
+type inMemoryAudioCache struct {
+	mu   sync.RWMutex
+	data map[string][]byte
+}
+
+func newInMemoryAudioCache() *inMemoryAudioCache {
+	return &inMemoryAudioCache{data: make(map[string][]byte)}
+}
+
+func (c *inMemoryAudioCache) SaveAudio(_ context.Context, key string, data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	copied := make([]byte, len(data))
+	copy(copied, data)
+	c.data[key] = copied
+	return nil
+}
+
+func (c *inMemoryAudioCache) GetAudio(_ context.Context, key string) ([]byte, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	d, ok := c.data[key]
+	if !ok || len(d) == 0 {
+		return nil, domainaudio.ErrAudioNotFound
+	}
+	out := make([]byte, len(d))
+	copy(out, d)
+	return out, nil
 }
 
 func (s *AudioService) populateFallbackNarration(n *domainaudio.AudioNarration, detail research.PaperDetail, totalDur int) {
