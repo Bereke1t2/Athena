@@ -19,7 +19,7 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 - **Federated live search** `GET /api/v1/search/live`: fans out to arXiv/S2/OpenAlex/Crossref concurrently (adapters have both `FetchWindow` ingestion and `Search()` live methods), merges duplicates (DOI > arXiv ID > title fingerprint), ranks relevance+gravity+recency+agreement, upserts into Postgres so results get UUIDs. Service: `backend/internal/application/discover/`.
 - **Feed**: `/feed?topic=slug1,slug2` OR-matches topics. Topic filters match names case-insensitively (dashes→wildcards); zero-result first pages fall back to unfiltered with a `~`-prefixed cursor that skips topic filtering on continuation. See `application/feed/service.go`.
-- **Topics**: migration `000009_seed_fields` seeds canonical `kind='field'` nodes; reader rolls up paper counts over children. Ingestion still creates parentless `topic` rows only — future work: map new topics to fields during ingestion.
+- **Topics**: migration `000009_seed_fields` seeds canonical `kind='field'` nodes; reader rolls up paper counts over children. Automated classifier (`domain/taxonomy/classifier.go`) and single-pass upsert (`database/paper_store.go`) dynamically map new topics to their canonical field parent during ingestion, retrofitting existing parentless topics.
 - **Onboarding**: first launch → topic picker (`features/onboarding/`), stored in SharedPreferences via `UserPreferences`; router redirect gates everything. Feed watches `selectedTopicsProvider`.
 - **AI layer (Phase 4, complete)**:
   - Summaries `POST /research/papers/{id}/summary {level}` — content-hash keyed cache, hits cost zero tokens (`cache_hit=true`, zeroed usage). Honest grounding labels: `abstract` vs `abstract+full_text`.
@@ -37,7 +37,24 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Protocol, Security & Mobile Experience Hardening (2026-10-29)**:
+1. **Audio Studio Physical TTS Generation & HTTP Audio Streaming (2026-10-30)**:
+   - **TTS Synthesizer & Media Storage**: Added `domain/audio` interfaces (`Synthesizer`, `MediaStore`), implemented `infrastructure/ai/tts` adapters (`OpenAISynthesizer`, `MockSynthesizer` generating valid MPEG-1 Layer 3 frames, and thread-safe in-memory `MemoryMediaStore`).
+   - **Byte-Range Streaming**: Implemented `GET /api/v1/research/papers/{id}/audio/stream` with standard RFC-7233 byte-range seeking (`Accept-Ranges: bytes`, `206 Partial Content`) via `http.ServeContent` and lazy synthesis fallback.
+   - **Configuration & Wiring**: Wired `TTSProvider` (`mock`, `openai`, `nop`) in `config.go`, composition root `cmd/api/main.go`, and updated mobile `AudioTrack.audioUrl`.
+   - **Verification**: `go test -count=1 ./...` 100% green; `cd mobile && flutter test` 50 passed (1 skipped); `dart analyze` clean (0 issues); all binaries compile cleanly.
+
+2. **Ingestion Topic-to-Field Classifier & Taxonomy Mapping (2026-10-30)**:
+   - **Domain Classifier**: Implemented `backend/internal/domain/taxonomy/classifier.go` with fast-path arXiv taxonomy prefix resolution (`cs.*`, `math.*`, `physics.*`, `q-bio.*`, `econ.*`, `eess.*`), exact field matching, and ordered regex rules matching `000009_seed_fields` with cross-domain negative guardrails.
+   - **Database Store Resolution**: Updated `PaperStore.resolveFieldID` with thread-safe RWMutex in-memory caching of canonical `field` UUIDs; upgraded `upsertTopics` to a single atomic `INSERT ... ON CONFLICT (slug) DO UPDATE` with `parent_id` attachment and retrofitting of unparented legacy topics.
+   - **Verification**: `go test -count=1 ./...` 100% green; all binaries (`api`, `worker`, `migrate`) build cleanly.
+
+2. **Concrete Push Notification Gateway (2026-10-30)**:
+   - **Infrastructure Gateway**: Implemented `backend/internal/infrastructure/push/` featuring `FCMClient` (Firebase Cloud Messaging HTTP v1), `APNSClient` (Apple Push Notification service HTTP/2 alert envelope), `Router` (multi-platform dispatch to iOS/Android/Web), and `MockSender` / `LoggingSender` / `NopSender`.
+   - **Token Invalidation & Auto-Unregister**: Added `domainnotification.ErrDeviceUnregistered` mapping HTTP 404/410/UNREGISTERED/BadDeviceToken; automatic stale device token cleanup wired into both `notification.Service` and `NotificationFanoutWorker`.
+   - **Worker & Server Wiring**: Wired `push.New(cfg, log)` in both `cmd/api/main.go` and `cmd/worker/main.go` with configurable environment variables (`ATHENA_PUSH_PROVIDER`, `FCM_PROJECT_ID`, `APNS_KEY_ID`, etc.).
+   - **Verification**: All Go unit tests passing 100% green across all packages; `bin/api`, `bin/worker`, and `bin/migrate` compiled cleanly.
+
+2. **Protocol, Security & Mobile Experience Hardening (2026-10-29)**:
    - **Password Reset Flow**: Added migration `000015_password_resets`, implemented `RequestPasswordReset` and `ResetPassword` on domain user store and auth service. Exposed `POST /api/v1/auth/forgot-password` and `POST /api/v1/auth/reset-password` on Go backend. Added "Forgot Password?" dialog and repository/notifier dispatch in Flutter `LoginScreen`.
    - **Push Device Registration & Seam**: Added migration `000016_user_devices`, implemented `RegisterDevice`, `UnregisterDevice`, and `ListDevicesByUser` on PostgreSQL `NotificationStore`. Exposed `POST /api/v1/devices` and `DELETE /api/v1/devices/{token}`. Connected push dispatch seam to `NotificationFanoutWorker`.
    - **Idempotency-Key Deduplication**: Implemented `v1.WithIdempotency` middleware with in-memory TTL caching and replaying of responses with `X-Cache-Lookup: HIT` for duplicate requests.

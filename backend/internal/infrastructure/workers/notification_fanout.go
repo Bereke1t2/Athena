@@ -2,6 +2,7 @@ package workers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -71,7 +72,9 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 		} else if w.Push != nil {
 			if devices, err := notifStore.ListDevicesByUser(ctx, userID); err == nil {
 				for _, d := range devices {
-					_ = w.Push.SendPush(ctx, d, notif)
+					if pushErr := w.Push.SendPush(ctx, d, notif); errors.Is(pushErr, domainnotif.ErrDeviceUnregistered) {
+						_ = notifStore.UnregisterDevice(ctx, d.UserID, d.Token)
+					}
 				}
 			}
 		}
@@ -114,7 +117,9 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 		} else if w.Push != nil {
 			if devices, err := notifStore.ListDevicesByUser(ctx, userID); err == nil {
 				for _, d := range devices {
-					_ = w.Push.SendPush(ctx, d, notif)
+					if pushErr := w.Push.SendPush(ctx, d, notif); errors.Is(pushErr, domainnotif.ErrDeviceUnregistered) {
+						_ = notifStore.UnregisterDevice(ctx, d.UserID, d.Token)
+					}
 				}
 			}
 		}
@@ -126,10 +131,15 @@ func (w *NotificationFanoutWorker) Work(ctx context.Context, job *river.Job[Noti
 	return nil
 }
 
-// AddNotifications registers the notification fan-out worker.
+// AddNotifications registers the notification fan-out worker without external push delivery.
 func AddNotifications(riverWorkers *river.Workers, pool *pgxpool.Pool, logger *slog.Logger) {
+	AddNotificationsWithPush(riverWorkers, pool, nil, logger)
+}
+
+// AddNotificationsWithPush registers the notification fan-out worker with push delivery support.
+func AddNotificationsWithPush(riverWorkers *river.Workers, pool *pgxpool.Pool, push domainnotif.PushSender, logger *slog.Logger) {
 	if pool == nil {
 		return
 	}
-	river.AddWorker(riverWorkers, &NotificationFanoutWorker{Pool: pool, Logger: logger})
+	river.AddWorker(riverWorkers, &NotificationFanoutWorker{Pool: pool, Logger: logger, Push: push})
 }

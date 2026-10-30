@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	appai "athena/backend/internal/application/ai"
 	appchat "athena/backend/internal/application/chat"
 	domainai "athena/backend/internal/domain/ai"
+	domainaudio "athena/backend/internal/domain/audio"
 )
 
 // AIHandlers serve the Phase 4 endpoints: paper summaries and grounded chat
@@ -441,4 +443,33 @@ func (h *AIHandlers) SynthesizeAudio(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusOK, narration)
+}
+
+// ---- GET /api/v1/research/papers/{id}/audio/stream --------------------------
+
+func (h *AIHandlers) StreamAudio(w http.ResponseWriter, r *http.Request) {
+	if h.Audio == nil {
+		WriteError(w, r, http.StatusServiceUnavailable, CodeNotImplemented, "audio synthesis not configured")
+		return
+	}
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid paper id")
+		return
+	}
+
+	audioBytes, err := h.Audio.GetAudioStream(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, domainaudio.ErrAudioNotFound) {
+			WriteError(w, r, http.StatusNotFound, CodeNotFound, "audio narration not found")
+			return
+		}
+		h.Logger.Error("get audio stream failed", "error", err, "paper_id", id, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "failed to stream audio")
+		return
+	}
+
+	w.Header().Set("Content-Type", "audio/mpeg")
+	w.Header().Set("Accept-Ranges", "bytes")
+	http.ServeContent(w, r, fmt.Sprintf("%s.mp3", id.String()), time.Time{}, bytes.NewReader(audioBytes))
 }

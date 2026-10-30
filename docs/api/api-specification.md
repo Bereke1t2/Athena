@@ -253,6 +253,27 @@ Assistant messages embed citations:
   ] }
 ```
 
+Audio Studio (TTS & Streaming):
+
+```text
+POST /research/papers/{id}/audio         { "voice": "alloy|echo|fable|onyx|nova|shimmer" }
+GET  /research/papers/{id}/audio/stream   # Content-Type: audio/mpeg (RFC-7233 byte-range streaming)
+```
+
+Payload for `POST /research/papers/{id}/audio`:
+
+```json
+{
+  "id": "uuid",
+  "paper_id": "uuid",
+  "title": "Audio Brief: Attention Is All You Need",
+  "audio_url": "/api/v1/research/papers/uuid/audio/stream",
+  "duration_seconds": 180,
+  "voice": "alloy",
+  "status": "ready"
+}
+```
+
 Comparison (Phase 6):
 
 ```text

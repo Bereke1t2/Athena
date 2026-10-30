@@ -33,6 +33,7 @@ import (
 	"athena/backend/internal/infrastructure/providers/crossref"
 	"athena/backend/internal/infrastructure/providers/openalex"
 	"athena/backend/internal/infrastructure/providers/semanticscholar"
+	"athena/backend/internal/infrastructure/push"
 	"athena/backend/internal/infrastructure/workers"
 
 	appai "athena/backend/internal/application/ai"
@@ -41,6 +42,7 @@ import (
 	domainai "athena/backend/internal/domain/ai"
 	"athena/backend/internal/infrastructure/ai/openaicompat"
 	stubai "athena/backend/internal/infrastructure/ai/stub"
+	"athena/backend/internal/infrastructure/ai/tts"
 	authinfra "athena/backend/internal/infrastructure/auth"
 	"athena/backend/internal/infrastructure/textextract"
 	"athena/backend/internal/platform/config"
@@ -143,10 +145,22 @@ func run() error {
 	followHandlers := v1.NewFollowsHandlers(
 		appfollow.NewService(followStore), log)
 
-	// Phase 5 notifications: user in-app alerts and updates.
+	// Phase 5 notifications: user in-app alerts and external push dispatch.
 	notifStore := database.NewNotificationStore(pool)
+	pushSender := push.New(push.Config{
+		Provider:          cfg.PushProvider,
+		FCMProjectID:      cfg.FCMProjectID,
+		FCMServiceAccount: cfg.FCMServiceAccount,
+		FCMBaseURL:        cfg.FCMBaseURL,
+		APNSKeyID:         cfg.APNSKeyID,
+		APNSTeamID:        cfg.APNSTeamID,
+		APNSTopic:         cfg.APNSTopic,
+		APNSKeyPath:       cfg.APNSKeyPath,
+		APNSProduction:    cfg.APNSProduction,
+		APNSBaseURL:       cfg.APNSBaseURL,
+	}, log)
 	notifHandlers := v1.NewNotificationsHandlers(
-		appnotif.NewService(notifStore).WithDevices(notifStore, nil), log)
+		appnotif.NewService(notifStore).WithDevices(notifStore, pushSender), log)
 
 	// Phase 4 AI layer: only wired when an LLM provider is configured.
 	var aiHandlers *v1.AIHandlers
@@ -193,7 +207,14 @@ func run() error {
 
 		aiHandlers = v1.NewAIHandlers(summarySvc, chatSvc, log)
 		aiHandlers.Comparison = appai.NewComparisonService(llm, paperStore, aiStore, log)
-		aiHandlers.Audio = appai.NewAudioService(llm, paperStore, log)
+
+		ttsClient := tts.New(tts.Config{
+			Provider: cfg.TTSProvider,
+			BaseURL:  cfg.TTSBaseURL,
+			APIKey:   cfg.TTSAPIKey,
+			Model:    cfg.TTSModel,
+		}, log)
+		aiHandlers.Audio = appai.NewAudioService(llm, paperStore, log).WithTTS(ttsClient, tts.NewMemoryMediaStore())
 		if cfg.LLMProvider != "stub" && cfg.LLMAPIKey == "" {
 			log.Warn("LLM_API_KEY is empty; AI requests are sent unauthenticated and will likely fail")
 		}

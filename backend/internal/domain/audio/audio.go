@@ -2,6 +2,7 @@
 package audio
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -11,7 +12,19 @@ import (
 var (
 	ErrPaperNotFound = errors.New("audio: paper not found")
 	ErrInvalidVoice  = errors.New("audio: invalid voice selected")
+	ErrAudioNotFound = errors.New("audio: narration or audio track not found")
 )
+
+// Synthesizer converts text scripts into playable speech audio bytes.
+type Synthesizer interface {
+	SynthesizeSpeech(ctx context.Context, text string, voice string) ([]byte, error)
+}
+
+// MediaStore stores and retrieves binary audio tracks.
+type MediaStore interface {
+	SaveAudio(ctx context.Context, key string, data []byte) error
+	GetAudio(ctx context.Context, key string) ([]byte, error)
+}
 
 // AudioChapter represents one section of the synthesized audio episode.
 type AudioChapter struct {

@@ -28,6 +28,7 @@ import (
 	arxivadapter "athena/backend/internal/infrastructure/providers/arxiv"
 	openalexadapter "athena/backend/internal/infrastructure/providers/openalex"
 	s2adapter "athena/backend/internal/infrastructure/providers/semanticscholar"
+	"athena/backend/internal/infrastructure/push"
 	"athena/backend/internal/infrastructure/textextract"
 	"athena/backend/internal/infrastructure/workers"
 	"athena/backend/internal/platform/config"
@@ -87,9 +88,22 @@ func main() {
 		service.Cache = cache.New(cfg.RedisAddr)
 	}
 
+	pushSender := push.New(push.Config{
+		Provider:          cfg.PushProvider,
+		FCMProjectID:      cfg.FCMProjectID,
+		FCMServiceAccount: cfg.FCMServiceAccount,
+		FCMBaseURL:        cfg.FCMBaseURL,
+		APNSKeyID:         cfg.APNSKeyID,
+		APNSTeamID:        cfg.APNSTeamID,
+		APNSTopic:         cfg.APNSTopic,
+		APNSKeyPath:       cfg.APNSKeyPath,
+		APNSProduction:    cfg.APNSProduction,
+		APNSBaseURL:       cfg.APNSBaseURL,
+	}, log)
+
 	riverWorkers := river.NewWorkers()
 	workers.AddAll(riverWorkers, service, log)
-	workers.AddNotifications(riverWorkers, pool, log)
+	workers.AddNotificationsWithPush(riverWorkers, pool, pushSender, log)
 
 	digestSvc := appdigest.NewService(store, database.NewFollowStore(pool), database.NewDigestStore(pool), log)
 	workers.AddDigest(riverWorkers, digestSvc, pool, log)

@@ -56,6 +56,24 @@ type Config struct {
 
 	// Base-URL override for tests of the OpenAI-compatible adapter.
 	LLMOverrideBaseURL string
+
+	// Push Notifications (FCM / APNs)
+	PushProvider      string // noop | logging | mock | fcm | apns | composite
+	FCMProjectID      string
+	FCMServiceAccount string
+	FCMBaseURL        string
+	APNSKeyID         string
+	APNSTeamID        string
+	APNSTopic         string
+	APNSKeyPath       string
+	APNSProduction    bool
+	APNSBaseURL       string
+
+	// Text-to-Speech (TTS)
+	TTSProvider string // mock | openai | noop
+	TTSBaseURL  string
+	TTSAPIKey   string
+	TTSModel    string
 }
 
 // AIEnabled reports whether summary/chat endpoints should be wired.
@@ -104,6 +122,22 @@ func FromEnv() (Config, error) {
 		EmbeddingModel:        strings.TrimSpace(os.Getenv("EMBEDDING_MODEL")),
 		EmbeddingDim:          getInt("EMBEDDING_DIM", 768),
 		LLMOverrideBaseURL:    strings.TrimSpace(os.Getenv("LLM_OVERRIDE_BASE_URL")),
+
+		PushProvider:      getEnv("ATHENA_PUSH_PROVIDER", "noop"),
+		FCMProjectID:      strings.TrimSpace(os.Getenv("FCM_PROJECT_ID")),
+		FCMServiceAccount: strings.TrimSpace(os.Getenv("FCM_SERVICE_ACCOUNT")),
+		FCMBaseURL:        strings.TrimSpace(os.Getenv("FCM_BASE_URL")),
+		APNSKeyID:         strings.TrimSpace(os.Getenv("APNS_KEY_ID")),
+		APNSTeamID:        strings.TrimSpace(os.Getenv("APNS_TEAM_ID")),
+		APNSTopic:         getEnv("APNS_TOPIC", "org.athena.research"),
+		APNSKeyPath:       strings.TrimSpace(os.Getenv("APNS_KEY_PATH")),
+		APNSProduction:    getBool("APNS_PRODUCTION", false),
+		APNSBaseURL:       strings.TrimSpace(os.Getenv("APNS_BASE_URL")),
+
+		TTSProvider: getEnv("TTS_PROVIDER", "mock"),
+		TTSBaseURL:  strings.TrimSpace(os.Getenv("TTS_BASE_URL")),
+		TTSAPIKey:   firstNonEmpty(strings.TrimSpace(os.Getenv("TTS_API_KEY")), strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))),
+		TTSModel:    getEnv("TTS_MODEL", "tts-1"),
 	}
 	if cfg.LogFormat == "" {
 		if cfg.AppEnv == "production" {
@@ -136,6 +170,16 @@ func FromEnv() (Config, error) {
 	case "", "openai_compatible", "gemini", "stub":
 	default:
 		problems = append(problems, fmt.Sprintf("LLM_PROVIDER invalid %q (want gemini|openai_compatible|stub)", cfg.LLMProvider))
+	}
+	switch cfg.PushProvider {
+	case "", "noop", "logging", "mock", "fcm", "apns", "composite":
+	default:
+		problems = append(problems, fmt.Sprintf("ATHENA_PUSH_PROVIDER invalid %q (want noop|logging|mock|fcm|apns|composite)", cfg.PushProvider))
+	}
+	switch cfg.TTSProvider {
+	case "", "mock", "openai", "noop":
+	default:
+		problems = append(problems, fmt.Sprintf("TTS_PROVIDER invalid %q (want mock|openai|noop)", cfg.TTSProvider))
 	}
 	if cfg.LLMProvider != "" {
 		if cfg.LLMProvider == "gemini" {

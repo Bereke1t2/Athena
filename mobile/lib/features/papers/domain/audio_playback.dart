@@ -59,6 +59,7 @@ class AudioTrack {
     this.takeaways = const [],
     this.pullQuote,
     this.tags = const [],
+    this.audioUrl,
     this.gradientThemeIndex = 0,
   });
 
@@ -71,6 +72,7 @@ class AudioTrack {
   final List<String> takeaways;
   final AudioQuote? pullQuote;
   final List<String> tags;
+  final String? audioUrl;
   final int gradientThemeIndex;
 
   factory AudioTrack.fromJson(Map<String, dynamic> json) {
@@ -82,6 +84,7 @@ class AudioTrack {
     final id = json['id'] as String? ?? 'gen-${DateTime.now().millisecondsSinceEpoch}';
     final paperId = json['paper_id'] as String?;
     final totalSeconds = (json['total_duration_seconds'] as num?)?.toInt() ?? 720;
+    final audioUrl = json['audio_url'] as String?;
 
     return AudioTrack(
       id: id,
@@ -93,6 +96,7 @@ class AudioTrack {
       takeaways: rawTakeaways.map((t) => t.toString()).toList(),
       pullQuote: rawQuote != null ? AudioQuote.fromJson(rawQuote) : null,
       tags: rawTags.map((t) => t.toString()).toList(),
+      audioUrl: audioUrl,
       gradientThemeIndex: id.hashCode.abs() % 4,
     );
   }

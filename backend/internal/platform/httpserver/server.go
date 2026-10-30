@@ -155,6 +155,7 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		}
 		if deps.AI.Audio != nil {
 			mux.HandleFunc("POST /api/v1/research/papers/{id}/audio", deps.AI.SynthesizeAudio)
+			mux.HandleFunc("GET /api/v1/research/papers/{id}/audio/stream", deps.AI.StreamAudio)
 		}
 	}
 
