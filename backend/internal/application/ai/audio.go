@@ -272,6 +272,32 @@ func (c *inMemoryAudioCache) GetAudio(_ context.Context, key string) ([]byte, er
 	return out, nil
 }
 
+// GetAudioStream loads the raw MP3 audio bytes for a paper, synthesizing if needed.
+func (s *AudioService) GetAudioStream(ctx context.Context, paperID uuid.UUID) ([]byte, error) {
+	if s.media != nil {
+		if data, err := s.media.GetAudio(ctx, paperID.String()); err == nil && len(data) > 0 {
+			return data, nil
+		}
+	}
+
+	// Lazily synthesize if not cached
+	narration, err := s.Synthesize(ctx, paperID, "Alloy", "standard", "general")
+	if err != nil {
+		return nil, fmt.Errorf("lazy synthesize audio: %w", err)
+	}
+
+	if s.media != nil {
+		if data, err := s.media.GetAudio(ctx, narration.ID); err == nil && len(data) > 0 {
+			return data, nil
+		}
+		if data, err := s.media.GetAudio(ctx, paperID.String()); err == nil && len(data) > 0 {
+			return data, nil
+		}
+	}
+
+	return nil, domainaudio.ErrAudioNotFound
+}
+
 func (s *AudioService) populateFallbackNarration(n *domainaudio.AudioNarration, detail research.PaperDetail, totalDur int) {
 	ch1Dur := int(float64(totalDur) * 0.25)
 	ch2Dur := int(float64(totalDur) * 0.50)
