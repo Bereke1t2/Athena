@@ -37,7 +37,13 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Ingestion Topic-to-Field Classifier & Taxonomy Mapping (2026-10-30)**:
+1. **Audio Studio Physical TTS Generation & HTTP Audio Streaming (2026-10-30)**:
+   - **TTS Synthesizer & Media Storage**: Added `domain/audio` interfaces (`Synthesizer`, `MediaStore`), implemented `infrastructure/ai/tts` adapters (`OpenAISynthesizer`, `MockSynthesizer` generating valid MPEG-1 Layer 3 frames, and thread-safe in-memory `MemoryMediaStore`).
+   - **Byte-Range Streaming**: Implemented `GET /api/v1/research/papers/{id}/audio/stream` with standard RFC-7233 byte-range seeking (`Accept-Ranges: bytes`, `206 Partial Content`) via `http.ServeContent` and lazy synthesis fallback.
+   - **Configuration & Wiring**: Wired `TTSProvider` (`mock`, `openai`, `nop`) in `config.go`, composition root `cmd/api/main.go`, and updated mobile `AudioTrack.audioUrl`.
+   - **Verification**: `go test -count=1 ./...` 100% green; `cd mobile && flutter test` 50 passed (1 skipped); `dart analyze` clean (0 issues); all binaries compile cleanly.
+
+2. **Ingestion Topic-to-Field Classifier & Taxonomy Mapping (2026-10-30)**:
    - **Domain Classifier**: Implemented `backend/internal/domain/taxonomy/classifier.go` with fast-path arXiv taxonomy prefix resolution (`cs.*`, `math.*`, `physics.*`, `q-bio.*`, `econ.*`, `eess.*`), exact field matching, and ordered regex rules matching `000009_seed_fields` with cross-domain negative guardrails.
    - **Database Store Resolution**: Updated `PaperStore.resolveFieldID` with thread-safe RWMutex in-memory caching of canonical `field` UUIDs; upgraded `upsertTopics` to a single atomic `INSERT ... ON CONFLICT (slug) DO UPDATE` with `parent_id` attachment and retrofitting of unparented legacy topics.
    - **Verification**: `go test -count=1 ./...` 100% green; all binaries (`api`, `worker`, `migrate`) build cleanly.
