@@ -173,7 +173,7 @@ class DigestScreen extends ConsumerWidget {
                 const _SectionTitle(title: 'TOPIC VELOCITY & PULSE'),
                 const SizedBox(height: 10),
                 SizedBox(
-                  height: 110,
+                  height: 136,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: digest.pulses.length,
@@ -181,7 +181,7 @@ class DigestScreen extends ConsumerWidget {
                     itemBuilder: (context, i) {
                       final pulse = digest.pulses[i];
                       return Container(
-                        width: 170,
+                        width: 175,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: isDark ? const Color(0xFF161922) : Colors.white,
@@ -204,15 +204,30 @@ class DigestScreen extends ConsumerWidget {
                               children: [
                                 const Icon(Icons.bolt_rounded, size: 16, color: AppTheme.canaryYellow),
                                 const SizedBox(width: 4),
-                                Text(
-                                  '+${pulse.velocity.toStringAsFixed(1)}x velocity',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.canaryYellow,
+                                Flexible(
+                                  child: Text(
+                                    '+${pulse.velocity.toStringAsFixed(1)}x velocity',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.canaryYellow,
+                                    ),
                                   ),
                                 ),
                               ],
+                            ),
+                            // Trend sparkline graph
+                            SizedBox(
+                              height: 22,
+                              width: double.infinity,
+                              child: CustomPaint(
+                                painter: _VelocitySparklinePainter(
+                                  velocity: pulse.velocity,
+                                  isDark: isDark,
+                                ),
+                              ),
                             ),
                             Text(
                               '${pulse.paperCount} recent papers',
@@ -265,14 +280,18 @@ class DigestScreen extends ConsumerWidget {
                                     const SizedBox(height: 6),
                                     Row(
                                       children: [
-                                        Text(
-                                          '${paper.year} · ${paper.venueName.isNotEmpty ? paper.venueName : "Preprint"}',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                        Expanded(
+                                          child: Text(
+                                            '${paper.year} · ${paper.venueName.isNotEmpty ? paper.venueName : "Preprint"}',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                            ),
                                           ),
                                         ),
-                                        const Spacer(),
+                                        const SizedBox(width: 8),
                                         Text(
                                           '${paper.citedByCount} citations',
                                           style: const TextStyle(
@@ -315,5 +334,73 @@ class _SectionTitle extends StatelessWidget {
         color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
       ),
     );
+  }
+}
+
+class _VelocitySparklinePainter extends CustomPainter {
+  const _VelocitySparklinePainter({required this.velocity, required this.isDark});
+
+  final double velocity;
+  final bool isDark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
+    final path = Path();
+    final h = size.height;
+    final w = size.width;
+
+    // Build trend curve based on velocity
+    final vFactor = (velocity / 3.0).clamp(0.2, 1.2);
+    final p0 = Offset(0, h * 0.85);
+    final p1 = Offset(w * 0.35, h * (0.85 - (0.35 * vFactor)));
+    final p2 = Offset(w * 0.7, h * (0.85 - (0.55 * vFactor)));
+    final p3 = Offset(w, h * (0.85 - (0.80 * vFactor)).clamp(2.0, h - 2.0));
+
+    path.moveTo(p0.dx, p0.dy);
+    path.cubicTo(p1.dx, p1.dy, p2.dx, p2.dy, p3.dx, p3.dy);
+
+    // Gradient area under curve
+    final fillPath = Path.from(path)
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+
+    final fillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          AppTheme.canaryYellow.withValues(alpha: isDark ? 0.25 : 0.2),
+          AppTheme.canaryYellow.withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h))
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(fillPath, fillPaint);
+
+    // Sparkline curve stroke
+    final strokePaint = Paint()
+      ..color = AppTheme.canaryYellow
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, strokePaint);
+
+    // Glowing tip dot
+    final tipGlow = Paint()
+      ..color = AppTheme.canaryYellow.withValues(alpha: 0.35)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(p3, 4.0, tipGlow);
+
+    final tipDot = Paint()
+      ..color = AppTheme.canaryYellow
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(p3, 2.0, tipDot);
+  }
+
+  @override
+  bool shouldRepaint(covariant _VelocitySparklinePainter oldDelegate) {
+    return oldDelegate.velocity != velocity || oldDelegate.isDark != isDark;
   }
 }

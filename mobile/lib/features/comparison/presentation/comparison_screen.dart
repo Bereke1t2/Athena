@@ -265,42 +265,48 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.canaryYellow.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${report.papers.length} PAPERS COMPARED',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      color: AppTheme.canaryYellow,
-                      letterSpacing: 0.5,
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${report.papers.length} PAPERS COMPARED',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.canaryYellow,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E222D) : const Color(0xFFEFF2F6),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    report.grounding == 'abstract+full_text' ? 'Full Text Grounded' : 'Abstract Grounded',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E222D) : const Color(0xFFEFF2F6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        report.grounding == 'abstract+full_text' ? 'Full Text Grounded' : 'Abstract Grounded',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
+            const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.refresh_rounded, size: 20),
               tooltip: 'Regenerate Analysis',
@@ -375,6 +381,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: isDark ? const Color(0xFF161922) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -383,10 +390,14 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.7,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 const Text(
                   'Add Paper to Comparison',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
@@ -434,7 +445,8 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
               ],
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }
