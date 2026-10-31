@@ -309,3 +309,120 @@ class MythologyScholarAvatar extends StatelessWidget {
     );
   }
 }
+
+/// Stylized quartered arc/disc emblem matching the Resarc / Athena editorial design.
+class AthenaArcEmblem extends StatelessWidget {
+  const AthenaArcEmblem({
+    super.key,
+    this.size = 22.0,
+    this.color = const Color(0xFFFF5238),
+  });
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _ArcEmblemPainter(color: color),
+    );
+  }
+}
+
+class _ArcEmblemPainter extends CustomPainter {
+  const _ArcEmblemPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    // Outer circle
+    canvas.drawCircle(center, radius, paint);
+
+    // Subtle white cutlines dividing the disk into 4 quarters
+    final cutPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = (size.width * 0.1).clamp(1.5, 3.0)
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true;
+
+    canvas.drawLine(
+      Offset(center.dx, 0),
+      Offset(center.dx, size.height),
+      cutPaint,
+    );
+    canvas.drawLine(
+      Offset(0, center.dy),
+      Offset(size.width, center.dy),
+      cutPaint,
+    );
+
+    // Inner subtle center cutout for precision aperture look
+    final innerClearPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    canvas.drawCircle(center, radius * 0.28, innerClearPaint);
+
+    final innerDotPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+    canvas.drawCircle(center, radius * 0.12, innerDotPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArcEmblemPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+/// Editorial brand header mark combining the coral arc emblem with clean modern typography.
+class AthenaEditorialBrandMark extends StatelessWidget {
+  const AthenaEditorialBrandMark({
+    super.key,
+    this.title = 'ATHENA',
+    this.emblemSize = 22.0,
+    this.fontSize = 20.0,
+    this.textColor,
+  });
+
+  final String title;
+  final double emblemSize;
+  final double fontSize;
+  final Color? textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = textColor ??
+        (isDark ? const Color(0xFFF9FAFB) : const Color(0xFF111827));
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        AthenaArcEmblem(size: emblemSize),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+

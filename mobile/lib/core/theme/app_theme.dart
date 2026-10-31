@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
 
-/// Theme tokens and palette matching the Listenly AI UI Kit:
-/// Deep obsidian darks, clean crisp surfaces, canary yellow highlight accents (#FEEA66 / #FFE600),
-/// salmon pink smart markers (#FF7675), and smooth rounded pill components.
+/// Theme tokens and palette matching the Resarc editorial research assistant aesthetic:
+/// Vibrant coral accent (#FF5238), pristine off-white canvas (#FBFBFB),
+/// crisp white cards (#FFFFFF) with delicate neutral borders (#E5E7EB),
+/// deep obsidian dark mode, and jet black action buttons (#111827).
 class AppTheme {
-  static const seed = Color(0xFF141416);
-  static const canaryYellow = Color(0xFFFEEA66);
-  static const vividYellow = Color(0xFFFFE600);
-  static const coralPink = Color(0xFFFF7675);
-  static const deepDark = Color(0xFF121214);
-  static const obsidian = Color(0xFF18181B);
-  static const lightBg = Color(0xFFF7F8FA);
+  static const seed = Color(0xFF111827);
+  static const coral = Color(0xFFFF5238);
+  static const coralDark = Color(0xFFE54028);
+  static const coralSubtle = Color(0xFFFFF0ED);
+  static const jetBlack = Color(0xFF111827);
+
+  // Backwards-compatible aliases upgraded to the coral editorial palette
+  static const canaryYellow = Color(0xFFFF5238);
+  static const vividYellow = Color(0xFFFF6954);
+  static const coralPink = Color(0xFFFF5238);
+
+  static const deepDark = Color(0xFF101216);
+  static const obsidian = Color(0xFF181A20);
+  static const lightBg = Color(0xFFFBFBFB);
   static const lightSurface = Color(0xFFFFFFFF);
+  static const borderLight = Color(0xFFE5E7EB);
+  static const borderDark = Color(0xFF282C38);
+  static const dotGrid = Color(0xFFE5E7EB);
+  static const dotGridDark = Color(0xFF252936);
 
   static ThemeData light() => _base(Brightness.light);
 
@@ -20,32 +32,32 @@ class AppTheme {
   static ThemeData _base(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF141416),
+      seedColor: const Color(0xFF111827),
       brightness: brightness,
-      primary: isDark ? const Color(0xFFFEEA66) : const Color(0xFF121214),
-      onPrimary: isDark ? const Color(0xFF121214) : const Color(0xFFFFFFFF),
-      primaryContainer: isDark ? const Color(0xFF2A2B30) : const Color(0xFFFEEA66),
-      onPrimaryContainer: isDark ? const Color(0xFFFEEA66) : const Color(0xFF121214),
-      secondary: const Color(0xFFFFE600),
-      secondaryContainer: isDark ? const Color(0xFF33353D) : const Color(0xFFF4F5F8),
-      onSecondaryContainer: isDark ? const Color(0xFFF0F2F5) : const Color(0xFF18181B),
-      tertiary: const Color(0xFFFF7675),
+      primary: isDark ? const Color(0xFFFF5238) : const Color(0xFF111827),
+      onPrimary: isDark ? const Color(0xFF111827) : const Color(0xFFFFFFFF),
+      primaryContainer: isDark ? const Color(0xFF2A2B30) : const Color(0xFFFFF0ED),
+      onPrimaryContainer: isDark ? const Color(0xFFFF5238) : const Color(0xFFD6341B),
+      secondary: const Color(0xFFFF5238),
+      secondaryContainer: isDark ? const Color(0xFF282C38) : const Color(0xFFF4F5F8),
+      onSecondaryContainer: isDark ? const Color(0xFFF0F2F5) : const Color(0xFF111827),
+      tertiary: const Color(0xFFFF5238),
       surface: isDark ? const Color(0xFF181A20) : const Color(0xFFFFFFFF),
-      surfaceContainerLowest: isDark ? const Color(0xFF101216) : const Color(0xFFF8F9FA),
-      surfaceContainerLow: isDark ? const Color(0xFF1C1F27) : const Color(0xFFF3F4F6),
-      surfaceContainer: isDark ? const Color(0xFF222630) : const Color(0xFFEDEEF2),
+      surfaceContainerLowest: isDark ? const Color(0xFF101216) : const Color(0xFFFBFBFB),
+      surfaceContainerLow: isDark ? const Color(0xFF1C1F27) : const Color(0xFFF5F6F8),
+      surfaceContainer: isDark ? const Color(0xFF222630) : const Color(0xFFEEF0F3),
       surfaceContainerHigh: isDark ? const Color(0xFF2A2E3A) : const Color(0xFFE5E7EB),
       outline: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
-      outlineVariant: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB),
+      outlineVariant: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF8F9FB),
+      scaffoldBackgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFFBFBFB),
       appBarTheme: AppBarTheme(
         centerTitle: false,
-        backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF8F9FB),
+        backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFFBFBFB),
         scrolledUnderElevation: 0,
         elevation: 0,
         titleTextStyle: themeText(brightness).titleMedium?.copyWith(
@@ -59,7 +71,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.65),
+            color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
             width: 1,
           ),
         ),
@@ -68,8 +80,8 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           elevation: 0,
-          backgroundColor: isDark ? const Color(0xFFFEEA66) : const Color(0xFF121214),
-          foregroundColor: isDark ? const Color(0xFF121214) : const Color(0xFFFFFFFF),
+          backgroundColor: isDark ? const Color(0xFFFF5238) : const Color(0xFF111827),
+          foregroundColor: isDark ? const Color(0xFF111827) : const Color(0xFFFFFFFF),
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
           textStyle: themeText(brightness).labelLarge?.copyWith(
@@ -102,7 +114,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide(color: isDark ? const Color(0xFFFEEA66) : const Color(0xFF121214), width: 1.6),
+          borderSide: BorderSide(color: isDark ? const Color(0xFFFF5238) : const Color(0xFF111827), width: 1.6),
         ),
         filled: true,
         fillColor: isDark ? const Color(0xFF1C1F27) : const Color(0xFFFFFFFF),
@@ -116,7 +128,7 @@ class AppTheme {
         overlayColor: const WidgetStatePropertyAll(Colors.transparent),
         elevation: const WidgetStatePropertyAll(0),
         side: WidgetStatePropertyAll(
-          BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7), width: 1),
+          BorderSide(color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB), width: 1),
         ),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
@@ -160,7 +172,16 @@ class AppTheme {
         height: 68,
         elevation: 0,
         backgroundColor: isDark ? const Color(0xFF121418) : const Color(0xFFFFFFFF),
-        indicatorColor: isDark ? const Color(0xFF2A2E3A) : const Color(0xFFFEEA66),
+        indicatorColor: isDark ? const Color(0xFF2A2E3A) : const Color(0xFFFFF0ED),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppTheme.coral, size: 24);
+          }
+          return IconThemeData(
+            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+            size: 24,
+          );
+        }),
         labelTextStyle: WidgetStatePropertyAll(
           themeText(brightness).labelMedium?.copyWith(
                 fontWeight: FontWeight.w700,
