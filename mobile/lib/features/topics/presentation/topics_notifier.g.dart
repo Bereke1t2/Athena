@@ -6,7 +6,7 @@ part of 'topics_notifier.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$topicListNotifierHash() => r'018d222184066d0347e3bf58440c4dc39cac71b6';
+String _$topicListNotifierHash() => r'd7f57ef8804ea1813c4b49cf07c67b4745082bce';
 
 /// See also [TopicListNotifier].
 @ProviderFor(TopicListNotifier)

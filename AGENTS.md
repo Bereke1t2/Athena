@@ -37,7 +37,31 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Editorial Research Assistant UI Redesign (Resarc Aesthetic, 2026-10-31)**:
+1. **AI Conversation Screen Redesign (Resarc Aesthetic, 2026-10-31)**:
+   - **AI Conversation Architecture**: Redesigned `ChatScreen` (`features/ai/presentation/chat_screen.dart`) into the full Resarc conversational research assistant:
+     - Technical dot-grid canvas (`DotGridBackground`) covering the entire screen.
+     - Editorial top bar: circular outline back button `←`, centered `ATHENA` brandmark with coral aperture emblem, and circular new session button `🔄`.
+     - RAG Grounding banner with coral verified badge and active paper grounding context.
+     - **Empty State Hero View**: Dynamic greeting ("Good Evening, Agnes / Scholar"), hero headline ("What are we exploring today?"), prominent `SuggestedPromptCard` with one-tap query trigger, and "EXPLORE SCHOLARLY INQUIRIES" quick prompt pills.
+     - **Active Conversation Thread**: High-contrast right-aligned user bubbles and left-aligned assistant cards with `ATHENA arc-1a` coral branding, `GROUNDED` pill, streaming markdown formatting, and interactive citation chips with source excerpt modal sheet.
+     - **Docked Floating Input Bar**: Integrated `FloatingResearchPromptBar` at the bottom with attachment, mic, `arc-1a` model selector capsule, and upward send button.
+   - **Home Screen Alignment**: Removed the floating research prompt bar from the bottom of `FeedScreen` (`feed_screen.dart`) so the feed and 5-tab navigation shell scroll cleanly and unobstructed. Connected the top-bar Research Chat icon and `SuggestedPromptCard.onTap` to navigate directly into `ChatScreen`.
+   - **Verification**: `dart analyze` clean (0 issues); `flutter test` 52 passed (1 skipped); live verified on phone `itel A667L` (Android 14) over wireless ADB.
+
+2. **Search Engine & Topics Discovery Architecture (2026-10-31)**:
+   - **Backend Pipeline & Provider Seeding**:
+     - Added migration `000018_seed_crossref_source_and_backfill_topics` (`.up.sql` and `.down.sql`) seeding `crossref` into PostgreSQL `sources` table and retroactively attaching unparented topics to canonical field nodes.
+     - Updated `PaperStore.upsertIdentifiers` and `ResolveCitationEdges` with catalog check `to_regclass('public.paper_references')` to safeguard transactions against missing reference table state.
+   - **Mobile Two-Tier Search System**:
+     - Added `isLive` flag to `SearchFilters` in `domain/search.dart` and implemented two-tier routing in `search_repository_impl.dart` (`/search` instant corpus vs `/search/live` federated web).
+     - Wired router query parameters `/search?q=...` from `FloatingResearchPromptBar` to `SearchScreen(initialQuery: ...)`.
+     - Added dual mode selector chips (`[Corpus]` / `[Live Web]`) and automated fallback button when corpus returns 0 results.
+   - **Topics Search & Taxonomy Hierarchy**:
+     - Converted `TopicsScreen` into stateful consumer with top `SearchBar` and debounced real-time search connected to `TopicListNotifier.search(query)`.
+     - Added parent field badges to topic cards and resilient fallback hierarchy to `_TopicTaxonomyGraphCard`.
+   - **Verification**: `go test -count=1 ./...` 100% green; `dart analyze` clean (0 issues); `flutter test` 57 passed (1 skipped).
+
+2. **Editorial Research Assistant UI Redesign (Resarc Aesthetic, 2026-10-31)**:
    - **Theme & Brand Tokens**: Upgraded `AppTheme` to the clean editorial aesthetic with vibrant coral primary accent (`#FF5238`), pristine off-white canvas (`#FBFBFB`), delicate borders (`#E5E7EB`), and jet black action accents (`#111827`). Added backwards-compatible token mapping for existing kit tokens.
    - **Brand & Visual Identity**: Added `AthenaArcEmblem` (quartered disc/aperture icon) and `AthenaEditorialBrandMark` (`ATHENA` wordmark + coral emblem) to `athena_branding.dart`.
    - **Canvas Background**: Created `DotGridBackground` and `DotGridPainter` in `core/widgets/dot_grid_background.dart` rendering the subtle technical ideation grid.

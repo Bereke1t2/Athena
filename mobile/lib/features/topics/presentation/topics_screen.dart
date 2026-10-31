@@ -13,11 +13,24 @@ AsyncValue<List<Topic>> _list(AsyncValue<TopicListState> page) => page.when(
       loading: () => const AsyncValue<List<Topic>>.loading(),
 );
 
-class TopicsScreen extends ConsumerWidget {
+class TopicsScreen extends ConsumerStatefulWidget {
   const TopicsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TopicsScreen> createState() => _TopicsScreenState();
+}
+
+class _TopicsScreenState extends ConsumerState<TopicsScreen> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final async = ref.watch(topicListNotifierProvider);
@@ -34,7 +47,31 @@ class TopicsScreen extends ConsumerWidget {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: SearchBar(
+              controller: _searchController,
+              hintText: 'Search topics, fields, and disciplines…',
+              leading: const Icon(Icons.search_rounded),
+              trailing: [
+                if (_searchController.text.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {});
+                      notifier.search('');
+                    },
+                  ),
+              ],
+              onChanged: (val) {
+                setState(() {});
+                notifier.search(val);
+              },
+              elevation: const WidgetStatePropertyAll(0),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: SegmentedButton<String>(
               segments: const [
                 ButtonSegment(value: '', label: Text('All')),
@@ -56,6 +93,7 @@ class TopicsScreen extends ConsumerWidget {
               footerVisible: async.valueOrNull?.cursor != null,
               emptyIcon: Icons.category_outlined,
               emptyTitle: 'No topics found',
+              emptySubtitle: 'Try adjusting your search terms or filter selection.',
               itemBuilder: (context, t) => Card(
                 elevation: 0,
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
@@ -78,14 +116,44 @@ class TopicsScreen extends ConsumerWidget {
                     t.name,
                     style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                   ),
-                  subtitle: Text(
-                    t.isField
-                        ? '${t.paperCountEstimate} papers indexed'
-                        : '${t.paperCountEstimate} papers${t.children.isNotEmpty ? ' · ${t.children.length} subtopics' : ''}',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                      fontWeight: FontWeight.w500,
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Row(
+                      children: [
+                        if (t.parentName != null && t.parentName!.isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppTheme.coral.withValues(alpha: 0.18)
+                                  : AppTheme.coralSubtle,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              t.parentName!,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.coral,
+                              ),
+                            ),
+                          ),
+                        ],
+                        Expanded(
+                          child: Text(
+                            t.isField
+                                ? '${t.paperCountEstimate} papers indexed'
+                                : '${t.paperCountEstimate} papers',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   trailing: Container(

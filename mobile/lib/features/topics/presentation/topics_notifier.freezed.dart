@@ -19,6 +19,7 @@ mixin _$TopicListState {
   List<Topic> get items => throw _privateConstructorUsedError;
   String? get cursor => throw _privateConstructorUsedError;
   String get kindFilter => throw _privateConstructorUsedError;
+  String get queryFilter => throw _privateConstructorUsedError;
   bool get loadingMore => throw _privateConstructorUsedError;
 
   /// Create a copy of TopicListState
@@ -35,7 +36,11 @@ abstract class $TopicListStateCopyWith<$Res> {
       _$TopicListStateCopyWithImpl<$Res, TopicListState>;
   @useResult
   $Res call(
-      {List<Topic> items, String? cursor, String kindFilter, bool loadingMore});
+      {List<Topic> items,
+      String? cursor,
+      String kindFilter,
+      String queryFilter,
+      bool loadingMore});
 }
 
 /// @nodoc
@@ -56,6 +61,7 @@ class _$TopicListStateCopyWithImpl<$Res, $Val extends TopicListState>
     Object? items = null,
     Object? cursor = freezed,
     Object? kindFilter = null,
+    Object? queryFilter = null,
     Object? loadingMore = null,
   }) {
     return _then(_value.copyWith(
@@ -70,6 +76,10 @@ class _$TopicListStateCopyWithImpl<$Res, $Val extends TopicListState>
       kindFilter: null == kindFilter
           ? _value.kindFilter
           : kindFilter // ignore: cast_nullable_to_non_nullable
+              as String,
+      queryFilter: null == queryFilter
+          ? _value.queryFilter
+          : queryFilter // ignore: cast_nullable_to_non_nullable
               as String,
       loadingMore: null == loadingMore
           ? _value.loadingMore
@@ -88,7 +98,11 @@ abstract class _$$TopicListStateImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {List<Topic> items, String? cursor, String kindFilter, bool loadingMore});
+      {List<Topic> items,
+      String? cursor,
+      String kindFilter,
+      String queryFilter,
+      bool loadingMore});
 }
 
 /// @nodoc
@@ -107,6 +121,7 @@ class __$$TopicListStateImplCopyWithImpl<$Res>
     Object? items = null,
     Object? cursor = freezed,
     Object? kindFilter = null,
+    Object? queryFilter = null,
     Object? loadingMore = null,
   }) {
     return _then(_$TopicListStateImpl(
@@ -121,6 +136,10 @@ class __$$TopicListStateImplCopyWithImpl<$Res>
       kindFilter: null == kindFilter
           ? _value.kindFilter
           : kindFilter // ignore: cast_nullable_to_non_nullable
+              as String,
+      queryFilter: null == queryFilter
+          ? _value.queryFilter
+          : queryFilter // ignore: cast_nullable_to_non_nullable
               as String,
       loadingMore: null == loadingMore
           ? _value.loadingMore
@@ -137,6 +156,7 @@ class _$TopicListStateImpl implements _TopicListState {
       {required final List<Topic> items,
       this.cursor,
       this.kindFilter = '',
+      this.queryFilter = '',
       this.loadingMore = false})
       : _items = items;
 
@@ -155,11 +175,14 @@ class _$TopicListStateImpl implements _TopicListState {
   final String kindFilter;
   @override
   @JsonKey()
+  final String queryFilter;
+  @override
+  @JsonKey()
   final bool loadingMore;
 
   @override
   String toString() {
-    return 'TopicListState(items: $items, cursor: $cursor, kindFilter: $kindFilter, loadingMore: $loadingMore)';
+    return 'TopicListState(items: $items, cursor: $cursor, kindFilter: $kindFilter, queryFilter: $queryFilter, loadingMore: $loadingMore)';
   }
 
   @override
@@ -171,6 +194,8 @@ class _$TopicListStateImpl implements _TopicListState {
             (identical(other.cursor, cursor) || other.cursor == cursor) &&
             (identical(other.kindFilter, kindFilter) ||
                 other.kindFilter == kindFilter) &&
+            (identical(other.queryFilter, queryFilter) ||
+                other.queryFilter == queryFilter) &&
             (identical(other.loadingMore, loadingMore) ||
                 other.loadingMore == loadingMore));
   }
@@ -181,6 +206,7 @@ class _$TopicListStateImpl implements _TopicListState {
       const DeepCollectionEquality().hash(_items),
       cursor,
       kindFilter,
+      queryFilter,
       loadingMore);
 
   /// Create a copy of TopicListState
@@ -198,6 +224,7 @@ abstract class _TopicListState implements TopicListState {
       {required final List<Topic> items,
       final String? cursor,
       final String kindFilter,
+      final String queryFilter,
       final bool loadingMore}) = _$TopicListStateImpl;
 
   @override
@@ -206,6 +233,8 @@ abstract class _TopicListState implements TopicListState {
   String? get cursor;
   @override
   String get kindFilter;
+  @override
+  String get queryFilter;
   @override
   bool get loadingMore;
 

@@ -15,6 +15,7 @@ sealed class TopicListState with _$TopicListState {
     required List<Topic> items,
     String? cursor,
     @Default('') String kindFilter,
+    @Default('') String queryFilter,
     @Default(false) bool loadingMore,
   }) = _TopicListState;
 }
@@ -27,15 +28,41 @@ class TopicListNotifier extends _$TopicListNotifier {
     return TopicListState(items: page.items, cursor: page.nextCursor);
   }
 
+  Future<void> search(String query) async {
+    final q = query.trim();
+    final currentKind = state.valueOrNull?.kindFilter ?? '';
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final page = await ref.read(topicsRepositoryProvider).list(
+            kind: currentKind.isEmpty ? null : currentKind,
+            query: q.isEmpty ? null : q,
+            limit: Paging.defaultLimit,
+          );
+      return TopicListState(
+        items: page.items,
+        cursor: page.nextCursor,
+        kindFilter: currentKind,
+        queryFilter: q,
+      );
+    });
+  }
+
   Future<void> setKind(String kind) async {
     if (kind == state.valueOrNull?.kindFilter) return;
+    final query = state.valueOrNull?.queryFilter ?? '';
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final page = await ref.read(topicsRepositoryProvider).list(
             kind: kind.isEmpty ? null : kind,
+            query: query.isEmpty ? null : query,
             limit: Paging.defaultLimit,
           );
-      return TopicListState(items: page.items, cursor: page.nextCursor, kindFilter: kind);
+      return TopicListState(
+        items: page.items,
+        cursor: page.nextCursor,
+        kindFilter: kind,
+        queryFilter: query,
+      );
     });
   }
 
@@ -52,6 +79,7 @@ class TopicListNotifier extends _$TopicListNotifier {
     try {
       final page = await ref.read(topicsRepositoryProvider).list(
             kind: current.kindFilter.isEmpty ? null : current.kindFilter,
+            query: current.queryFilter.isEmpty ? null : current.queryFilter,
             cursor: current.cursor,
             limit: Paging.defaultLimit,
           );
