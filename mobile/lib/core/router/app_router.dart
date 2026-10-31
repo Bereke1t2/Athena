@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../features/ai/presentation/chat_screen.dart';
 import '../../features/ai/presentation/create_audio_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
@@ -54,6 +55,12 @@ GoRouter buildAppRouter() {
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: '/topics', name: 'topics', pageBuilder: _noTransition(TopicsScreen.new)),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/digest', name: 'digest-tab', pageBuilder: _noTransition(DigestScreen.new)),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/saved', name: 'saved-tab', pageBuilder: _noTransition(SavedScreen.new)),
           ]),
         ],
       ),
@@ -212,28 +219,60 @@ class _HomeShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: shell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: shell.currentIndex,
-        onDestinationSelected: shell.goBranch,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Feed',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF111216) : Colors.white,
+          border: Border(
+            top: BorderSide(
+              color: isDark ? const Color(0xFF222632) : const Color(0xFFE5E7EB),
+              width: 1.0,
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.search_rounded),
-            selectedIcon: Icon(Icons.saved_search_rounded),
-            label: 'Search',
+        ),
+        child: SafeArea(
+          top: false,
+          child: NavigationBar(
+            selectedIndex: shell.currentIndex,
+            onDestinationSelected: shell.goBranch,
+            height: 64,
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            indicatorColor: isDark
+                ? AppTheme.coral.withValues(alpha: 0.18)
+                : AppTheme.coralSubtle,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded, color: AppTheme.coral),
+                label: 'Feed',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.description_outlined),
+                selectedIcon: Icon(Icons.description_rounded, color: AppTheme.coral),
+                label: 'Search',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.category_outlined),
+                selectedIcon: Icon(Icons.category_rounded, color: AppTheme.coral),
+                label: 'Topics',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.chat_bubble_outline_rounded),
+                selectedIcon: Icon(Icons.chat_bubble_rounded, color: AppTheme.coral),
+                label: 'Digest',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.assignment_turned_in_outlined),
+                selectedIcon: Icon(Icons.assignment_turned_in_rounded, color: AppTheme.coral),
+                label: 'Saved',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.category_outlined),
-            selectedIcon: Icon(Icons.category_rounded),
-            label: 'Topics',
-          ),
-        ],
+        ),
       ),
     );
   }
