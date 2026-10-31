@@ -191,7 +191,7 @@ class _TopicDetailControllerProviderElement
 }
 
 String _$topicPapersNotifierHash() =>
-    r'b9c8afe031e0e461c7a210c62ca9d5df780cf604';
+    r'7956ac272f2fea81ca558edbad17055e26b8aa9f';
 
 abstract class _$TopicPapersNotifier
     extends BuildlessAutoDisposeAsyncNotifier<PaperListPage> {
@@ -200,7 +200,7 @@ abstract class _$TopicPapersNotifier
 
   FutureOr<PaperListPage> build(
     String slug, {
-    String sort = 'relevance',
+    String sort = 'newest',
   });
 }
 
@@ -224,7 +224,7 @@ class TopicPapersNotifierFamily extends Family<AsyncValue<PaperListPage>> {
   /// Copied from [TopicPapersNotifier].
   TopicPapersNotifierProvider call(
     String slug, {
-    String sort = 'relevance',
+    String sort = 'newest',
   }) {
     return TopicPapersNotifierProvider(
       slug,
@@ -267,7 +267,7 @@ class TopicPapersNotifierProvider extends AutoDisposeAsyncNotifierProviderImpl<
   /// Copied from [TopicPapersNotifier].
   TopicPapersNotifierProvider(
     String slug, {
-    String sort = 'relevance',
+    String sort = 'newest',
   }) : this._internal(
           () => TopicPapersNotifier()
             ..slug = slug

@@ -37,7 +37,13 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **AI Conversation Screen Redesign (Resarc Aesthetic, 2026-10-31)**:
+1. **Topic Papers Sort Resolution & Newest/Citations Sorting (2026-10-31)**:
+   - **Root Cause**: `TopicsRepositoryImpl.listResearch` and `TopicPapersNotifier` defaulted to `sort: 'relevance'`. The backend `research.go` handler rejected `relevance` with HTTP 400 `unknown sort sort: must be newest|citations`.
+   - **Backend Hardening**: Updated `backend/internal/delivery/http/v1/research.go` to support `relevance` per `api-specification.md §2`, gracefully mapping relevance to citation ranking when no query text is supplied, and updated error detail whitelist to `must be newest|citations|relevance`.
+   - **Mobile Topic Screen Enhancement**: Updated default sort to `newest` across `TopicsRepositoryImpl`, `TopicPapersNotifier`, and `_FakeTopicsRepository`. Enhanced `TopicDetailScreen` into a `ConsumerStatefulWidget` with interactive `[Newest]` / `[Most Cited]` ChoiceChips for dynamic paper sorting.
+   - **Verification**: `go test -count=1 ./...` 100% green; `dart analyze` clean (0 issues); `flutter test` 58 passed (1 skipped).
+
+2. **AI Conversation Screen Redesign (Resarc Aesthetic, 2026-10-31)**:
    - **AI Conversation Architecture**: Redesigned `ChatScreen` (`features/ai/presentation/chat_screen.dart`) into the full Resarc conversational research assistant:
      - Technical dot-grid canvas (`DotGridBackground`) covering the entire screen.
      - Editorial top bar: circular outline back button `←`, centered `ATHENA` brandmark with coral aperture emblem, and circular new session button `🔄`.
