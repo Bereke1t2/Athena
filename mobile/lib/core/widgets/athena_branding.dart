@@ -310,30 +310,36 @@ class MythologyScholarAvatar extends StatelessWidget {
   }
 }
 
-/// Stylized quartered arc/disc emblem matching the Resarc / Athena editorial design.
+/// Stylized quartered arc/disc emblem matching the Resarc / Athena editorial design with an emerald green center dot.
 class AthenaArcEmblem extends StatelessWidget {
   const AthenaArcEmblem({
     super.key,
     this.size = 22.0,
     this.color = const Color(0xFFFF5238),
+    this.dotColor = const Color(0xFF10B981),
   });
 
   final double size;
   final Color color;
+  final Color dotColor;
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
       size: Size(size, size),
-      painter: _ArcEmblemPainter(color: color),
+      painter: _ArcEmblemPainter(color: color, dotColor: dotColor),
     );
   }
 }
 
 class _ArcEmblemPainter extends CustomPainter {
-  const _ArcEmblemPainter({required this.color});
+  const _ArcEmblemPainter({
+    required this.color,
+    this.dotColor = const Color(0xFF10B981),
+  });
 
   final Color color;
+  final Color dotColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -371,18 +377,18 @@ class _ArcEmblemPainter extends CustomPainter {
       ..color = Colors.white
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
-    canvas.drawCircle(center, radius * 0.28, innerClearPaint);
+    canvas.drawCircle(center, radius * 0.32, innerClearPaint);
 
     final innerDotPaint = Paint()
-      ..color = color
+      ..color = dotColor
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
-    canvas.drawCircle(center, radius * 0.12, innerDotPaint);
+    canvas.drawCircle(center, radius * 0.18, innerDotPaint);
   }
 
   @override
   bool shouldRepaint(covariant _ArcEmblemPainter oldDelegate) =>
-      oldDelegate.color != color;
+      oldDelegate.color != color || oldDelegate.dotColor != dotColor;
 }
 
 /// Editorial brand header mark combining the coral arc emblem with clean modern typography.

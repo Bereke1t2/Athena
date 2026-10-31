@@ -16,7 +16,9 @@ const _sourceLabels = {
 };
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({super.key, this.initialQuery});
+
+  final String? initialQuery;
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -25,6 +27,28 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialQuery != null && widget.initialQuery!.trim().isNotEmpty) {
+      _controller.text = widget.initialQuery!.trim();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(searchNotifierProvider.notifier).submit(widget.initialQuery!.trim());
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(SearchScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialQuery != null &&
+        widget.initialQuery!.trim().isNotEmpty &&
+        widget.initialQuery != oldWidget.initialQuery) {
+      _controller.text = widget.initialQuery!.trim();
+      ref.read(searchNotifierProvider.notifier).submit(widget.initialQuery!.trim());
+    }
+  }
 
   @override
   void dispose() {
@@ -83,6 +107,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
+                  ChoiceChip(
+                    avatar: const Icon(Icons.library_books_rounded, size: 15),
+                    label: const Text('Corpus'),
+                    selected: !state.filters.isLive,
+                    onSelected: (_) => notifier.setLiveSearch(false),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    avatar: const Icon(Icons.travel_explore_rounded, size: 15),
+                    label: const Text('Live Web'),
+                    selected: state.filters.isLive,
+                    onSelected: (_) => notifier.setLiveSearch(true),
+                  ),
+                  const SizedBox(width: 8),
                   ChoiceChip(
                     label: const Text('Best match'),
                     selected: state.filters.sort == SearchSort.relevance,
@@ -251,7 +289,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Querying arXiv · Semantic Scholar · OpenAlex · Crossref…',
+                    state.filters.isLive
+                        ? 'Querying arXiv · Semantic Scholar · OpenAlex · Crossref…'
+                        : 'Searching indexed research corpus…',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -265,21 +305,68 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         else if (page.hasValue)
           _sourceSummary(context, page.valueOrNull!),
         Expanded(
-          child: AsyncListView<SearchResult>(
-            value: _toList(page),
-            emptyIcon: Icons.search_off,
-            emptyTitle: 'No matching research',
-            emptySubtitle:
-                'Try fewer or different words. Questions in plain language work too.',
-            onRetry: () => notifier.submit(_controller.text),
-            onLoadMore: () => notifier.loadMore(),
-            isLoadingMore: page.valueOrNull?.loadingMore ?? false,
-            footerVisible: page.valueOrNull?.cursor != null,
-            itemBuilder: (context, r) => PaperCard(
-              paper: r.paper,
-              onTap: () => context.push('/papers/${r.paper.id}'),
-              badge: r.score > 0 ? _ScoreBadge(score: r.score) : null,
-            ),
+          child: Column(
+            children: [
+              if (page.hasValue &&
+                  (page.valueOrNull?.results.isEmpty ?? false) &&
+                  !state.filters.isLive)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1B202A) : const Color(0xFFFFF0ED),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF2C3240) : AppTheme.coral.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.travel_explore_rounded, color: AppTheme.coral, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'No corpus matches. Expand search to the entire live web (arXiv, OpenAlex, Crossref)?',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : const Color(0xFF1F2937),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: () => notifier.setLiveSearch(true),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.coral,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                        ),
+                        child: const Text('Search Web', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: AsyncListView<SearchResult>(
+                  value: _toList(page),
+                  emptyIcon: Icons.search_off,
+                  emptyTitle: 'No matching research',
+                  emptySubtitle: state.filters.isLive
+                      ? 'No papers found across research providers. Try fewer or broader terms.'
+                      : 'No indexed papers found. Switch to Live Web to search across global repositories.',
+                  onRetry: () => notifier.submit(_controller.text),
+                  onLoadMore: () => notifier.loadMore(),
+                  isLoadingMore: page.valueOrNull?.loadingMore ?? false,
+                  footerVisible: page.valueOrNull?.cursor != null,
+                  itemBuilder: (context, r) => PaperCard(
+                    paper: r.paper,
+                    onTap: () => context.push('/papers/${r.paper.id}'),
+                    badge: r.score > 0 ? _ScoreBadge(score: r.score) : null,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],

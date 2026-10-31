@@ -6,9 +6,7 @@ import '../../../core/prefs/prefs_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
 import '../../../core/widgets/dot_grid_background.dart';
-import '../../../core/widgets/floating_research_prompt_bar.dart';
 import '../../../core/widgets/paper_card.dart';
-import '../../../core/widgets/suggested_prompt_card.dart';
 import '../../notifications/presentation/notifications_notifier.dart';
 import '../../papers/domain/audio_playback.dart';
 import '../../papers/domain/paper.dart';
@@ -142,7 +140,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                         size: 16,
                                       ),
                                     ),
-                                    onPressed: () => context.push('/digest'),
+                                    onPressed: () => context.push('/chat'),
                                   ),
                                   IconButton(
                                     tooltip: 'Notifications',
@@ -227,220 +225,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                       ),
                     ),
 
-                    // Suggested Research Action Card: "Summarize the methodology used in the paper..."
-                    SliverToBoxAdapter(
-                      child: AnimatedEntrance(
-                        delay: const Duration(milliseconds: 100),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-                          child: SuggestedPromptCard(
-                            actionLead: 'Summarize the methodology',
-                            targetTitle: items.isNotEmpty
-                                ? items.first.paper.title
-                                : 'Exploring the Use of Technology in Elementary School Classrooms',
-                            onTap: () {
-                              if (items.isNotEmpty) {
-                                context.push(
-                                  '/papers/${items.first.paper.id}/reader?title=${Uri.encodeComponent(items.first.paper.title)}',
-                                );
-                              } else {
-                                context.push('/digest');
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Quick Search Pill
-                    SliverToBoxAdapter(
-                      child: AnimatedEntrance(
-                        delay: const Duration(milliseconds: 120),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                          child: InkWell(
-                            onTap: () => context.go('/search'),
-                            borderRadius: BorderRadius.circular(28),
-                            child: Container(
-                              height: 46,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF181A20) : Colors.white,
-                                borderRadius: BorderRadius.circular(28),
-                                border: Border.all(
-                                  color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.search_rounded,
-                                    size: 19,
-                                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'Search topics, sources, voices…',
-                                    style: TextStyle(
-                                      fontSize: 13.5,
-                                      color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // Screen 2: "TODAY'S RESEARCH BRIEF" Warm Yellow Highlight Card
-                  SliverToBoxAdapter(
-                    child: AnimatedEntrance(
-                      delay: const Duration(milliseconds: 150),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: AppTheme.canaryYellow,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.canaryYellow.withValues(alpha: 0.35),
-                                blurRadius: 18,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF141416),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Text(
-                                      "TODAY'S RESEARCH BRIEF",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 0.8,
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    items.isNotEmpty ? '${(items.length * 3.5).round()} MIN AUDIO' : '18 MIN AUDIO',
-                                    style: const TextStyle(
-                                      color: Color(0xFF141416),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              Text(
-                                items.isNotEmpty
-                                    ? 'Daily Drop: ${items.length} new papers in your subscribed fields.'
-                                    : 'Daily Drop: 6 frontier papers, synthesized into one brief.',
-                                style: const TextStyle(
-                                  color: Color(0xFF141416),
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w900,
-                                  height: 1.2,
-                                  letterSpacing: -0.4,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                items.isNotEmpty
-                                    ? 'Federated from arXiv & Semantic Scholar · ${items.first.paper.venueName.isNotEmpty ? items.first.paper.venueName : "AI & ML"}'
-                                    : 'Federated from arXiv & Semantic Scholar · Machine Learning & AI',
-                                style: const TextStyle(
-                                  color: Color(0xFF4B5563),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF141416),
-                                      foregroundColor: Colors.white,
-                                      elevation: 0,
-                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      if (items.isNotEmpty) {
-                                        _openPlayer(context, null, items.first.paper);
-                                      } else {
-                                        _openPlayer(context);
-                                      }
-                                    },
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.auto_stories_rounded, size: 14, color: AppTheme.canaryYellow),
-                                        SizedBox(width: 6),
-                                        Text('Read & digest', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                                      ],
-                                    ),
-                                  ),
-                                  OutlinedButton(
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: const Color(0xFF141416),
-                                      side: const BorderSide(color: Color(0xFF141416), width: 1.2),
-                                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      if (items.isNotEmpty) {
-                                        final track = AudioTrack.fromPaper(
-                                          id: items.first.paper.id,
-                                          title: items.first.paper.title,
-                                          venue: items.first.paper.venueName,
-                                          year: items.first.paper.year,
-                                        );
-                                        ref.read(audioPlayerProvider.notifier).addToQueue(track);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Added paper to your reading queue'),
-                                            duration: Duration(seconds: 2),
-                                          ),
-                                        );
-                                      } else {
-                                        context.go('/saved');
-                                      }
-                                    },
-                                    child: const Text('Queue', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Section: "READING PROGRESS & RECENT PAPERS"
+                    // Section: "READING PROGRESS & RECENT PAPERS"
                   if (audioState.recentTracks.isNotEmpty) ...[
                     SliverToBoxAdapter(
                       child: AnimatedEntrance(
@@ -934,21 +719,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                   ),
                 ),
               ),
-
-            // Resarc Universal Floating AI Research Prompt Bar
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 12,
-              child: AnimatedEntrance(
-                delay: const Duration(milliseconds: 300),
-                child: FloatingResearchPromptBar(
-                  onSubmitted: (query) {
-                    context.push('/search?q=${Uri.encodeComponent(query)}');
-                  },
-                ),
-              ),
-            ),
           ],
         ),
       ),

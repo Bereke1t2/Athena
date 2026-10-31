@@ -51,7 +51,15 @@ GoRouter buildAppRouter() {
             GoRoute(path: '/', name: 'feed', pageBuilder: _noTransition(FeedScreen.new)),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/search', name: 'search', pageBuilder: _noTransition(SearchScreen.new)),
+            GoRoute(
+              path: '/search',
+              name: 'search',
+              pageBuilder: (context, state) => CustomTransitionPage(
+                key: state.pageKey,
+                child: SearchScreen(initialQuery: state.uri.queryParameters['q']),
+                transitionsBuilder: (_, __, ___, child) => child,
+              ),
+            ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: '/topics', name: 'topics', pageBuilder: _noTransition(TopicsScreen.new)),

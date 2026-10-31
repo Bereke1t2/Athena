@@ -19,6 +19,7 @@ class SearchFilters {
     this.publishedBefore,
     this.openAccess,
     this.minCitations,
+    this.isLive = false,
   });
 
   final String query;
@@ -30,11 +31,13 @@ class SearchFilters {
   final DateTime? publishedBefore;
   final bool? openAccess;
   final int? minCitations;
+  final bool isLive;
 
   SearchFilters copyWith({
     String? query,
     SearchSort? sort,
     bool? openAccess,
+    bool? isLive,
   }) =>
       SearchFilters(
         query: query ?? this.query,
@@ -46,6 +49,7 @@ class SearchFilters {
         publishedBefore: publishedBefore,
         openAccess: openAccess,
         minCitations: minCitations,
+        isLive: isLive ?? this.isLive,
       );
 }
 

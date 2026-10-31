@@ -172,9 +172,7 @@ class TopicDetailScreen extends ConsumerWidget {
             const SizedBox(height: 10),
             Text(topic.description, style: theme.textTheme.bodyMedium),
           ],
-          if (topic.children.isNotEmpty || topic.parentSlug != null) ...[
-            _TopicTaxonomyGraphCard(topic: topic),
-          ],
+          _TopicTaxonomyGraphCard(topic: topic),
           if (topic.children.isNotEmpty) ...[
             const SizedBox(height: 14),
             Text('Subtopics', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
@@ -299,11 +297,13 @@ List<_TopicNodeLayout> _layoutTopicNodes(Topic topic, Size size) {
     isParent: false,
   ));
 
-  // Parent node
-  if (topic.parentSlug != null) {
+  // Parent node (with fallback if topic is being retrofitted)
+  final parentSlug = topic.parentSlug ?? (topic.isField ? null : 'computer-science');
+  final parentName = topic.parentName ?? (topic.isField ? null : 'Computer Science');
+  if (parentSlug != null) {
     nodes.add(_TopicNodeLayout(
-      slug: topic.parentSlug!,
-      name: topic.parentName ?? Topic.displayNameForSlug(topic.parentSlug!),
+      slug: parentSlug,
+      name: parentName ?? Topic.displayNameForSlug(parentSlug),
       position: Offset(size.width / 2, 28),
       radius: 14.0,
       isCenter: false,

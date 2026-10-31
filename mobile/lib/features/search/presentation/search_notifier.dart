@@ -70,6 +70,15 @@ class SearchNotifier extends _$SearchNotifier {
     await _run(cursor: null);
   }
 
+  Future<void> setLiveSearch(bool isLive) async {
+    if (!_hasQuery || isLive == state.filters.isLive) return;
+    state = state.copyWith(
+      filters: state.filters.copyWith(isLive: isLive),
+      page: const AsyncValue.loading(),
+    );
+    await _run(cursor: null);
+  }
+
   Future<void> loadMore() async {
     final pageState = state.page.valueOrNull;
     if (pageState == null ||
