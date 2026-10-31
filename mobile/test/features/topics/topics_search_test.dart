@@ -1,6 +1,8 @@
 import 'package:athena/core/di.dart';
+import 'package:athena/features/papers/domain/paper.dart';
 import 'package:athena/features/topics/domain/topic.dart';
 import 'package:athena/features/topics/domain/topics_repository.dart';
+import 'package:athena/features/topics/presentation/topic_detail_screen.dart';
 import 'package:athena/features/topics/presentation/topics_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 class _FakeTopicsRepository implements TopicsRepository {
   String? lastQuery;
   String? lastKind;
+  String? lastListResearchSort;
 
   final allTopics = const [
     Topic(
@@ -65,8 +68,25 @@ class _FakeTopicsRepository implements TopicsRepository {
   }
 
   @override
-  Future<PaperListPage> listResearch(String slug, {String sort = 'relevance', String? cursor, int limit = 20}) async {
-    return const PaperListPage(items: [], nextCursor: null);
+  Future<PaperListPage> listResearch(String slug, {String sort = 'newest', String? cursor, int limit = 20}) async {
+    lastListResearchSort = sort;
+    return PaperListPage(
+      items: [
+        PaperSummary(
+          id: 'paper-1-$sort',
+          title: 'Paper sorted by $sort',
+          abstract: 'Abstract for test paper',
+          publishedOn: DateTime(2026, 1, 1),
+          year: 2026,
+          venueName: 'NeurIPS',
+          publicationType: 'journal',
+          oaStatus: 'gold',
+          isOpenAccess: true,
+          citedByCount: sort == 'citations' ? 99 : 3,
+        ),
+      ],
+      nextCursor: null,
+    );
   }
 }
 
@@ -123,5 +143,40 @@ void main() {
     expect(find.text('Computer Science'), findsOneWidget);
     expect(find.text('Neural Networks'), findsNothing);
     expect(fakeRepo.lastKind, 'field');
+  });
+
+  testWidgets('TopicDetailScreen displays papers and allows toggling sort between Newest and Most Cited', (tester) async {
+    final fakeRepo = _FakeTopicsRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          topicsRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: const MaterialApp(
+          home: TopicDetailScreen(slug: 'neural-networks'),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Neural Networks'), findsWidgets);
+    expect(find.text('Paper sorted by newest'), findsOneWidget);
+    expect(fakeRepo.lastListResearchSort, 'newest');
+
+    // Tap Most Cited chip
+    await tester.tap(find.text('Most Cited'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Paper sorted by citations'), findsOneWidget);
+    expect(fakeRepo.lastListResearchSort, 'citations');
+
+    // Tap Newest chip back
+    await tester.tap(find.text('Newest'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Paper sorted by newest'), findsOneWidget);
+    expect(fakeRepo.lastListResearchSort, 'newest');
   });
 }

@@ -98,9 +98,12 @@ func (h *ResearchHandlers) List(w http.ResponseWriter, r *http.Request) {
 	sort := q.Get("sort")
 	switch sort {
 	case "", string(research.SortNewest), string(research.SortCitations):
+	case "relevance":
+		// Relevance without search text ranks by citation impact per api-specification.md §2.
+		sort = string(research.SortCitations)
 	default:
 		WriteErrorWithDetails(w, r, http.StatusBadRequest, CodeInvalidRequest,
-			"unknown sort", []errorDetail{{Field: "sort", Issue: "must be newest|citations"}})
+			"unknown sort", []errorDetail{{Field: "sort", Issue: "must be newest|citations|relevance"}})
 		return
 	}
 

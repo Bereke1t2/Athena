@@ -164,6 +164,22 @@ func TestListPapersHappyPath(t *testing.T) {
 	}
 }
 
+func TestListPapersSortRelevance(t *testing.T) {
+	r := &fakeReader{list: []research.PaperSummary{summary("11111111-1111-4111-8111-111111111111")}}
+	srv := newResearchServer(r)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/research/papers?sort=relevance", nil)
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if r.lastQuery.Sort != research.SortCitations {
+		t.Fatalf("expected relevance to map to SortCitations, got %q", r.lastQuery.Sort)
+	}
+}
+
 func TestListPapersValidation(t *testing.T) {
 	cases := []struct{ name, qs string }{
 		{"limit zero", "limit=0"},

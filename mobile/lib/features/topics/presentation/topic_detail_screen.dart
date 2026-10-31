@@ -11,29 +11,36 @@ import '../../follows/presentation/follows_notifier.dart';
 import '../domain/topic.dart';
 import 'topics_notifier.dart';
 
-class TopicDetailScreen extends ConsumerWidget {
+class TopicDetailScreen extends ConsumerStatefulWidget {
   const TopicDetailScreen({super.key, required this.slug});
 
   final String slug;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final topicAsync = ref.watch(topicDetailControllerProvider(slug));
-    final papersAsync = ref.watch(topicPapersNotifierProvider(slug));
+  ConsumerState<TopicDetailScreen> createState() => _TopicDetailScreenState();
+}
+
+class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
+  String _sort = 'newest';
+
+  @override
+  Widget build(BuildContext context) {
+    final topicAsync = ref.watch(topicDetailControllerProvider(widget.slug));
+    final papersAsync = ref.watch(topicPapersNotifierProvider(widget.slug, sort: _sort));
 
     return Scaffold(
       appBar: AppBar(title: Text(topicAsync.valueOrNull?.name ?? 'Topic')),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(topicDetailControllerProvider(slug));
-          ref.invalidate(topicPapersNotifierProvider(slug));
+          ref.invalidate(topicDetailControllerProvider(widget.slug));
+          ref.invalidate(topicPapersNotifierProvider(widget.slug, sort: _sort));
         },
         child: NotificationListener<ScrollNotification>(
           onNotification: (notification) {
             if (notification.metrics.pixels >= notification.metrics.maxScrollExtent - 350) {
               final page = papersAsync.valueOrNull;
               if (page?.nextCursor != null) {
-                ref.read(topicPapersNotifierProvider(slug).notifier).loadMore();
+                ref.read(topicPapersNotifierProvider(widget.slug, sort: _sort).notifier).loadMore();
               }
             }
             return false;
@@ -48,11 +55,52 @@ class TopicDetailScreen extends ConsumerWidget {
                 ),
                 error: (e, _) => ErrorView(
                   failure: e,
-                  onRetry: () => ref.invalidate(topicDetailControllerProvider(slug)),
+                  onRetry: () => ref.invalidate(topicDetailControllerProvider(widget.slug)),
                 ),
                 data: (topic) => _header(context, ref, topic),
               ),
               const Divider(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  children: [
+                    Text(
+                      'PAPERS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF9CA3AF)
+                            : const Color(0xFF6B7280),
+                      ),
+                    ),
+                    const Spacer(),
+                    ChoiceChip(
+                      label: const Text('Newest'),
+                      selected: _sort == 'newest',
+                      onSelected: (val) {
+                        if (val && _sort != 'newest') {
+                          setState(() => _sort = 'newest');
+                        }
+                      },
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text('Most Cited'),
+                      selected: _sort == 'citations',
+                      onSelected: (val) {
+                        if (val && _sort != 'citations') {
+                          setState(() => _sort = 'citations');
+                        }
+                      },
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
               papersAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.all(48),
@@ -60,7 +108,7 @@ class TopicDetailScreen extends ConsumerWidget {
                 ),
                 error: (e, _) => ErrorView(
                   failure: e,
-                  onRetry: () => ref.invalidate(topicPapersNotifierProvider(slug)),
+                  onRetry: () => ref.invalidate(topicPapersNotifierProvider(widget.slug, sort: _sort)),
                 ),
                 data: (page) {
                   final theme = Theme.of(context);

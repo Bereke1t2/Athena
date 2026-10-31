@@ -106,7 +106,7 @@ class TopicDetailController extends _$TopicDetailController {
 @riverpod
 class TopicPapersNotifier extends _$TopicPapersNotifier {
   @override
-  Future<PaperListPage> build(String slug, {String sort = 'relevance'}) async {
+  Future<PaperListPage> build(String slug, {String sort = 'newest'}) async {
     return ref.watch(topicsRepositoryProvider).listResearch(slug, sort: sort);
   }
 

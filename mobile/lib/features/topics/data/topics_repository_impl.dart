@@ -128,7 +128,7 @@ class TopicsRepositoryImpl implements TopicsRepository {
   }
 
   @override
-  Future<PaperListPage> listResearch(String slug, {String sort = 'relevance', String? cursor, int limit = 20}) async {
+  Future<PaperListPage> listResearch(String slug, {String sort = 'newest', String? cursor, int limit = 20}) async {
     try {
       final res = await _dio.get<Map<String, dynamic>>(
         '/topics/$slug/research',
