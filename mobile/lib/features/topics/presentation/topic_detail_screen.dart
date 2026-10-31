@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -171,6 +172,9 @@ class TopicDetailScreen extends ConsumerWidget {
             const SizedBox(height: 10),
             Text(topic.description, style: theme.textTheme.bodyMedium),
           ],
+          if (topic.children.isNotEmpty || topic.parentSlug != null) ...[
+            _TopicTaxonomyGraphCard(topic: topic),
+          ],
           if (topic.children.isNotEmpty) ...[
             const SizedBox(height: 14),
             Text('Subtopics', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
@@ -189,6 +193,270 @@ class TopicDetailScreen extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _TopicTaxonomyGraphCard extends StatelessWidget {
+  const _TopicTaxonomyGraphCard({required this.topic});
+
+  final Topic topic;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F1117) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? const Color(0xFF232734) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+            child: Row(
+              children: [
+                Icon(Icons.account_tree_rounded, size: 16, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Taxonomy Knowledge Graph',
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800, fontSize: 13),
+                ),
+                const Spacer(),
+                Text(
+                  '${(topic.children.length) + (topic.parentSlug != null ? 2 : 1)} nodes',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: isDark ? const Color(0xFF1E2330) : const Color(0xFFE2E8F0)),
+          SizedBox(
+            height: 180,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+              child: Stack(
+                children: [
+                  CustomPaint(
+                    size: const Size(double.infinity, 180),
+                    painter: _TopicTaxonomyPainter(
+                      topic: topic,
+                      isDark: isDark,
+                    ),
+                  ),
+                  _TopicTaxonomyOverlay(topic: topic),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopicNodeLayout {
+  _TopicNodeLayout({
+    required this.slug,
+    required this.name,
+    required this.position,
+    required this.radius,
+    required this.isCenter,
+    required this.isParent,
+  });
+
+  final String slug;
+  final String name;
+  final Offset position;
+  final double radius;
+  final bool isCenter;
+  final bool isParent;
+}
+
+List<_TopicNodeLayout> _layoutTopicNodes(Topic topic, Size size) {
+  final center = Offset(size.width / 2, topic.parentSlug != null ? size.height * 0.52 : size.height * 0.42);
+  final nodes = <_TopicNodeLayout>[];
+
+  // Center node
+  nodes.add(_TopicNodeLayout(
+    slug: topic.slug,
+    name: topic.name,
+    position: center,
+    radius: 17.0,
+    isCenter: true,
+    isParent: false,
+  ));
+
+  // Parent node
+  if (topic.parentSlug != null) {
+    nodes.add(_TopicNodeLayout(
+      slug: topic.parentSlug!,
+      name: topic.parentName ?? Topic.displayNameForSlug(topic.parentSlug!),
+      position: Offset(size.width / 2, 28),
+      radius: 14.0,
+      isCenter: false,
+      isParent: true,
+    ));
+  }
+
+  // Children nodes
+  final children = topic.children.take(5).toList();
+  if (children.isNotEmpty) {
+    final yTarget = topic.parentSlug != null ? size.height * 0.82 : size.height * 0.78;
+    final spacing = math.min(68.0, (size.width - 40) / math.max(children.length, 1));
+    final startX = (size.width / 2) - ((children.length - 1) * spacing / 2);
+
+    for (int i = 0; i < children.length; i++) {
+      final childSlug = children[i];
+      nodes.add(_TopicNodeLayout(
+        slug: childSlug,
+        name: Topic.displayNameForSlug(childSlug),
+        position: Offset(startX + (i * spacing), yTarget),
+        radius: 12.0,
+        isCenter: false,
+        isParent: false,
+      ));
+    }
+  }
+
+  return nodes;
+}
+
+class _TopicTaxonomyPainter extends CustomPainter {
+  _TopicTaxonomyPainter({required this.topic, required this.isDark});
+
+  final Topic topic;
+  final bool isDark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final nodes = _layoutTopicNodes(topic, size);
+    final centerNode = nodes.firstWhere((n) => n.isCenter);
+
+    // 1. Draw connecting edges
+    final edgePaint = Paint()
+      ..color = isDark
+          ? const Color(0xFF3B82F6).withValues(alpha: 0.4)
+          : const Color(0xFF60A5FA).withValues(alpha: 0.5)
+      ..strokeWidth = 1.6
+      ..style = PaintingStyle.stroke;
+
+    for (final node in nodes) {
+      if (node.isCenter) continue;
+      canvas.drawLine(centerNode.position, node.position, edgePaint);
+
+      // Edge midpoint dot
+      final mid = Offset((centerNode.position.dx + node.position.dx) / 2,
+          (centerNode.position.dy + node.position.dy) / 2);
+      final dotPaint = Paint()
+        ..color = isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(mid, 2.0, dotPaint);
+    }
+
+    // 2. Draw nodes
+    for (final node in nodes) {
+      Color nodeColor;
+      if (node.isCenter) {
+        nodeColor = AppTheme.canaryYellow;
+        final glowPaint = Paint()
+          ..color = AppTheme.canaryYellow.withValues(alpha: 0.22)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4.5;
+        canvas.drawCircle(node.position, node.radius + 3.0, glowPaint);
+      } else if (node.isParent) {
+        nodeColor = const Color(0xFF10B981);
+      } else {
+        nodeColor = const Color(0xFF3B82F6);
+      }
+
+      final fillPaint = Paint()
+        ..color = nodeColor
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(node.position, node.radius, fillPaint);
+
+      final borderPaint = Paint()
+        ..color = isDark ? const Color(0xFF0F1117) : Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0;
+      canvas.drawCircle(node.position, node.radius, borderPaint);
+
+      // Node label
+      final text = node.name.length > 10 ? '${node.name.substring(0, 9)}…' : node.name;
+      final textSpan = TextSpan(
+        text: text,
+        style: TextStyle(
+          color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B),
+          fontSize: 8.5,
+          fontWeight: FontWeight.w700,
+        ),
+      );
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final labelY = node.isParent
+          ? node.position.dy - node.radius - textPainter.height - 1.5
+          : node.position.dy + node.radius + 2.0;
+
+      textPainter.paint(
+        canvas,
+        Offset(node.position.dx - (textPainter.width / 2), labelY),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TopicTaxonomyPainter oldDelegate) {
+    return oldDelegate.topic != topic || oldDelegate.isDark != isDark;
+  }
+}
+
+class _TopicTaxonomyOverlay extends StatelessWidget {
+  const _TopicTaxonomyOverlay({required this.topic});
+
+  final Topic topic;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        final nodes = _layoutTopicNodes(topic, size);
+
+        return Stack(
+          children: [
+            for (final node in nodes)
+              if (!node.isCenter)
+                Positioned(
+                  left: node.position.dx - 24,
+                  top: node.position.dy - 24,
+                  width: 48,
+                  height: 48,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(24),
+                      onTap: () => context.push('/topics/${node.slug}'),
+                    ),
+                  ),
+                ),
+          ],
+        );
+      },
     );
   }
 }
