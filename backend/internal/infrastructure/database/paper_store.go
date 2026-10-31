@@ -402,6 +402,17 @@ func (s *PaperStore) upsertIdentifiers(ctx context.Context, tx pgx.Tx, paperID u
 		ON CONFLICT (id_type, id_value) DO NOTHING`, types, values, paperID); err != nil {
 		return fmt.Errorf("upsert identifiers: %w", err)
 	}
+
+	// Link inbound citations: check if previously ingested papers recorded references
+	// to any of these identifiers.
+	_, _ = tx.Exec(ctx, `
+		INSERT INTO citations (citing_paper_id, cited_paper_id)
+		SELECT DISTINCT pr.citing_paper_id, $3
+		FROM paper_references pr
+		JOIN unnest($1::text[], $2::text[]) AS id(t, v) ON pr.id_type = id.t AND pr.id_value = id.v
+		WHERE pr.citing_paper_id <> $3
+		ON CONFLICT DO NOTHING`, types, values, paperID)
+
 	return nil
 }
 
@@ -634,8 +645,8 @@ func (s *PaperStore) upsertVersions(ctx context.Context, tx pgx.Tx, paperID uuid
 }
 
 // ResolveCitationEdges links citingPaperID to locally stored references.
-// Edges whose targets are not yet ingested are ignored; they get linked when
-// the cited paper arrives (replay makes this safe).
+// Outgoing references are also staged in paper_references so any future arrival
+// of a cited paper will automatically link the inbound edge.
 func (s *PaperStore) ResolveCitationEdges(ctx context.Context, citingPaperID uuid.UUID, refs []research.Identifier) (int, error) {
 	if len(refs) == 0 {
 		return 0, nil
@@ -647,6 +658,14 @@ func (s *PaperStore) ResolveCitationEdges(ctx context.Context, citingPaperID uui
 		types = append(types, string(r.Type))
 		values = append(values, r.Value)
 	}
+
+	// 1. Stage raw references so future ingestion of targets links immediately.
+	_, _ = pool.Exec(ctx, `
+		INSERT INTO paper_references (citing_paper_id, id_type, id_value)
+		SELECT $1, t, v FROM unnest($2::text[], $3::text[]) AS r(t, v)
+		ON CONFLICT DO NOTHING`, citingPaperID, types, values)
+
+	// 2. Resolve immediately against currently known paper_identifiers.
 	tag, err := pool.Exec(ctx, `
 		WITH refs(id_type, id_value) AS (
 			SELECT * FROM unnest($2::text[], $3::text[])
