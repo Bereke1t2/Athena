@@ -19,8 +19,16 @@ Future<List<PaperSummary>> paperCitations(
   Ref ref,
   String id, {
   String direction = 'in',
-}) {
-  return ref.watch(paperRepositoryProvider).getCitations(id, direction: direction);
+}) async {
+  final repo = ref.watch(paperRepositoryProvider);
+  final items = await repo.getCitations(id, direction: direction);
+  if (items.isEmpty) {
+    try {
+      final related = await repo.getRelated(id, limit: 10);
+      if (related.isNotEmpty) return related;
+    } catch (_) {}
+  }
+  return items;
 }
 
 @riverpod

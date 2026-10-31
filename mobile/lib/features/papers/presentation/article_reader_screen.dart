@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/di.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ai_formatted_text.dart';
+import '../../../core/widgets/dot_grid_background.dart';
+import '../../../core/widgets/floating_research_prompt_bar.dart';
 import '../../history/presentation/history_notifier.dart';
 import '../domain/article_content.dart';
 
@@ -35,6 +37,77 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
   final Map<int, GlobalKey> _sectionKeys = {};
   double _fontScale = 1.0; // 0.85 (Small), 1.0 (Normal), 1.15 (Large), 1.3 (XL)
   double _lastReportedProgress = 0.0;
+  final int _activeCarouselPage = 3;
+  final Set<int> _collapsedSections = {};
+
+  static String _formattedDate() {
+    final now = DateTime.now();
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return '${months[now.month - 1]} ${now.day}, ${now.year}';
+  }
+
+  void _showMoreActions(BuildContext context, ArticleContent? article) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF181A20) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.format_size_rounded),
+                  title: const Text('Adjust Text Size', style: TextStyle(fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showFontSizeSelector(context);
+                  },
+                ),
+                if (article != null && article.sections.isNotEmpty)
+                  ListTile(
+                    leading: const Icon(Icons.toc_rounded),
+                    title: const Text('Table of Contents', style: TextStyle(fontWeight: FontWeight.w600)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showTableOfContents(context, article);
+                    },
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.headphones_outlined),
+                  title: const Text('Audio Studio Brief', style: TextStyle(fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    final encodedTitle =
+                        Uri.encodeComponent(widget.title ?? article?.title ?? 'Paper');
+                    context.push(
+                        '/create-audio?paperId=${widget.paperId}&title=$encodedTitle');
+                  },
+                ),
+                if (article != null && article.sourceUrl.isNotEmpty)
+                  ListTile(
+                    leading: const Icon(Icons.open_in_new_rounded),
+                    title: const Text('Original Web Article', style: TextStyle(fontWeight: FontWeight.w600)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      launchUrl(Uri.parse(article.sourceUrl));
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -181,14 +254,19 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _fontOption(context, 'Small', 0.85, isDark),
-                    _fontOption(context, 'Normal', 1.0, isDark),
-                    _fontOption(context, 'Large', 1.15, isDark),
-                    _fontOption(context, 'Extra', 1.3, isDark),
-                  ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _fontOption(context, 'Small', 0.85, isDark),
+                      const SizedBox(width: 8),
+                      _fontOption(context, 'Normal', 1.0, isDark),
+                      const SizedBox(width: 8),
+                      _fontOption(context, 'Large', 1.15, isDark),
+                      const SizedBox(width: 8),
+                      _fontOption(context, 'Extra', 1.3, isDark),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
               ],
@@ -234,351 +312,331 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final articleAsync = ref.watch(articleContentProvider(widget.paperId));
+    final borderColor = isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB);
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF0F1115) : const Color(0xFFFAFAFA),
+      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFFBFBFB),
       appBar: AppBar(
+        centerTitle: true,
+        leading: Center(
+          child: InkWell(
+            onTap: () => Navigator.of(context).maybePop(),
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: borderColor),
+              ),
+              child: Icon(
+                Icons.close_rounded,
+                size: 18,
+                color: isDark ? Colors.white : const Color(0xFF111827),
+              ),
+            ),
+          ),
+        ),
         title: Text(
-          widget.title ?? 'Article Reader',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+          'Research Report',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            letterSpacing: -0.2,
+            color: isDark ? Colors.white : const Color(0xFF111827),
+          ),
         ),
         actions: [
-          IconButton(
-            tooltip: 'Text Size',
-            icon: const Icon(Icons.format_size_rounded, size: 20),
-            onPressed: () => _showFontSizeSelector(context),
-          ),
-          articleAsync.maybeWhen(
-            data: (article) => article.sections.isNotEmpty
-                ? IconButton(
-                    tooltip: 'Table of Contents',
-                    icon: const Icon(Icons.toc_rounded, size: 22),
-                    onPressed: () => _showTableOfContents(context, article),
-                  )
-                : const SizedBox.shrink(),
-            orElse: () => const SizedBox.shrink(),
-          ),
-          IconButton(
-            tooltip: 'Ask AI',
-            icon: Icon(
-              Icons.auto_awesome_rounded,
-              color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
-              size: 20,
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 14),
+              child: InkWell(
+                onTap: () => _showMoreActions(context, articleAsync.valueOrNull),
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: borderColor),
+                  ),
+                  child: Icon(
+                    Icons.more_vert_rounded,
+                    size: 18,
+                    color: isDark ? Colors.white : const Color(0xFF111827),
+                  ),
+                ),
+              ),
             ),
-            onPressed: () {
-              final encodedTitle =
-                  Uri.encodeComponent(widget.title ?? 'Paper');
-              context.push(
-                  '/papers/${widget.paperId}/chat?title=$encodedTitle');
-            },
           ),
         ],
       ),
-      body: articleAsync.when(
-        loading: () => const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text(
-                'Extracting & formatting article text…',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
-        error: (err, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
+      body: DotGridBackground(
+        child: articleAsync.when(
+          loading: () => const Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline_rounded,
-                    size: 44, color: Color(0xFFEF4444)),
-                const SizedBox(height: 12),
+                CircularProgressIndicator(color: AppTheme.coral),
+                SizedBox(height: 16),
                 Text(
-                  'Unable to load reader view',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  err.toString(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF9CA3AF)),
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () =>
-                      ref.invalidate(articleContentProvider(widget.paperId)),
-                  icon: const Icon(Icons.refresh_rounded, size: 18),
-                  label: const Text('Try Again'),
+                  'Synthesizing Research Report…',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           ),
-        ),
-        data: (article) {
-          if (article.sections.isEmpty) {
-            return Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.article_outlined,
-                        size: 48, color: Color(0xFF9CA3AF)),
-                    const SizedBox(height: 14),
-                    Text(
-                      'No full-text sections available yet',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'This paper may be paywalled or currently indexing. You can still read the abstract below or ask Athena AI.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-                    ),
-                    if (article.abstractText.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF161922)
-                              : const Color(0xFFF3F4F6),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          article.abstractText,
-                          style: const TextStyle(fontSize: 13.5, height: 1.5),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          }
-
-          return ListView(
-            controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 48),
-            children: [
-              // Header Badge & Title
-              Row(
+          error: (err, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF1E222D)
-                          : const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isDark
-                            ? const Color(0xFF2E3444)
-                            : const Color(0xFFE5E7EB),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          article.format == 'pdf'
-                              ? Icons.picture_as_pdf_rounded
-                              : Icons.language_rounded,
-                          size: 13,
-                          color: isDark
-                              ? AppTheme.canaryYellow
-                              : const Color(0xFF141416),
+                  const Icon(Icons.error_outline_rounded,
+                      size: 44, color: Color(0xFFEF4444)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Unable to load report',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
-                        const SizedBox(width: 5),
-                        Text(
-                          article.format == 'pdf'
-                              ? 'PDF EXTRACTED'
-                              : 'WEB ARTICLE EXTRACTED',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.6,
-                            color: isDark
-                                ? const Color(0xFFE5E7EB)
-                                : const Color(0xFF374151),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
-                  const Spacer(),
-                  if (article.sourceUrl.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: () =>
-                          launchUrl(Uri.parse(article.sourceUrl)),
-                      icon: const Icon(Icons.open_in_new_rounded, size: 14),
-                      label: const Text('Original Web',
-                          style: TextStyle(fontSize: 11.5)),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                    ),
+                  const SizedBox(height: 6),
+                  Text(
+                    err.toString(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12.5, color: Color(0xFF9CA3AF)),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        ref.invalidate(articleContentProvider(widget.paperId)),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Try Again'),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                article.title,
-                style: TextStyle(
-                  fontSize: 20 * _fontScale,
-                  fontWeight: FontWeight.w900,
-                  height: 1.3,
-                  color: isDark ? Colors.white : const Color(0xFF111827),
-                ),
-              ),
-
-              if (article.abstractText.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? const Color(0xFF181B23)
-                        : const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isDark
-                          ? const Color(0xFF282E3C)
-                          : const Color(0xFFE5E7EB),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'ABSTRACT',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.8,
-                          color: isDark
-                              ? AppTheme.canaryYellow
-                              : const Color(0xFF141416),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        article.abstractText,
-                        style: TextStyle(
-                          fontSize: 13.5 * _fontScale,
-                          height: 1.5,
-                          color: isDark
-                              ? const Color(0xFFD1D5DB)
-                              : const Color(0xFF374151),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 16),
-
-              // Sections rendering
-              for (var i = 0; i < article.sections.length; i++) ...[
-                Builder(builder: (context) {
-                  final section = article.sections[i];
-                  _sectionKeys[i] = GlobalKey();
-                  return Container(
-                    key: _sectionKeys[i],
-                    margin: const EdgeInsets.only(bottom: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (section.heading.isNotEmpty ||
-                            section.sectionPath.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text(
-                              section.displayTitle,
-                              style: TextStyle(
-                                fontSize: 16 * _fontScale,
-                                fontWeight: FontWeight.w800,
-                                color: isDark
-                                    ? AppTheme.canaryYellow
-                                    : const Color(0xFF141416),
-                              ),
-                            ),
-                          ),
-                        AiFormattedText(
-                          text: section.content,
-                          baseStyle: TextStyle(
-                            fontSize: 14 * _fontScale,
-                            height: 1.55,
-                            color: isDark
-                                ? const Color(0xFFE5E7EB)
-                                : const Color(0xFF1F2937),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-            ],
-          );
-        },
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF121419) : Colors.white,
-          border: Border(
-            top: BorderSide(
-              color: isDark
-                  ? const Color(0xFF262A36)
-                  : const Color(0xFFE5E7EB),
             ),
           ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: () {
-                  final encodedTitle =
-                      Uri.encodeComponent(widget.title ?? 'Paper');
-                  context.push(
-                      '/papers/${widget.paperId}/chat?title=$encodedTitle');
-                },
-                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
-                label: const Text(
-                  'Ask AI about this Paper',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+          data: (article) {
+            return Stack(
+              children: [
+                ListView(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
+                  children: [
+                    // Main Research Report Card Container matching the Resarc design
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF181A20) : Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: borderColor, width: 1.0),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.04),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Carousel page dots (· · · 🔴 ·)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(5, (index) {
+                              final isActive = (index == _activeCarouselPage);
+                              return Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 3),
+                                width: isActive ? 6 : 4,
+                                height: isActive ? 6 : 4,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isActive
+                                      ? AppTheme.coral
+                                      : (isDark
+                                          ? const Color(0xFF374151)
+                                          : const Color(0xFFD1D5DB)),
+                                ),
+                              );
+                            }),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Date stamp
+                          Text(
+                            _formattedDate(),
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          // High-Impact Editorial Research Question / Paper Headline
+                          Text(
+                            article.title,
+                            style: TextStyle(
+                              fontSize: 20 * _fontScale,
+                              fontWeight: FontWeight.w800,
+                              height: 1.3,
+                              letterSpacing: -0.4,
+                              color: isDark ? Colors.white : const Color(0xFF111827),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Lead Takeaway Paragraph
+                          if (article.abstractText.isNotEmpty)
+                            Text(
+                              article.abstractText.length > 180
+                                  ? '${article.abstractText.substring(0, 180).trim()}…'
+                                  : article.abstractText,
+                              style: TextStyle(
+                                fontSize: 14 * _fontScale,
+                                height: 1.5,
+                                fontWeight: FontWeight.w400,
+                                color: isDark
+                                    ? const Color(0xFFD1D5DB)
+                                    : const Color(0xFF4B5563),
+                              ),
+                            ),
+                          const SizedBox(height: 20),
+
+                          // Coral Uppercase ABSTRACT Header
+                          const Text(
+                            'ABSTRACT',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                              color: AppTheme.coral,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Abstract content with red/coral citation bullet marks
+                          RichText(
+                            text: TextSpan(
+                              style: TextStyle(
+                                fontSize: 13.5 * _fontScale,
+                                height: 1.55,
+                                color: isDark
+                                    ? const Color(0xFFE5E7EB)
+                                    : const Color(0xFF1F2937),
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: article.abstractText.isNotEmpty
+                                      ? article.abstractText
+                                      : 'No abstract available for this paper.',
+                                ),
+                                const WidgetSpan(
+                                  alignment: PlaceholderAlignment.middle,
+                                  child: Padding(
+                                    padding: EdgeInsets.only(left: 6),
+                                    child: Icon(
+                                      Icons.circle,
+                                      size: 5,
+                                      color: AppTheme.coral,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Sections with interactive collapsible coral headers (METHOD ∨, etc.)
+                          for (var i = 0; i < article.sections.length; i++) ...[
+                            Builder(builder: (context) {
+                              final section = article.sections[i];
+                              _sectionKeys[i] = GlobalKey();
+                              final isCollapsed = _collapsedSections.contains(i);
+
+                              return Container(
+                                key: _sectionKeys[i],
+                                margin: const EdgeInsets.only(bottom: 20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          if (isCollapsed) {
+                                            _collapsedSections.remove(i);
+                                          } else {
+                                            _collapsedSections.add(i);
+                                          }
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              section.displayTitle.toUpperCase(),
+                                              style: const TextStyle(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: 0.9,
+                                                color: AppTheme.coral,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              isCollapsed
+                                                  ? Icons.keyboard_arrow_right_rounded
+                                                  : Icons.keyboard_arrow_down_rounded,
+                                              size: 16,
+                                              color: AppTheme.coral,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    if (!isCollapsed) ...[
+                                      const SizedBox(height: 6),
+                                      AiFormattedText(
+                                        text: section.content,
+                                        baseStyle: TextStyle(
+                                          fontSize: 13.5 * _fontScale,
+                                          height: 1.55,
+                                          color: isDark
+                                              ? const Color(0xFFE5E7EB)
+                                              : const Color(0xFF1F2937),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            }),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                style: FilledButton.styleFrom(
-                  backgroundColor: isDark
-                      ? AppTheme.canaryYellow
-                      : const Color(0xFF141416),
-                  foregroundColor:
-                      isDark ? const Color(0xFF141416) : Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+
+                // Floating Universal AI Prompt Bar pinned at the bottom
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 12,
+                  child: FloatingResearchPromptBar(
+                    paperId: widget.paperId,
+                    paperTitle: widget.title ?? article.title,
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );

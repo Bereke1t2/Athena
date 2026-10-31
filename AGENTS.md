@@ -37,7 +37,29 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Audio Studio Physical TTS Generation & HTTP Audio Streaming (2026-10-30)**:
+1. **Editorial Research Assistant UI Redesign (Resarc Aesthetic, 2026-10-31)**:
+   - **Theme & Brand Tokens**: Upgraded `AppTheme` to the clean editorial aesthetic with vibrant coral primary accent (`#FF5238`), pristine off-white canvas (`#FBFBFB`), delicate borders (`#E5E7EB`), and jet black action accents (`#111827`). Added backwards-compatible token mapping for existing kit tokens.
+   - **Brand & Visual Identity**: Added `AthenaArcEmblem` (quartered disc/aperture icon) and `AthenaEditorialBrandMark` (`ATHENA` wordmark + coral emblem) to `athena_branding.dart`.
+   - **Canvas Background**: Created `DotGridBackground` and `DotGridPainter` in `core/widgets/dot_grid_background.dart` rendering the subtle technical ideation grid.
+   - **Universal Floating AI Research Prompt Bar**: Implemented `FloatingResearchPromptBar` in `core/widgets/floating_research_prompt_bar.dart` matching the closeup mockup ("Curious? Ask and dive into scholarly insights", circular paperclip, circular voice mic, `arc-1a` model selector capsule, and black circular upward send button).
+   - **Home / Exploration Screen**: Redesigned `FeedScreen` with double-line menu icon, `AthenaEditorialBrandMark`, hero greeting ("Good Evening, Agnes / Scholar. What are we exploring today?"), `SuggestedPromptCard`, and pinned floating AI prompt bar.
+   - **Research Report / Reader Screen**: Redesigned `ArticleReaderScreen` into the editorial **"Research Report"** layout: circular close `✕` button, circular more `⋮` button, carousel progress dots (`· · · 🔴 ·`), date stamp, bold research question headline, lead takeaway paragraph, uppercase coral headers (`ABSTRACT`, `METHOD ∨` collapsible), and docked floating prompt bar.
+   - **Minimalist Navigation Shell**: Enhanced `_HomeShell` in `app_router.dart` with 5 clean outline tabs (Feed, Search, Topics, Digest, Saved) with coral active indicator.
+   - **Verification**: `flutter test` 52 passed (1 skipped); `dart analyze` clean (0 issues); `go test -count=1 ./...` 100% green.
+
+2. **Citation Network Graph Pipeline & Visual Graph System (2026-10-31)**:
+   - **Backend Pipeline & Two-Way Resolution**:
+     - Added migration `000017_paper_references` (`.up.sql` and `.down.sql`) establishing raw reference staging.
+     - Updated `PaperStore.ResolveCitationEdges` and `upsertIdentifiers` in `database/paper_store.go` to persist extracted raw references and resolve bidirectional citation edges across DOIs, ArXiv IDs, and external IDs whenever cited papers arrive in the system.
+     - Updated `crossref.go` and `s2.go` provider adapters to query and parse reference lists alongside OpenAlex during ingestion and search.
+     - Updated `PaperReader.GetCitationGraph`, `ListCitations`, and `ListCitationDetails` in `database/paper_reader.go` with an automated topic-connected research network fallback when explicit citation edges are 0.
+   - **Mobile Graph Visualizations**:
+     - **Interactive Citation Network Canvas** (`paper_detail_screen.dart`): Replaced list-only view with interactive 60fps canvas (`_InteractiveCitationGraphCanvas`, `_CitationGraphPainter`) featuring radial concentric orbits (Seed center, Hop-1 inner ring, Hop-2 outer ring), pinch-to-zoom/pan (`InteractiveViewer`), stance-colored edges (supports, contradicts, mentions), directional pulse indicators, glow rings, node citation-count scaling, and tap-to-inspect docked detail sheet with deep navigation. Dual-mode toggle (`[Visual Graph]` / `[List View]`).
+     - **Topic Taxonomy Knowledge Graph** (`topic_detail_screen.dart`): Added `_TopicTaxonomyGraphCard` and `_TopicTaxonomyPainter` visualizing parent academic field, central topic node, and subtopics with bidirectional branch connectors and tap navigation.
+     - **Research Digest Velocity Sparklines** (`digest_screen.dart`): Added `_VelocitySparklinePainter` rendering dynamic cubic Bezier trend curves with gradient fill and crest dots for topic velocity pulses.
+   - **Verification**: `go test -count=1 ./...` 100% green; `dart analyze` clean (0 issues); `flutter test` 52 passed (1 skipped); binaries `bin/api`, `bin/worker`, and `bin/migrate` build cleanly.
+
+2. **Audio Studio Physical TTS Generation & HTTP Audio Streaming (2026-10-30)**:
    - **TTS Synthesizer & Media Storage**: Added `domain/audio` interfaces (`Synthesizer`, `MediaStore`), implemented `infrastructure/ai/tts` adapters (`OpenAISynthesizer`, `MockSynthesizer` generating valid MPEG-1 Layer 3 frames, and thread-safe in-memory `MemoryMediaStore`).
    - **Byte-Range Streaming**: Implemented `GET /api/v1/research/papers/{id}/audio/stream` with standard RFC-7233 byte-range seeking (`Accept-Ranges: bytes`, `206 Partial Content`) via `http.ServeContent` and lazy synthesis fallback.
    - **Configuration & Wiring**: Wired `TTSProvider` (`mock`, `openai`, `nop`) in `config.go`, composition root `cmd/api/main.go`, and updated mobile `AudioTrack.audioUrl`.

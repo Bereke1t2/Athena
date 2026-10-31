@@ -6,7 +6,7 @@ part of 'paper_detail_notifier.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$paperCitationsHash() => r'd196e4c50ced703f134380c774ea96f948256c1a';
+String _$paperCitationsHash() => r'efb2fac66ab16c383048a862644e36ba4a73ec49';
 
 /// Copied from Dart SDK
 class _SystemHash {

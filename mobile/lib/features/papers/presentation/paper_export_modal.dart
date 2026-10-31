@@ -92,22 +92,27 @@ class _PaperExportSheetState extends ConsumerState<_PaperExportSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.canaryYellow.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.format_quote_rounded, size: 20, color: AppTheme.canaryYellow),
                       ),
-                      child: const Icon(Icons.format_quote_rounded, size: 20, color: AppTheme.canaryYellow),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Cite & Export Paper',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      const Flexible(
+                        child: Text(
+                          'Cite & Export Paper',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, size: 20),
