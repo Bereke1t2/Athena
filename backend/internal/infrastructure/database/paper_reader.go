@@ -394,7 +394,13 @@ func (s *PaperStore) ListCitations(ctx context.Context, paperID uuid.UUID, dir r
 		}
 		out = append(out, sum)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return s.RelatedBySharedTopics(ctx, paperID, limit)
+	}
+	return out, nil
 }
 
 // RelatedBySharedTopics ranks other papers by overlap on this paper's topics.
@@ -426,7 +432,13 @@ func (s *PaperStore) RelatedBySharedTopics(ctx context.Context, paperID uuid.UUI
 		}
 		out = append(out, sum)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return s.RelatedBySharedTopics(ctx, paperID, limit)
+	}
+	return out, nil
 }
 
 // ClassifyStance analyzes citation context to detect support, contradiction, or mention.
@@ -521,6 +533,20 @@ func (s *PaperStore) ListCitationDetails(ctx context.Context, paperID uuid.UUID,
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if len(out) == 0 {
+		rel, err := s.RelatedBySharedTopics(ctx, paperID, limit)
+		if err == nil && len(rel) > 0 {
+			out = make([]research.CitationItem, 0, len(rel))
+			for _, p := range rel {
+				out = append(out, research.CitationItem{
+					Paper:         p,
+					IsInfluential: p.CitedByCount > 50,
+					Stance:        research.StanceMentions,
+					Context:       "Related research across shared topic domains",
+				})
+			}
+		}
 	}
 	return out, nil
 }
@@ -699,6 +725,52 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 		return research.CitationGraph{}, err
 	}
 
+	// 2b. Fallback: If no explicit citation rows exist in citations table,
+	// resolve connected research nodes via shared topics so the network graph
+	// remains connected and navigable across the research corpus.
+	if len(level1IDs) == 0 {
+		relRows, err := s.pool.Query(ctx, `
+			SELECT p.id, p.title, COALESCE(p.publication_year, 0), COALESCE(p.venue_name, ''), p.cited_by_count,
+			       COUNT(DISTINCT pt.topic_id) AS shared_topics
+			FROM papers p
+			JOIN paper_topics pt ON pt.paper_id = p.id
+			WHERE pt.topic_id IN (SELECT topic_id FROM paper_topics WHERE paper_id = $1)
+			  AND p.id <> $1 AND p.deleted_at IS NULL
+			GROUP BY p.id
+			ORDER BY shared_topics DESC, p.cited_by_count DESC, p.id DESC
+			LIMIT $2`, paperID, limitPerLevel)
+		if err == nil {
+			defer relRows.Close()
+			for relRows.Next() {
+				var pID uuid.UUID
+				var title, venue string
+				var year, citations, sharedTopics int
+				if err := relRows.Scan(&pID, &title, &year, &venue, &citations, &sharedTopics); err == nil {
+					if _, exists := nodesMap[pID]; !exists {
+						nodesMap[pID] = research.GraphNode{
+							ID:           pID,
+							Title:        title,
+							Year:         year,
+							VenueName:    venue,
+							CitedByCount: citations,
+							Depth:        1,
+							IsSeed:       false,
+						}
+						level1IDs = append(level1IDs, pID)
+					}
+					edgeKey := paperID.String() + "->" + pID.String()
+					edgeSet[edgeKey] = research.GraphEdge{
+						Source:        paperID,
+						Target:        pID,
+						IsInfluential: citations > 50,
+						Stance:        research.StanceMentions,
+						Context:       fmt.Sprintf("Connected research (%d shared topics)", sharedTopics),
+					}
+				}
+			}
+		}
+	}
+
 	// 3. Query Level 2 citations if depth >= 2
 	if maxDepth >= 2 && len(level1IDs) > 0 {
 		topL1 := level1IDs
@@ -706,6 +778,7 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 			topL1 = topL1[:15]
 		}
 
+		var l2Count int
 		l2Rows, err := s.pool.Query(ctx, `
 			SELECT c.citing_paper_id, c.cited_paper_id, COALESCE(c.is_influential, false),
 			       COALESCE(c.stance, 'mentions'), COALESCE(c.context, ''),
@@ -734,6 +807,7 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 							Depth:        2,
 							IsSeed:       false,
 						}
+						l2Count++
 					}
 					edgeKey := citingID.String() + "->" + citedID.String()
 					stance := research.CitationStance(dbStance)
@@ -748,6 +822,48 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 						IsInfluential: isInfluential,
 						Stance:        stance,
 						Context:       contextText,
+					}
+				}
+			}
+		}
+
+		// If no explicit L2 citation edges were found, expand Level 2 from topL1 by shared topics
+		if l2Count == 0 && len(topL1) > 0 {
+			relL2, err := s.pool.Query(ctx, `
+				SELECT p.id, p.title, COALESCE(p.publication_year, 0), COALESCE(p.venue_name, ''), p.cited_by_count, pt.paper_id AS l1_src
+				FROM papers p
+				JOIN paper_topics pt_target ON pt_target.paper_id = p.id
+				JOIN paper_topics pt ON pt.topic_id = pt_target.topic_id AND pt.paper_id = ANY($1)
+				WHERE p.id <> ALL($2) AND p.deleted_at IS NULL
+				GROUP BY p.id, pt.paper_id
+				ORDER BY p.cited_by_count DESC, p.id DESC
+				LIMIT $3`, topL1, append(topL1, paperID), limitPerLevel)
+			if err == nil {
+				defer relL2.Close()
+				for relL2.Next() {
+					var pID, l1Src uuid.UUID
+					var title, venue string
+					var year, citations int
+					if err := relL2.Scan(&pID, &title, &year, &venue, &citations, &l1Src); err == nil {
+						if _, exists := nodesMap[pID]; !exists {
+							nodesMap[pID] = research.GraphNode{
+								ID:           pID,
+								Title:        title,
+								Year:         year,
+								VenueName:    venue,
+								CitedByCount: citations,
+								Depth:        2,
+								IsSeed:       false,
+							}
+						}
+						edgeKey := l1Src.String() + "->" + pID.String()
+						edgeSet[edgeKey] = research.GraphEdge{
+							Source:        l1Src,
+							Target:        pID,
+							IsInfluential: citations > 50,
+							Stance:        research.StanceMentions,
+							Context:       "Extended research network",
+						}
 					}
 				}
 			}
