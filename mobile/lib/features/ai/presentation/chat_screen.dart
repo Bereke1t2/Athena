@@ -357,26 +357,36 @@ class _CitationChip extends StatelessWidget {
         showModalBottomSheet<void>(
           context: context,
           showDragHandle: true,
+          isScrollControlled: true,
           builder: (context) => SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Source excerpt',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  if (citation.sectionPath.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(citation.sectionPath,
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                            )),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.65,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Source excerpt',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    if (citation.sectionPath.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(citation.sectionPath,
+                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                              )),
+                    ],
+                    const SizedBox(height: 12),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: SelectableText(citation.quote,
+                            style: Theme.of(context).textTheme.bodyMedium),
+                      ),
+                    ),
                   ],
-                  const SizedBox(height: 12),
-                  SelectableText(citation.quote,
-                      style: Theme.of(context).textTheme.bodyMedium),
-                ],
+                ),
               ),
             ),
           ),
