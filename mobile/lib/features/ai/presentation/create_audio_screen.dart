@@ -546,6 +546,7 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
               AnimatedEntrance(
                 delay: const Duration(milliseconds: 220),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: _VoiceCard(
@@ -642,14 +643,19 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    _lengthStats,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                  Expanded(
+                    child: Text(
+                      _lengthStats,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
@@ -746,9 +752,13 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                                     child: CircularProgressIndicator(strokeWidth: 2.2, color: Color(0xFF141416)),
                                   ),
                                   const SizedBox(width: 10),
-                                  Text(
-                                    _generationStep,
-                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                                  Flexible(
+                                    child: Text(
+                                      _generationStep,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                                    ),
                                   ),
                                 ],
                               )
@@ -876,6 +886,7 @@ class _VoiceCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
+        constraints: const BoxConstraints(minHeight: 90),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
@@ -898,6 +909,8 @@ class _VoiceCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
@@ -908,6 +921,8 @@ class _VoiceCard extends StatelessWidget {
             Text(
               desc,
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 9.5,
                 color: isSelected ? const Color(0xFFD1D5DB) : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),

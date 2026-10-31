@@ -26,7 +26,8 @@ const (
 
 	fieldsParam = "paperId,title,abstract,year,publicationDate,venue,journal," +
 		"publicationTypes,externalIds,isOpenAccess,openAccessPdf,citationCount," +
-		"referenceCount,influentialCitationCount,fieldsOfStudy,authors.name,authors.authorId"
+		"referenceCount,influentialCitationCount,fieldsOfStudy,authors.name,authors.authorId," +
+		"references.paperId,references.externalIds"
 )
 
 // Options configures the adapter.
@@ -167,6 +168,10 @@ type paperDTO struct {
 	InfluentialCount int      `json:"influentialCitationCount"`
 	FieldsOfStudy    []string `json:"fieldsOfStudy"`
 	Authors          []authorDTO `json:"authors"`
+	References       []struct {
+		PaperID     string         `json:"paperId"`
+		ExternalIDs externalIDsDTO `json:"externalIds"`
+	} `json:"references"`
 }
 
 type bulkResponseDTO struct {
@@ -268,6 +273,32 @@ func (p *Provider) normalize(dto *paperDTO) (research.Paper, error) {
 		identifiers = append(identifiers, research.Identifier{Type: research.IDTypeCorpusID, Value: v})
 	}
 	paper.Identifiers = identifiers
+	for _, ref := range dto.References {
+		if ref.ExternalIDs.DOI != nil && *ref.ExternalIDs.DOI != "" {
+			if cdoi := research.CanonicalizeDOI(*ref.ExternalIDs.DOI); cdoi != "" {
+				paper.ReferencedIDs = append(paper.ReferencedIDs, research.Identifier{
+					Type:  research.IDTypeDOI,
+					Value: cdoi,
+				})
+				continue
+			}
+		}
+		if ref.ExternalIDs.Arxiv != nil && *ref.ExternalIDs.Arxiv != "" {
+			if carxiv := research.CanonicalizeArxivID(*ref.ExternalIDs.Arxiv); carxiv != "" {
+				paper.ReferencedIDs = append(paper.ReferencedIDs, research.Identifier{
+					Type:  research.IDTypeArxiv,
+					Value: carxiv,
+				})
+				continue
+			}
+		}
+		if pID := strings.TrimSpace(ref.PaperID); pID != "" {
+			paper.ReferencedIDs = append(paper.ReferencedIDs, research.Identifier{
+				Type:  research.IDTypeSemanticScholar,
+				Value: pID,
+			})
+		}
+	}
 
 	if v := paper.ArxivID(); v != "" {
 		paper.Versions = append(paper.Versions, research.VersionRef{

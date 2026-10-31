@@ -300,16 +300,21 @@ class SavedScreen extends ConsumerWidget {
                                           Row(
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              Text(
-                                                '${pct.round()}% read · ${entry.completed || pct >= 95 ? "Completed" : "In progress"}',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: entry.completed || pct >= 95
-                                                      ? const Color(0xFF55EFC4)
-                                                      : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563)),
+                                              Expanded(
+                                                child: Text(
+                                                  '${pct.round()}% read · ${entry.completed || pct >= 95 ? "Completed" : "In progress"}',
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: entry.completed || pct >= 95
+                                                        ? const Color(0xFF55EFC4)
+                                                        : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563)),
+                                                  ),
                                                 ),
                                               ),
+                                              const SizedBox(width: 8),
                                               Text(
                                                 '${entry.lastReadAt.day}/${entry.lastReadAt.month}/${entry.lastReadAt.year}',
                                                 style: TextStyle(

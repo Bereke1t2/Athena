@@ -24,7 +24,7 @@ const (
 	pageSize       = 50
 
 	selectFields = "DOI,title,abstract,issued,published-print,published-online," +
-		"container-title,type,author,is-referenced-by-count,URL,subject"
+		"container-title,type,author,is-referenced-by-count,URL,subject,reference"
 )
 
 // Options configures the adapter.
@@ -94,6 +94,9 @@ type itemDTO struct {
 	CitedByCount    int         `json:"is-referenced-by-count"`
 	URL             string      `json:"URL"`
 	Subjects        []string    `json:"subject"`
+	References      []struct {
+		DOI string `json:"DOI"`
+	} `json:"reference"`
 }
 
 type messageDTO struct {
@@ -173,6 +176,14 @@ func (p *Provider) normalize(dto *itemDTO) (research.Paper, error) {
 
 	paper.Identifiers = []research.Identifier{
 		{Type: research.IDTypeDOI, Value: doi},
+	}
+	for _, ref := range dto.References {
+		if cdoi := research.CanonicalizeDOI(ref.DOI); cdoi != "" {
+			paper.ReferencedIDs = append(paper.ReferencedIDs, research.Identifier{
+				Type:  research.IDTypeDOI,
+				Value: cdoi,
+			})
+		}
 	}
 	if landing := strings.TrimSpace(dto.URL); landing != "" {
 		paper.Versions = append(paper.Versions, research.VersionRef{

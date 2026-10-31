@@ -242,42 +242,49 @@ class _PaperAudioPlayerScreenState extends ConsumerState<PaperAudioPlayerScreen>
                       // Top Chapter & AI-Enhanced Badges
                       Positioned(
                         left: 16,
-                        top: 16,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'CHAPTER $currentChapter / ${track.chapters.isNotEmpty ? track.chapters.length : 3}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
                         right: 16,
                         top: 16,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: AppTheme.canaryYellow,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'AI RESEARCH BRIEF',
-                            style: TextStyle(
-                              color: Color(0xFF141416),
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.6,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'CHAPTER $currentChapter / ${track.chapters.isNotEmpty ? track.chapters.length : 3}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: AppTheme.canaryYellow,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'AI RESEARCH BRIEF',
+                                style: TextStyle(
+                                  color: Color(0xFF141416),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -419,67 +426,70 @@ class _PaperAudioPlayerScreenState extends ConsumerState<PaperAudioPlayerScreen>
               // Utility Controls Row (Speed, Sleep, Transcript, Cast)
               AnimatedEntrance(
                 delay: const Duration(milliseconds: 250),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Speed yellow pill
-                    GestureDetector(
-                      onTap: () => _showSpeedModal(context, audioState.speed),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppTheme.canaryYellow,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          '${audioState.speed}x',
-                          style: const TextStyle(
-                            color: Color(0xFF141416),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Speed yellow pill
+                      GestureDetector(
+                        onTap: () => _showSpeedModal(context, audioState.speed),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppTheme.canaryYellow,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            '${audioState.speed}x',
+                            style: const TextStyle(
+                              color: Color(0xFF141416),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    _UtilityPill(
-                      label: audioState.sleepTimerMinutes != null
-                          ? 'Sleep · ${audioState.sleepTimerMinutes}m'
-                          : 'Sleep',
-                      icon: Icons.bedtime_outlined,
-                      isActive: audioState.sleepTimerMinutes != null,
-                      onTap: () => _showSleepTimerModal(context, audioState.sleepTimerMinutes),
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 8),
-                    _UtilityPill(
-                      label: 'Transcript',
-                      icon: Icons.notes_rounded,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Opening full interactive transcript…'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      isDark: isDark,
-                    ),
-                    const SizedBox(width: 8),
-                    _UtilityPill(
-                      label: 'AirPlay',
-                      icon: Icons.cast_rounded,
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Scanning for AirPlay & Cast devices…'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      isDark: isDark,
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      _UtilityPill(
+                        label: audioState.sleepTimerMinutes != null
+                            ? 'Sleep · ${audioState.sleepTimerMinutes}m'
+                            : 'Sleep',
+                        icon: Icons.bedtime_outlined,
+                        isActive: audioState.sleepTimerMinutes != null,
+                        onTap: () => _showSleepTimerModal(context, audioState.sleepTimerMinutes),
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _UtilityPill(
+                        label: 'Transcript',
+                        icon: Icons.notes_rounded,
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Opening full interactive transcript…'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _UtilityPill(
+                        label: 'AirPlay',
+                        icon: Icons.cast_rounded,
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Scanning for AirPlay & Cast devices…'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        isDark: isDark,
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
