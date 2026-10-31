@@ -6,7 +6,7 @@ part of 'feed_notifier.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$feedNotifierHash() => r'73ba15ea7f9e70856fbe24d65d6c7822b4236fd9';
+String _$feedNotifierHash() => r'dab0e7c6440ebbc2a6215950ca6213cbb3597855';
 
 /// Copied from Dart SDK
 class _SystemHash {
@@ -38,26 +38,30 @@ abstract class _$FeedNotifier
   );
 }
 
-/// Feed for one section, filtered to the user's onboarding interests. Watches
-/// [selectedTopicsProvider], so saving new topics refreshes automatically.
+/// Feed for one section, filtered by the active topic filter or onboarding interests.
+/// Watches [activeTopicFilterProvider] and [selectedTopicsProvider], so switching filters
+/// refreshes automatically.
 ///
 /// Copied from [FeedNotifier].
 @ProviderFor(FeedNotifier)
 const feedNotifierProvider = FeedNotifierFamily();
 
-/// Feed for one section, filtered to the user's onboarding interests. Watches
-/// [selectedTopicsProvider], so saving new topics refreshes automatically.
+/// Feed for one section, filtered by the active topic filter or onboarding interests.
+/// Watches [activeTopicFilterProvider] and [selectedTopicsProvider], so switching filters
+/// refreshes automatically.
 ///
 /// Copied from [FeedNotifier].
 class FeedNotifierFamily extends Family<AsyncValue<FeedPageState>> {
-  /// Feed for one section, filtered to the user's onboarding interests. Watches
-  /// [selectedTopicsProvider], so saving new topics refreshes automatically.
+  /// Feed for one section, filtered by the active topic filter or onboarding interests.
+  /// Watches [activeTopicFilterProvider] and [selectedTopicsProvider], so switching filters
+  /// refreshes automatically.
   ///
   /// Copied from [FeedNotifier].
   const FeedNotifierFamily();
 
-  /// Feed for one section, filtered to the user's onboarding interests. Watches
-  /// [selectedTopicsProvider], so saving new topics refreshes automatically.
+  /// Feed for one section, filtered by the active topic filter or onboarding interests.
+  /// Watches [activeTopicFilterProvider] and [selectedTopicsProvider], so switching filters
+  /// refreshes automatically.
   ///
   /// Copied from [FeedNotifier].
   FeedNotifierProvider call(
@@ -92,14 +96,16 @@ class FeedNotifierFamily extends Family<AsyncValue<FeedPageState>> {
   String? get name => r'feedNotifierProvider';
 }
 
-/// Feed for one section, filtered to the user's onboarding interests. Watches
-/// [selectedTopicsProvider], so saving new topics refreshes automatically.
+/// Feed for one section, filtered by the active topic filter or onboarding interests.
+/// Watches [activeTopicFilterProvider] and [selectedTopicsProvider], so switching filters
+/// refreshes automatically.
 ///
 /// Copied from [FeedNotifier].
 class FeedNotifierProvider
     extends AutoDisposeAsyncNotifierProviderImpl<FeedNotifier, FeedPageState> {
-  /// Feed for one section, filtered to the user's onboarding interests. Watches
-  /// [selectedTopicsProvider], so saving new topics refreshes automatically.
+  /// Feed for one section, filtered by the active topic filter or onboarding interests.
+  /// Watches [activeTopicFilterProvider] and [selectedTopicsProvider], so switching filters
+  /// refreshes automatically.
   ///
   /// Copied from [FeedNotifier].
   FeedNotifierProvider(

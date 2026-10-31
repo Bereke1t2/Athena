@@ -132,24 +132,31 @@ class PaperCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.auto_stories_rounded,
-                        size: 13,
-                        color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${paper.year} · ~${((abstractText?.split(' ').length ?? 150) / 130).clamp(4, 18).round()}m digest',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.auto_stories_rounded,
+                          size: 13,
                           color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            '${paper.year} · ~${((abstractText?.split(' ').length ?? 150) / 130).clamp(4, 18).round()}m digest',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   if (badge != null)
                     badge!
                   else

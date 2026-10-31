@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/prefs/prefs_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
+import '../../../core/widgets/dot_grid_background.dart';
+import '../../../core/widgets/floating_research_prompt_bar.dart';
 import '../../../core/widgets/paper_card.dart';
+import '../../../core/widgets/suggested_prompt_card.dart';
 import '../../notifications/presentation/notifications_notifier.dart';
 import '../../papers/domain/audio_playback.dart';
 import '../../papers/domain/paper.dart';
@@ -47,20 +50,11 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     }
   }
 
-  static String _formattedDate() {
-    final now = DateTime.now();
-    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const weekdays = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
-    final wd = weekdays[now.weekday - 1];
-    final m = months[now.month - 1];
-    return '$wd, $m ${now.day}';
-  }
-
   static String _greeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning, ';
-    if (hour < 17) return 'Good afternoon, ';
-    return 'Good evening, ';
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
   }
 
   static String _formatDuration(Duration d) {
@@ -96,96 +90,82 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     final activeTopic = ref.watch(activeTopicFilterProvider);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF8F9FB),
+      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFFBFBFB),
       body: SafeArea(
-        child: Stack(
-          children: [
-            RefreshIndicator(
-              onRefresh: () => ref.read(feedNotifierProvider(_section).notifier).refresh(),
-              child: CustomScrollView(
-                controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
-                  // Top Header: Date, ATHENA Brand & Avatar
-                  SliverToBoxAdapter(
-                    child: AnimatedEntrance(
-                      delay: const Duration(milliseconds: 50),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _formattedDate(),
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 1.1,
-                                        color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+        child: DotGridBackground(
+          child: Stack(
+            children: [
+              RefreshIndicator(
+                onRefresh: () => ref.read(feedNotifierProvider(_section).notifier).refresh(),
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    // Top Header: Resarc / Athena Editorial Top Bar
+                    SliverToBoxAdapter(
+                      child: AnimatedEntrance(
+                        delay: const Duration(milliseconds: 50),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Left Double-Line Menu Icon
+                              IconButton(
+                                tooltip: 'Navigation',
+                                icon: const Icon(Icons.menu_rounded, size: 24),
+                                onPressed: () => context.push('/profile'),
+                              ),
+
+                              // Center Editorial Brand Mark
+                              const AthenaEditorialBrandMark(title: 'ATHENA'),
+
+                              // Right Actions: Explore Chat & Theme Toggle
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Research Chat',
+                                    icon: Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isDark
+                                              ? const Color(0xFF282C38)
+                                              : const Color(0xFFE5E7EB),
+                                        ),
+                                      ),
+                                      child: const Icon(
+                                        Icons.chat_bubble_outline_rounded,
+                                        size: 16,
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          _greeting(),
-                                          style: theme.textTheme.headlineSmall?.copyWith(
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 22,
-                                            letterSpacing: -0.4,
-                                          ),
-                                        ),
-                                        Text(
-                                          'ATHENA',
-                                          style: TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: -0.4,
-                                            color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                                        size: 20,
-                                      ),
-                                      onPressed: () => ref.read(appThemeModeProvider.notifier).toggle(),
-                                    ),
-                                    Stack(
+                                    onPressed: () => context.push('/digest'),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Notifications',
+                                    icon: Stack(
                                       clipBehavior: Clip.none,
                                       children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.notifications_none_rounded, size: 21),
-                                          onPressed: () => context.push('/notifications'),
-                                        ),
+                                        const Icon(Icons.notifications_none_rounded, size: 20),
                                         if (ref.watch(notificationsNotifierProvider).unreadCount > 0)
                                           Positioned(
-                                            right: 6,
-                                            top: 6,
+                                            right: -2,
+                                            top: -2,
                                             child: Container(
-                                              padding: const EdgeInsets.all(3.5),
+                                              padding: const EdgeInsets.all(3),
                                               decoration: const BoxDecoration(
-                                                color: Color(0xFFFF7675),
+                                                color: AppTheme.coral,
                                                 shape: BoxShape.circle,
                                               ),
-                                              constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                                              constraints: const BoxConstraints(minWidth: 12, minHeight: 12),
                                               child: Text(
                                                 '${ref.watch(notificationsNotifierProvider).unreadCount}',
                                                 style: const TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 8.5,
+                                                  fontSize: 8,
                                                   fontWeight: FontWeight.w900,
                                                 ),
                                                 textAlign: TextAlign.center,
@@ -194,68 +174,126 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                           ),
                                       ],
                                     ),
-                                    const SizedBox(width: 4),
-                                    InkWell(
-                                      onTap: () => context.push('/profile'),
-                                      borderRadius: BorderRadius.circular(18),
-                                      child: CircleAvatar(
-                                        radius: 18,
-                                        backgroundColor: isDark ? const Color(0xFF2C3240) : const Color(0xFFE5E7EB),
-                                        child: const Icon(Icons.person_rounded, size: 20, color: Color(0xFF141416)),
-                                      ),
+                                    onPressed: () => context.push('/notifications'),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: Icon(
+                                      isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                                      size: 20,
                                     ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
+                                    onPressed: () =>
+                                        ref.read(appThemeModeProvider.notifier).toggle(),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
 
-                  // Search Bar
-                  SliverToBoxAdapter(
-                    child: AnimatedEntrance(
-                      delay: const Duration(milliseconds: 100),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-                        child: InkWell(
-                          onTap: () => context.go('/search'),
-                          borderRadius: BorderRadius.circular(28),
-                          child: Container(
-                            height: 48,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1C2028) : Colors.white,
-                              borderRadius: BorderRadius.circular(28),
-                              border: Border.all(
-                                color: isDark ? const Color(0xFF2F3544) : const Color(0xFFE5E7EB),
+                    // Hero Headline: "Good Evening, Agnes. What are we exploring today?"
+                    SliverToBoxAdapter(
+                      child: AnimatedEntrance(
+                        delay: const Duration(milliseconds: 70),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${_greeting()}, Agnes.',
+                                style: TextStyle(
+                                  fontSize: 25,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.6,
+                                  color: isDark ? Colors.white : const Color(0xFF111827),
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.search_rounded,
-                                  size: 20,
-                                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                              const SizedBox(height: 3),
+                              Text(
+                                'What are we exploring today?',
+                                style: TextStyle(
+                                  fontSize: 25,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.6,
+                                  color: isDark ? Colors.white : const Color(0xFF111827),
                                 ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Search topics, sources, voices…',
-                                  style: TextStyle(
-                                    fontSize: 14,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Suggested Research Action Card: "Summarize the methodology used in the paper..."
+                    SliverToBoxAdapter(
+                      child: AnimatedEntrance(
+                        delay: const Duration(milliseconds: 100),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+                          child: SuggestedPromptCard(
+                            actionLead: 'Summarize the methodology',
+                            targetTitle: items.isNotEmpty
+                                ? items.first.paper.title
+                                : 'Exploring the Use of Technology in Elementary School Classrooms',
+                            onTap: () {
+                              if (items.isNotEmpty) {
+                                context.push(
+                                  '/papers/${items.first.paper.id}/reader?title=${Uri.encodeComponent(items.first.paper.title)}',
+                                );
+                              } else {
+                                context.push('/digest');
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Quick Search Pill
+                    SliverToBoxAdapter(
+                      child: AnimatedEntrance(
+                        delay: const Duration(milliseconds: 120),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                          child: InkWell(
+                            onTap: () => context.go('/search'),
+                            borderRadius: BorderRadius.circular(28),
+                            child: Container(
+                              height: 46,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF181A20) : Colors.white,
+                                borderRadius: BorderRadius.circular(28),
+                                border: Border.all(
+                                  color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.search_rounded,
+                                    size: 19,
                                     color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                                    fontWeight: FontWeight.w500,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Search topics, sources, voices…',
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
 
                   // Screen 2: "TODAY'S RESEARCH BRIEF" Warm Yellow Highlight Card
                   SliverToBoxAdapter(
@@ -333,7 +371,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              Row(
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
                                 children: [
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
@@ -353,6 +393,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                       }
                                     },
                                     child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(Icons.auto_stories_rounded, size: 14, color: AppTheme.canaryYellow),
                                         SizedBox(width: 6),
@@ -360,7 +401,6 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
                                   OutlinedButton(
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: const Color(0xFF141416),
@@ -798,18 +838,18 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                     ),
 
                   const SliverToBoxAdapter(
-                    child: SizedBox(height: 100),
+                    child: SizedBox(height: 150),
                   ),
                 ],
               ),
             ),
 
-            // Persistent Floating Mini-Player Bar (Screen 2 bottom bar - bound to real audioPlayerProvider)
+            // Persistent Floating Mini-Player Bar
             if (currentTrack != null)
               Positioned(
                 left: 16,
                 right: 16,
-                bottom: 12,
+                bottom: 96,
                 child: AnimatedEntrance(
                   delay: const Duration(milliseconds: 450),
                   child: InkWell(
@@ -874,7 +914,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                               audioState.isPlaying
                                   ? Icons.pause_circle_filled_rounded
                                   : Icons.play_circle_filled_rounded,
-                              color: AppTheme.canaryYellow,
+                              color: AppTheme.coral,
                               size: 34,
                             ),
                             onPressed: () => ref.read(audioPlayerProvider.notifier).togglePlayPause(),
@@ -894,11 +934,27 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                   ),
                 ),
               ),
+
+            // Resarc Universal Floating AI Research Prompt Bar
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 12,
+              child: AnimatedEntrance(
+                delay: const Duration(milliseconds: 300),
+                child: FloatingResearchPromptBar(
+                  onSubmitted: (query) {
+                    context.push('/search?q=${Uri.encodeComponent(query)}');
+                  },
+                ),
+              ),
+            ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _ContinueListeningTile extends StatelessWidget {
