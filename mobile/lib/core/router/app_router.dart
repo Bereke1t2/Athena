@@ -51,7 +51,15 @@ GoRouter buildAppRouter() {
             GoRoute(path: '/', name: 'feed', pageBuilder: _noTransition(FeedScreen.new)),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/search', name: 'search', pageBuilder: _noTransition(SearchScreen.new)),
+            GoRoute(
+              path: '/search',
+              name: 'search',
+              pageBuilder: (context, state) => CustomTransitionPage(
+                key: state.pageKey,
+                child: SearchScreen(initialQuery: state.uri.queryParameters['q']),
+                transitionsBuilder: (_, __, ___, child) => child,
+              ),
+            ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: '/topics', name: 'topics', pageBuilder: _noTransition(TopicsScreen.new)),
@@ -77,12 +85,23 @@ GoRouter buildAppRouter() {
         builder: (context, state) => PaperDetailScreen(id: state.pathParameters['id']!),
       ),
       GoRoute(
+        path: '/chat',
+        name: 'chat',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => ChatScreen(
+          paperId: state.uri.queryParameters['paperId'],
+          paperTitle: state.uri.queryParameters['title'],
+          initialQuery: state.uri.queryParameters['q'],
+        ),
+      ),
+      GoRoute(
         path: '/papers/:id/chat',
         name: 'paper-chat',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => ChatScreen(
-          paperId: state.pathParameters['id']!,
+          paperId: state.pathParameters['id'],
           paperTitle: state.uri.queryParameters['title'],
+          initialQuery: state.uri.queryParameters['q'],
         ),
       ),
       GoRoute(
