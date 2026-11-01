@@ -6,6 +6,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/prefs/saved_papers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/athena_branding.dart';
+import '../../../core/widgets/athena_top_bar.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import 'auth_notifier.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -113,33 +116,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: const Text(
-          'Sign In',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-        ),
+      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      appBar: const AthenaTopBar(
+        title: 'Sign In',
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 12),
-                Center(
-                  child: Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: AppTheme.canaryYellow,
-                      borderRadius: BorderRadius.circular(20),
+      body: DotGridBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF181A20) : Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
+                          width: 1.2,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: const AthenaArcEmblem(size: 32),
                     ),
-                    child: const Icon(Icons.auto_stories_rounded, size: 32, color: Color(0xFF141416)),
                   ),
-                ),
                 const SizedBox(height: 20),
                 Text(
                   'Access your research library',
@@ -242,11 +248,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 SizedBox(
                   height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
-                      foregroundColor: isDark ? const Color(0xFF141416) : Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: isDark ? AppTheme.coral : const Color(0xFF111827),
+                      foregroundColor: isDark ? const Color(0xFF111827) : Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                       elevation: 0,
                     ),
                     onPressed: authState.isLoading ? null : _submit,
@@ -278,7 +284,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: () => context.pushReplacement('/register'),
                       child: const Text(
                         'Create Account',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.coral),
                       ),
                     ),
                   ],
@@ -288,6 +294,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

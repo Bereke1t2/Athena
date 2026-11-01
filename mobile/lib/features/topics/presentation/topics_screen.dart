@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/athena_top_bar.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/paper_card.dart';
 import '../domain/topic.dart';
 import 'topics_notifier.dart';
@@ -38,14 +40,13 @@ class _TopicsScreenState extends ConsumerState<TopicsScreen> {
     final kind = async.valueOrNull?.kindFilter ?? '';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Topics',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
-        ),
+      appBar: const AthenaTopBar(
+        title: 'Topics',
+        showLeading: false,
       ),
-      body: Column(
-        children: [
+      body: DotGridBackground(
+        child: Column(
+          children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: SearchBar(
@@ -109,7 +110,7 @@ class _TopicsScreenState extends ConsumerState<TopicsScreen> {
                     child: Icon(
                       t.isField ? Icons.auto_awesome_mosaic_rounded : Icons.label_outline_rounded,
                       size: 20,
-                      color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                      color: AppTheme.coral,
                     ),
                   ),
                   title: Text(
@@ -172,6 +173,7 @@ class _TopicsScreenState extends ConsumerState<TopicsScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -48,16 +48,14 @@ func NewService(papers PaperReader, followStore FollowReader, repo domaindigest.
 }
 
 // GenerateDigest builds a fresh periodic digest tailored to the user's research interests.
+// If userID is uuid.Nil (guest user), a trending briefing across Athena is generated without persistence.
 func (s *Service) GenerateDigest(ctx context.Context, userID uuid.UUID, freq domaindigest.Frequency) (domaindigest.UserDigest, error) {
-	if userID == uuid.Nil {
-		return domaindigest.UserDigest{}, domaindigest.ErrInvalidUserID
-	}
 	if freq != domaindigest.FrequencyDaily && freq != domaindigest.FrequencyWeekly {
 		freq = domaindigest.FrequencyWeekly
 	}
 
 	var topics []string
-	if s.followStore != nil {
+	if s.followStore != nil && userID != uuid.Nil {
 		followed, err := s.followStore.ListFollowedTopics(ctx, userID)
 		if err == nil {
 			for _, tf := range followed {
@@ -133,7 +131,7 @@ func (s *Service) GenerateDigest(ctx context.Context, userID uuid.UUID, freq dom
 		TopTakeaways: takeaways,
 	}
 
-	if s.repo != nil {
+	if s.repo != nil && userID != uuid.Nil {
 		if err := s.repo.SaveDigest(ctx, digest); err != nil {
 			s.log.Warn("failed to persist user digest", "user_id", userID, "error", err)
 		}
@@ -143,11 +141,9 @@ func (s *Service) GenerateDigest(ctx context.Context, userID uuid.UUID, freq dom
 }
 
 // GetLatestDigest fetches the latest cached digest or dynamically generates a fresh one.
+// If userID is uuid.Nil, it dynamically generates a trending briefing for guest researchers.
 func (s *Service) GetLatestDigest(ctx context.Context, userID uuid.UUID) (domaindigest.UserDigest, error) {
-	if userID == uuid.Nil {
-		return domaindigest.UserDigest{}, domaindigest.ErrInvalidUserID
-	}
-	if s.repo != nil {
+	if s.repo != nil && userID != uuid.Nil {
 		d, err := s.repo.GetLatestDigest(ctx, userID)
 		if err == nil {
 			return d, nil

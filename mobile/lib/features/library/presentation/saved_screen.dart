@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/prefs/saved_papers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/athena_top_bar.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import '../../history/presentation/history_notifier.dart';
 import '../../papers/presentation/paper_audio_player_screen.dart';
 
@@ -21,15 +23,13 @@ class SavedScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
-        appBar: AppBar(
-          title: const Text(
-            'Library',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
-          ),
+        backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+        appBar: AthenaTopBar(
+          title: 'Library',
+          showLeading: false,
           bottom: TabBar(
-            indicatorColor: AppTheme.canaryYellow,
-            labelColor: isDark ? Colors.white : const Color(0xFF141416),
+            indicatorColor: AppTheme.coral,
+            labelColor: isDark ? Colors.white : const Color(0xFF111827),
             unselectedLabelColor: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
             labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
             tabs: [
@@ -38,7 +38,8 @@ class SavedScreen extends ConsumerWidget {
             ],
           ),
         ),
-        body: TabBarView(
+        body: DotGridBackground(
+          child: TabBarView(
           children: [
             // Tab 1: Saved Papers
             saved.isEmpty
@@ -53,11 +54,14 @@ class SavedScreen extends ConsumerWidget {
                             decoration: BoxDecoration(
                               color: isDark ? const Color(0xFF1F232D) : const Color(0xFFF3F4F6),
                               shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
+                              ),
                             ),
-                            child: Icon(
+                            child: const Icon(
                               Icons.headphones_rounded,
-                              size: 42,
-                              color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                              size: 38,
+                              color: AppTheme.coral,
                             ),
                           ),
                           const SizedBox(height: 18),
@@ -224,7 +228,7 @@ class SavedScreen extends ConsumerWidget {
                                     fontSize: 11,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 0.8,
-                                    color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                                    color: isDark ? AppTheme.coral : const Color(0xFF111827),
                                   ),
                                 ),
                                 TextButton.icon(
@@ -292,8 +296,8 @@ class SavedScreen extends ConsumerWidget {
                                                   ? const Color(0xFF262B38)
                                                   : const Color(0xFFE5E7EB),
                                               color: entry.completed || pct >= 95
-                                                  ? const Color(0xFF55EFC4)
-                                                  : AppTheme.canaryYellow,
+                                                  ? const Color(0xFF10B981)
+                                                  : AppTheme.coral,
                                             ),
                                           ),
                                           const SizedBox(height: 8),
@@ -309,7 +313,7 @@ class SavedScreen extends ConsumerWidget {
                                                     fontSize: 11,
                                                     fontWeight: FontWeight.w700,
                                                     color: entry.completed || pct >= 95
-                                                        ? const Color(0xFF55EFC4)
+                                                        ? const Color(0xFF10B981)
                                                         : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563)),
                                                   ),
                                                 ),
@@ -337,6 +341,7 @@ class SavedScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

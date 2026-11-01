@@ -121,10 +121,19 @@ func TestDigestService(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects nil user ID", func(t *testing.T) {
-		_, err := svc.GenerateDigest(context.Background(), uuid.Nil, domaindigest.FrequencyWeekly)
-		if err != domaindigest.ErrInvalidUserID {
-			t.Errorf("expected ErrInvalidUserID, got %v", err)
+	t.Run("generates trending digest for guest (nil user ID)", func(t *testing.T) {
+		d, err := svc.GenerateDigest(context.Background(), uuid.Nil, domaindigest.FrequencyWeekly)
+		if err != nil {
+			t.Fatalf("unexpected error for guest: %v", err)
+		}
+		if d.UserID != uuid.Nil {
+			t.Errorf("expected nil user ID, got %s", d.UserID)
+		}
+		if len(d.Sections) != 1 {
+			t.Errorf("expected 1 trending section for guest")
+		}
+		if d.Sections[0].Title != "Trending Across Athena" {
+			t.Errorf("expected Trending Across Athena section")
 		}
 	})
 

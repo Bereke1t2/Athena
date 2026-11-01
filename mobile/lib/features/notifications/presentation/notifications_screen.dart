@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/athena_top_bar.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import 'notifications_notifier.dart';
 
 class NotificationsScreen extends ConsumerWidget {
@@ -16,21 +18,20 @@ class NotificationsScreen extends ConsumerWidget {
     final notifier = ref.read(notificationsNotifierProvider.notifier);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: const Text(
-          'Notifications',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-        ),
+      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      appBar: AthenaTopBar(
+        title: 'Notifications',
         actions: [
           if (state.unreadCount > 0)
-            TextButton(
+            AthenaCircularIconButton(
+              icon: Icons.done_all_rounded,
+              tooltip: 'Mark all read',
               onPressed: () => notifier.markAllAsRead(),
-              child: const Text('Mark all read', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
         ],
       ),
-      body: RefreshIndicator(
+      body: DotGridBackground(
+        child: RefreshIndicator(
         onRefresh: () => notifier.loadNotifications(),
         child: state.notifications.isEmpty
             ? (state.isLoading
@@ -46,11 +47,14 @@ class NotificationsScreen extends ConsumerWidget {
                             decoration: BoxDecoration(
                               color: isDark ? const Color(0xFF1F232D) : const Color(0xFFF3F4F6),
                               shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
+                              ),
                             ),
-                            child: Icon(
+                            child: const Icon(
                               Icons.notifications_none_rounded,
-                              size: 40,
-                              color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                              size: 38,
+                              color: AppTheme.coral,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -89,7 +93,7 @@ class NotificationsScreen extends ConsumerWidget {
                   switch (n.type) {
                     case 'new_papers_topic':
                       icon = Icons.category_rounded;
-                      iconColor = AppTheme.canaryYellow;
+                      iconColor = AppTheme.coral;
                       break;
                     case 'new_papers_author':
                       icon = Icons.person_outline_rounded;
@@ -191,6 +195,7 @@ class NotificationsScreen extends ConsumerWidget {
                 },
               ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -7,6 +7,7 @@ import '../../../core/prefs/prefs_providers.dart';
 import '../../../core/prefs/user_preferences.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import '../../topics/domain/topic.dart';
 
 const _fallbackTopics = <Topic>[
@@ -93,9 +94,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final canContinue = _selected.length >= _minSelection;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
-      body: SafeArea(
-        child: Column(
+      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      body: DotGridBackground(
+        child: SafeArea(
+          child: Column(
           children: [
             // Top Bar: Step Indicator & Skip Action
             AnimatedEntrance(
@@ -304,17 +306,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     SizedBox(
                       width: double.infinity,
                       height: 54,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
                           backgroundColor: canContinue
-                              ? (isDark ? const Color(0xFFFEEA66) : const Color(0xFF141416))
+                              ? (isDark ? AppTheme.coral : const Color(0xFF111827))
                               : (isDark ? const Color(0xFF2A2E3A) : const Color(0xFFD1D5DB)),
                           foregroundColor: canContinue
-                              ? (isDark ? const Color(0xFF141416) : Colors.white)
+                              ? (isDark ? const Color(0xFF111827) : Colors.white)
                               : (isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF)),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(27),
+                            borderRadius: BorderRadius.circular(28),
                           ),
                         ),
                         onPressed: canContinue ? _finish : null,
@@ -353,8 +355,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _TopicPill extends StatelessWidget {
@@ -382,19 +385,19 @@ class _TopicPill extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? (isDark ? const Color(0xFFFEEA66) : const Color(0xFF141416))
+                ? (isDark ? AppTheme.coral : const Color(0xFF111827))
                 : (isDark ? const Color(0xFF1C2028) : const Color(0xFFFFFFFF)),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: isSelected
-                  ? (isDark ? const Color(0xFFFEEA66) : const Color(0xFF141416))
+                  ? (isDark ? AppTheme.coral : const Color(0xFF111827))
                   : (isDark ? const Color(0xFF2F3544) : const Color(0xFFE5E7EB)),
               width: 1.2,
             ),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: (isDark ? const Color(0xFFFEEA66) : Colors.black).withValues(alpha: 0.12),
+                      color: (isDark ? AppTheme.coral : Colors.black).withValues(alpha: 0.12),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
@@ -410,7 +413,7 @@ class _TopicPill extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
-                    color: isDark ? const Color(0xFF141416) : Colors.white,
+                    color: isDark ? const Color(0xFF111827) : Colors.white,
                   ),
                 ),
               ],
@@ -420,7 +423,7 @@ class _TopicPill extends StatelessWidget {
                   fontSize: 13.5,
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                   color: isSelected
-                      ? (isDark ? const Color(0xFF141416) : Colors.white)
+                      ? (isDark ? const Color(0xFF111827) : Colors.white)
                       : (isDark ? const Color(0xFFE5E7EB) : const Color(0xFF1F2937)),
                 ),
               ),

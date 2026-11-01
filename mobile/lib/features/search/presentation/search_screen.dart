@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/athena_top_bar.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/paper_card.dart';
 import '../domain/search.dart';
 import 'search_notifier.dart';
@@ -64,15 +66,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Search',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
-        ),
-        centerTitle: false,
+      appBar: const AthenaTopBar(
+        title: 'Search',
+        showLeading: false,
       ),
-      body: Column(
-        children: [
+      body: DotGridBackground(
+        child: Column(
+          children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
             child: SearchBar(
@@ -154,8 +154,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Expanded(child: _results(context, state)),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   static AsyncValue<List<SearchResult>> _toList(AsyncValue<SearchPageState> page) => page.when(
         data: (s) => AsyncValue<List<SearchResult>>.data(s.results),
@@ -180,11 +181,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF20242E) : const Color(0xFFF3F4F6),
                   shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
+                  ),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.travel_explore_rounded,
-                  size: 40,
-                  color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                  size: 36,
+                  color: AppTheme.coral,
                 ),
               ),
               const SizedBox(height: 18),
