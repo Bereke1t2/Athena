@@ -66,9 +66,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AthenaTopBar(
-        title: 'SEARCH',
-        showLeading: context.canPop(),
+      appBar: const AthenaTopBar(
+        title: 'Search',
+        showLeading: false,
       ),
       body: DotGridBackground(
         child: Column(

@@ -1,6 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+bool _safeCanPop(BuildContext context) {
+  try {
+    return Navigator.of(context).canPop();
+  } catch (_) {
+    return false;
+  }
+}
+
+void _safePop(BuildContext context) {
+  try {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+  } catch (_) {}
+  try {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+  } catch (_) {}
+  try {
+    context.go('/');
+  } catch (_) {}
+}
 
 /// Standardized circular outline action button matching the Resarc editorial design.
 class AthenaCircularIconButton extends StatelessWidget {
@@ -69,7 +94,7 @@ class AthenaTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.titleWidget,
     this.leading,
     this.onLeadingTap,
-    this.showLeading = true,
+    this.showLeading,
     this.isCloseButton = false,
     this.actions = const [],
     this.bottom,
@@ -80,7 +105,7 @@ class AthenaTopBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget? titleWidget;
   final Widget? leading;
   final VoidCallback? onLeadingTap;
-  final bool showLeading;
+  final bool? showLeading;
   final bool isCloseButton;
   final List<Widget> actions;
   final PreferredSizeWidget? bottom;
@@ -93,24 +118,21 @@ class AthenaTopBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final shouldShowLeading = showLeading ?? (onLeadingTap != null || _safeCanPop(context));
+
     Widget? leadingWidget = leading;
-    if (leadingWidget == null && showLeading) {
-      final canPop = Navigator.of(context).canPop();
-      if (canPop || onLeadingTap != null) {
-        leadingWidget = AthenaCircularIconButton(
-          icon: isCloseButton ? Icons.close_rounded : Icons.arrow_back_rounded,
-          tooltip: isCloseButton ? 'Close' : 'Back',
-          onPressed: () {
-            if (onLeadingTap != null) {
-              onLeadingTap!();
-            } else if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/');
-            }
-          },
-        );
-      }
+    if (leadingWidget == null && shouldShowLeading) {
+      leadingWidget = AthenaCircularIconButton(
+        icon: isCloseButton ? Icons.close_rounded : Icons.arrow_back_rounded,
+        tooltip: isCloseButton ? 'Close' : 'Back',
+        onPressed: () {
+          if (onLeadingTap != null) {
+            onLeadingTap!();
+          } else {
+            _safePop(context);
+          }
+        },
+      );
     }
 
     Widget? centerWidget = titleWidget;
@@ -118,9 +140,9 @@ class AthenaTopBar extends StatelessWidget implements PreferredSizeWidget {
       centerWidget = Text(
         title!,
         style: TextStyle(
-          fontSize: 14,
+          fontSize: 16,
           fontWeight: FontWeight.w800,
-          letterSpacing: 0.8,
+          letterSpacing: -0.2,
           color: isDark ? Colors.white : const Color(0xFF111827),
         ),
       );
