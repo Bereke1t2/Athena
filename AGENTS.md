@@ -37,7 +37,18 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Research Digest Error Resolution & Resilient Architecture (2026-11-01)**:
+1. **Mobile UI Consistency & Design System Unification (2026-11-01)**:
+   - **Scope**: Unified all 19 screens across Athena mobile to the Resarc editorial design system.
+   - **Core Deliverables**:
+     - *Universal Top Bar*: Implemented [`AthenaTopBar`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/athena_top_bar.dart) and [`AthenaCircularIconButton`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/athena_top_bar.dart) (`PreferredSizeWidget`) with circular outline actions, subtle borders, brandmark support, and safe pop handling across Navigator and GoRouter contexts.
+     - *Universal Canvas*: Wrapped all screens in [`DotGridBackground`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/dot_grid_background.dart) on `AppTheme.lightBg` (`#FBFBFB`) and `AppTheme.deepDark` (`#101216`).
+     - *State Views Overhaul*: Redesigned [`EmptyView`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/state_views.dart) and [`ErrorView`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/state_views.dart) with circular outline containers, coral accents, and pill-shaped retry buttons.
+     - *Palette & Token Purity*: Eradicated all remaining legacy `canaryYellow` token references across `mobile/lib/`, migrating all accent badges, progress indicators, sparks, and pills to vibrant Resarc coral (`AppTheme.coral`). Replaced ad-hoc blue gradients in Digest with monochromatic card surfaces.
+     - *Auth & Onboarding Polish*: Upgraded [`LoginScreen`](file:///home/bereket/startup/Athena/mobile/lib/features/auth/presentation/login_screen.dart) and [`RegisterScreen`](file:///home/bereket/startup/Athena/mobile/lib/features/auth/presentation/register_screen.dart) with [`AthenaArcEmblem`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/athena_branding.dart), rounded pill inputs/buttons, and updated [`OnboardingScreen`](file:///home/bereket/startup/Athena/mobile/lib/features/onboarding/presentation/onboarding_screen.dart) with coral pill selection.
+     - *Screen Alignment*: Upgraded `SearchScreen`, `TopicsScreen`, `TopicDetailScreen`, `SavedScreen`, `DigestScreen`, `ProfileScreen`, `NotificationsScreen`, `ComparisonScreen`, `CreateAudioScreen`, and `PdfViewerScreen`.
+   - **Verification**: `dart analyze` 0 issues (clean); `flutter test` 62 passed, 1 skipped; `go test -count=1 ./...` 100% green across all packages.
+
+2. **Research Digest Error Resolution & Resilient Architecture (2026-11-01)**:
    - **Root Causes**:
      - *Wire Format Mismatch*: Backend directly serialized domain `UserDigest` using `WriteJSON(w, ..., d)`. Raw `DigestSection.Papers` (`research.PaperSummary` domain struct) was emitted in PascalCase (`ID`, `Title`, `Year`, `VenueName`, `IsOpenAccess`, `CitedByCount`). Mobile `PaperSummaryDto.fromJson` threw a fatal `TypeError` / `CheckedFromJsonException`.
      - *Missing Error Boundary*: `DigestRepositoryImpl` leaked raw `DioException` and `TypeError` straight into `DigestNotifier`, causing `ErrorView` to dump massive multi-line debug exceptions across the screen.
