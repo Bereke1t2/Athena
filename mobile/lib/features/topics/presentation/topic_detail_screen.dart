@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/athena_top_bar.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/paper_card.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../auth/presentation/auth_notifier.dart';
@@ -29,8 +31,11 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
     final papersAsync = ref.watch(topicPapersNotifierProvider(widget.slug, sort: _sort));
 
     return Scaffold(
-      appBar: AppBar(title: Text(topicAsync.valueOrNull?.name ?? 'Topic')),
-      body: RefreshIndicator(
+      appBar: AthenaTopBar(
+        title: topicAsync.valueOrNull?.name ?? 'Topic',
+      ),
+      body: DotGridBackground(
+        child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(topicDetailControllerProvider(widget.slug));
           ref.invalidate(topicPapersNotifierProvider(widget.slug, sort: _sort));
@@ -153,8 +158,9 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _header(BuildContext context, WidgetRef ref, Topic topic) {
     final theme = Theme.of(context);
