@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 
 	appdigest "athena/backend/internal/application/digest"
-	domaindigest "athena/backend/internal/domain/digest"
 	domainfollow "athena/backend/internal/domain/follow"
 	"athena/backend/internal/domain/research"
 	domainuser "athena/backend/internal/domain/user"
@@ -38,9 +37,12 @@ func TestDigestHandlers(t *testing.T) {
 	paperReader := &fakeDigestPaperReader{
 		papers: []research.PaperSummary{
 			{
-				ID:    uuid.New(),
-				Title: "Deep Learning in Scientific Discovery",
-				Year:  2025,
+				ID:           uuid.New(),
+				Title:        "Deep Learning in Scientific Discovery",
+				Year:         2025,
+				VenueName:    "NeurIPS",
+				IsOpenAccess: true,
+				CitedByCount: 42,
 			},
 		},
 	}
@@ -56,13 +58,28 @@ func TestDigestHandlers(t *testing.T) {
 	userCtx := context.WithValue(context.Background(), userKey{},
 		domainuser.User{ID: userID, Email: "researcher@example.com"})
 
-	t.Run("latest requires auth", func(t *testing.T) {
+	t.Run("latest returns trending digest for guest (unauthenticated)", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/research/digest/latest", nil)
 		rec := httptest.NewRecorder()
 		h.Latest(rec, req)
 
-		if rec.Code != http.StatusUnauthorized {
-			t.Fatalf("expected 401, got %d", rec.Code)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+		var d userDigestDTO
+		if err := json.Unmarshal(rec.Body.Bytes(), &d); err != nil {
+			t.Fatalf("failed to decode digest response: %v", err)
+		}
+		if len(d.Sections) == 0 {
+			t.Fatalf("expected at least 1 section in guest digest")
+		}
+
+		// Verify wire format contains snake_case paper fields matching mobile PaperSummaryDto
+		body := rec.Body.String()
+		for _, key := range []string{"publication_year", "venue", "cited_by_count", "is_open_access"} {
+			if !bytes.Contains(rec.Body.Bytes(), []byte(key)) {
+				t.Errorf("digest wire format missing snake_case field %q: %s", key, body)
+			}
 		}
 	})
 
@@ -74,15 +91,35 @@ func TestDigestHandlers(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 		}
-		var d domaindigest.UserDigest
+		var d userDigestDTO
 		if err := json.Unmarshal(rec.Body.Bytes(), &d); err != nil {
 			t.Fatalf("failed to decode digest response: %v", err)
 		}
-		if d.UserID != userID {
+		if d.UserID != userID.String() {
 			t.Errorf("expected user ID %s, got %s", userID, d.UserID)
 		}
 		if len(d.Sections) == 0 {
 			t.Errorf("expected at least 1 section in digest")
+		}
+		if len(d.Sections[0].Papers) == 0 {
+			t.Errorf("expected at least 1 paper in section")
+		}
+		p := d.Sections[0].Papers[0]
+		if p.PublicationYear != 2025 {
+			t.Errorf("expected PublicationYear 2025, got %d", p.PublicationYear)
+		}
+		if p.Venue.Name != "NeurIPS" {
+			t.Errorf("expected Venue.Name NeurIPS, got %s", p.Venue.Name)
+		}
+	})
+
+	t.Run("generate requires auth", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/research/digest/generate", nil)
+		rec := httptest.NewRecorder()
+		h.Generate(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rec.Code)
 		}
 	})
 
@@ -95,11 +132,11 @@ func TestDigestHandlers(t *testing.T) {
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
 		}
-		var d domaindigest.UserDigest
+		var d userDigestDTO
 		if err := json.Unmarshal(rec.Body.Bytes(), &d); err != nil {
 			t.Fatalf("failed to decode digest response: %v", err)
 		}
-		if d.Frequency != domaindigest.FrequencyDaily {
+		if d.Frequency != "daily" {
 			t.Errorf("expected daily frequency, got %s", d.Frequency)
 		}
 	})

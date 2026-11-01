@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../auth/presentation/auth_notifier.dart';
 import 'digest_notifier.dart';
 
 class DigestScreen extends ConsumerWidget {
@@ -15,6 +17,7 @@ class DigestScreen extends ConsumerWidget {
     final isDark = theme.brightness == Brightness.dark;
     final state = ref.watch(digestNotifierProvider);
     final notifier = ref.read(digestNotifierProvider.notifier);
+    final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
@@ -33,286 +36,361 @@ class DigestScreen extends ConsumerWidget {
                   )
                 : const Icon(Icons.refresh_rounded, size: 22),
             tooltip: 'Regenerate Briefing',
-            onPressed: state.isGenerating ? null : () => notifier.regenerate(),
+            onPressed: state.isGenerating
+                ? null
+                : () {
+                    if (!authState.isAuthenticated) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Sign in to personalize your weekly research briefings.'),
+                          action: SnackBarAction(
+                            label: 'Sign In',
+                            onPressed: () => context.push('/login'),
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    notifier.regenerate();
+                  },
           ),
         ],
       ),
-      body: Builder(
-        builder: (context) {
-          if (state.isLoading && state.digest == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state.error != null && state.digest == null) {
-            return ErrorView(
-              failure: state.error!,
-              onRetry: () => notifier.loadLatest(),
-            );
-          }
-          final digest = state.digest;
-          if (digest == null) {
-            return const EmptyView(
-              icon: Icons.auto_stories_outlined,
-              title: 'No digest generated yet',
-              subtitle: 'Follow research topics to receive periodic briefings.',
-            );
-          }
+      body: DotGridBackground(
+        child: Builder(
+          builder: (context) {
+            if (state.isLoading && state.digest == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (state.error != null && state.digest == null) {
+              return ErrorView(
+                failure: state.error!,
+                onRetry: () => notifier.loadLatest(),
+              );
+            }
+            final digest = state.digest;
+            if (digest == null) {
+              return const EmptyView(
+                icon: Icons.auto_stories_outlined,
+                title: 'No digest generated yet',
+                subtitle: 'Follow research topics to receive periodic briefings.',
+              );
+            }
 
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            children: [
-              // Header Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isDark
-                        ? [const Color(0xFF1E2330), const Color(0xFF151822)]
-                        : [const Color(0xFFEFF6FF), Colors.white],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isDark ? const Color(0xFF2C3345) : const Color(0xFFDBEAFE),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppTheme.canaryYellow.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            digest.frequency.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: AppTheme.canaryYellow,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '${digest.generatedAt.day}/${digest.generatedAt.month}/${digest.generatedAt.year}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Executive Research Briefing',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 20,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'High-velocity developments, empirical consensus, and curated breakthroughs tailored to your scientific focus.',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563),
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Takeaways Section
-              if (digest.topTakeaways.isNotEmpty) ...[
-                const _SectionTitle(title: 'KEY BREAKTHROUGHS & TAKEAWAYS'),
-                const SizedBox(height: 10),
-                ...digest.topTakeaways.map((takeaway) => Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(14),
+            return RefreshIndicator(
+              onRefresh: () => notifier.loadLatest(),
+              color: AppTheme.coral,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                children: [
+                  // Guest notice banner
+                  if (!authState.isAuthenticated)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF161922) : Colors.white,
-                        borderRadius: BorderRadius.circular(14),
+                        color: AppTheme.coral.withValues(alpha: isDark ? 0.12 : 0.08),
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB),
+                          color: AppTheme.coral.withValues(alpha: isDark ? 0.3 : 0.2),
                         ),
                       ),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Padding(
-                            padding: EdgeInsets.only(top: 2, right: 10),
-                            child: Icon(Icons.check_circle_outline_rounded,
-                                size: 18, color: Color(0xFF55EFC4)),
-                          ),
+                          const Icon(Icons.auto_awesome, color: AppTheme.coral, size: 20),
+                          const SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              takeaway,
-                              style: TextStyle(
-                                fontSize: 13,
-                                height: 1.4,
-                                color: isDark ? Colors.white : const Color(0xFF1F2937),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
-                const SizedBox(height: 20),
-              ],
-
-              // Topic Pulses Section
-              if (digest.pulses.isNotEmpty) ...[
-                const _SectionTitle(title: 'TOPIC VELOCITY & PULSE'),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 136,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: digest.pulses.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
-                    itemBuilder: (context, i) {
-                      final pulse = digest.pulses[i];
-                      return Container(
-                        width: 175,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF161922) : Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              pulse.topicName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                            ),
-                            Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.bolt_rounded, size: 16, color: AppTheme.canaryYellow),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    '+${pulse.velocity.toStringAsFixed(1)}x velocity',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.canaryYellow,
-                                    ),
+                                const Text(
+                                  'Trending Athena Briefing',
+                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Sign in to tailor briefings to your followed topics.',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                                   ),
                                 ),
                               ],
                             ),
-                            // Trend sparkline graph
-                            SizedBox(
-                              height: 22,
-                              width: double.infinity,
-                              child: CustomPaint(
-                                painter: _VelocitySparklinePainter(
-                                  velocity: pulse.velocity,
-                                  isDark: isDark,
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.tonal(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppTheme.coral.withValues(alpha: 0.15),
+                              foregroundColor: AppTheme.coral,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            onPressed: () => context.push('/login'),
+                            child: const Text('Sign In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Header Card
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isDark
+                            ? [const Color(0xFF1E2330), const Color(0xFF151822)]
+                            : [const Color(0xFFEFF6FF), Colors.white],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF2C3345) : const Color(0xFFDBEAFE),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppTheme.canaryYellow.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                digest.frequency.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppTheme.canaryYellow,
+                                  letterSpacing: 0.8,
                                 ),
                               ),
                             ),
                             Text(
-                              '${pulse.paperCount} recent papers',
+                              '${digest.generatedAt.day}/${digest.generatedAt.month}/${digest.generatedAt.year}',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                               ),
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-
-              // Curated Sections
-              ...digest.sections.map((section) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SectionTitle(title: section.title.toUpperCase()),
-                      const SizedBox(height: 4),
-                      Text(
-                        section.description,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Executive Research Briefing',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 20,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      ...section.papers.map((paper) => Card(
-                            elevation: 0,
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: () => context.push('/papers/${paper.id}'),
-                              child: Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 6),
+                        Text(
+                          'High-velocity developments, empirical consensus, and curated breakthroughs tailored to scientific focus.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Takeaways Section
+                  if (digest.topTakeaways.isNotEmpty) ...[
+                    const _SectionTitle(title: 'KEY BREAKTHROUGHS & TAKEAWAYS'),
+                    const SizedBox(height: 10),
+                    ...digest.topTakeaways.map((takeaway) => Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF161922) : Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 2, right: 10),
+                                child: Icon(Icons.check_circle_outline_rounded,
+                                    size: 18, color: Color(0xFF55EFC4)),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  takeaway,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    height: 1.4,
+                                    color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // Topic Pulses Section
+                  if (digest.pulses.isNotEmpty) ...[
+                    const _SectionTitle(title: 'TOPIC VELOCITY & PULSE'),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 136,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: digest.pulses.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 10),
+                        itemBuilder: (context, i) {
+                          final pulse = digest.pulses[i];
+                          return Container(
+                            width: 175,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF161922) : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  pulse.topicName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                ),
+                                Row(
                                   children: [
-                                    Text(
-                                      paper.title,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w800,
+                                    const Icon(Icons.bolt_rounded, size: 16, color: AppTheme.canaryYellow),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        '+${pulse.velocity.toStringAsFixed(1)}x velocity',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.canaryYellow,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            '${paper.year} · ${paper.venueName.isNotEmpty ? paper.venueName : "Preprint"}',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          '${paper.citedByCount} citations',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF74B9FF),
-                                          ),
-                                        ),
-                                      ],
                                     ),
                                   ],
                                 ),
-                              ),
+                                // Trend sparkline graph
+                                SizedBox(
+                                  height: 22,
+                                  width: double.infinity,
+                                  child: CustomPaint(
+                                    painter: _VelocitySparklinePainter(
+                                      velocity: pulse.velocity,
+                                      isDark: isDark,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${pulse.paperCount} recent papers',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                  ),
+                                ),
+                              ],
                             ),
-                          )),
-                      const SizedBox(height: 16),
-                    ],
-                  )),
-            ],
-          );
-        },
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Curated Sections
+                  ...digest.sections.map((section) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SectionTitle(title: section.title.toUpperCase()),
+                          const SizedBox(height: 4),
+                          Text(
+                            section.description,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          ...section.papers.map((paper) => Card(
+                                elevation: 0,
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () => context.push('/papers/${paper.id}'),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(14),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          paper.title,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                '${paper.year} · ${paper.venueName.isNotEmpty ? paper.venueName : "Preprint"}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              '${paper.citedByCount} citations',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF74B9FF),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              )),
+                          const SizedBox(height: 16),
+                        ],
+                      )),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

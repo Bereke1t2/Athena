@@ -37,7 +37,23 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Topic Papers Sort Resolution & Newest/Citations Sorting (2026-10-31)**:
+1. **Research Digest Error Resolution & Resilient Architecture (2026-11-01)**:
+   - **Root Causes**:
+     - *Wire Format Mismatch*: Backend directly serialized domain `UserDigest` using `WriteJSON(w, ..., d)`. Raw `DigestSection.Papers` (`research.PaperSummary` domain struct) was emitted in PascalCase (`ID`, `Title`, `Year`, `VenueName`, `IsOpenAccess`, `CitedByCount`). Mobile `PaperSummaryDto.fromJson` threw a fatal `TypeError` / `CheckedFromJsonException`.
+     - *Missing Error Boundary*: `DigestRepositoryImpl` leaked raw `DioException` and `TypeError` straight into `DigestNotifier`, causing `ErrorView` to dump massive multi-line debug exceptions across the screen.
+     - *Guest 401 Wall*: `/research/digest/latest` was mounted behind `RequireAuth`. Guest users navigating to the 4th tab received HTTP 401 Unauthorized, crashing the screen.
+   - **Backend Fixes**:
+     - Introduced `userDigestDTO` and `digestSectionDTO` in `backend/internal/delivery/http/v1/digest.go` with `newDigestDTO()` mapping all papers via `newSummaryDTO()` to standard snake_case `paperSummaryDTO` wire format.
+     - Updated `appdigest.Service.GenerateDigest` and `GetLatestDigest` to support `userID == uuid.Nil`, generating dynamic trending science briefings for guest researchers without requiring database persistence.
+     - Changed `GET /api/v1/research/digest/latest` in `httpserver/server.go` to use `WithAuth` (optional auth): authenticated users receive personalized briefings, while guests receive trending science briefings. Kept `POST /api/v1/research/digest/generate` protected by `RequireAuth`.
+   - **Mobile Hardening**:
+     - Updated `DigestRepositoryImpl` with `failureFromDio()` try/catch wrapping and defensive normalization in `_parseDigest()` (supporting snake_case, legacy/PascalCase keys, and skipping corrupt items without crashing).
+     - Enhanced `DigestNotifier` to watch `authNotifierProvider` and automatically reload personalized briefings when users sign in.
+     - Sanitized `ErrorView` in `core/widgets/state_views.dart` to prevent raw exception dumps from ever appearing in the UI.
+     - Upgraded `DigestScreen` with `DotGridBackground`, Resarc editorial typography, guest callout banner with one-tap Sign In, and `RefreshIndicator` for pull-to-refresh.
+   - **Verification**: `go test -count=1 ./...` 100% green; `dart analyze` clean (0 issues); `flutter test` 62 passed (1 skipped); Go binaries (`api`, `worker`, `migrate`) build cleanly.
+
+2. **Topic Papers Sort Resolution & Newest/Citations Sorting (2026-10-31)**:
    - **Root Cause**: `TopicsRepositoryImpl.listResearch` and `TopicPapersNotifier` defaulted to `sort: 'relevance'`. The backend `research.go` handler rejected `relevance` with HTTP 400 `unknown sort sort: must be newest|citations`.
    - **Backend Hardening**: Updated `backend/internal/delivery/http/v1/research.go` to support `relevance` per `api-specification.md §2`, gracefully mapping relevance to citation ranking when no query text is supplied, and updated error detail whitelist to `must be newest|citations|relevance`.
    - **Mobile Topic Screen Enhancement**: Updated default sort to `newest` across `TopicsRepositoryImpl`, `TopicPapersNotifier`, and `_FakeTopicsRepository`. Enhanced `TopicDetailScreen` into a `ConsumerStatefulWidget` with interactive `[Newest]` / `[Most Cited]` ChoiceChips for dynamic paper sorting.

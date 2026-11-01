@@ -216,7 +216,7 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 	}
 
 	if deps.Auth != nil && deps.Digest != nil {
-		mux.Handle("GET /api/v1/research/digest/latest", v1.RequireAuth(deps.Digest.Latest))
+		mux.HandleFunc("GET /api/v1/research/digest/latest", deps.Digest.Latest)
 		mux.Handle("POST /api/v1/research/digest/generate", v1.RequireAuth(deps.Digest.Generate))
 	}
 

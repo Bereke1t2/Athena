@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di.dart';
+import '../../../core/error/failure.dart';
+import '../../auth/presentation/auth_notifier.dart';
 import '../domain/digest_models.dart';
 import '../domain/digest_repository.dart';
 
@@ -33,19 +35,21 @@ class DigestState {
 }
 
 class DigestNotifier extends StateNotifier<DigestState> {
-  DigestNotifier(this._repo) : super(const DigestState()) {
+  DigestNotifier(this._repo, {this.isAuthenticated = false}) : super(const DigestState()) {
     loadLatest();
   }
 
   final DigestRepository _repo;
+  final bool isAuthenticated;
 
   Future<void> loadLatest() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final d = await _repo.getLatestDigest();
-      state = state.copyWith(isLoading: false, digest: d);
+      state = state.copyWith(isLoading: false, digest: d, error: null);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e);
+      final failure = e is Failure ? e : Failure.unknown(cause: e);
+      state = state.copyWith(isLoading: false, error: failure);
     }
   }
 
@@ -53,14 +57,17 @@ class DigestNotifier extends StateNotifier<DigestState> {
     state = state.copyWith(isGenerating: true, error: null);
     try {
       final d = await _repo.generateDigest(frequency: frequency);
-      state = state.copyWith(isGenerating: false, digest: d);
+      state = state.copyWith(isGenerating: false, digest: d, error: null);
     } catch (e) {
-      state = state.copyWith(isGenerating: false, error: e);
+      final failure = e is Failure ? e : Failure.unknown(cause: e);
+      state = state.copyWith(isGenerating: false, error: failure);
     }
   }
 }
 
 final digestNotifierProvider =
     StateNotifierProvider<DigestNotifier, DigestState>((ref) {
-  return DigestNotifier(ref.watch(digestRepositoryProvider));
+  final repo = ref.watch(digestRepositoryProvider);
+  final auth = ref.watch(authNotifierProvider);
+  return DigestNotifier(repo, isAuthenticated: auth.isAuthenticated);
 });

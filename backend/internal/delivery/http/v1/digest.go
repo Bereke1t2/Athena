@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/google/uuid"
+
 	appdigest "athena/backend/internal/application/digest"
 	domaindigest "athena/backend/internal/domain/digest"
 )
@@ -29,26 +31,67 @@ type generateDigestRequestDTO struct {
 	Frequency string `json:"frequency,omitempty"`
 }
 
+type digestSectionDTO struct {
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Papers      []paperSummaryDTO `json:"papers"`
+}
+
+type userDigestDTO struct {
+	ID           string                    `json:"id"`
+	UserID       string                    `json:"user_id"`
+	GeneratedAt  string                    `json:"generated_at"`
+	Frequency    string                    `json:"frequency"`
+	Pulses       []domaindigest.TopicPulse `json:"pulses"`
+	Sections     []digestSectionDTO        `json:"sections"`
+	TopTakeaways []string                  `json:"top_takeaways"`
+}
+
+func newDigestDTO(d domaindigest.UserDigest) userDigestDTO {
+	sections := make([]digestSectionDTO, len(d.Sections))
+	for i, s := range d.Sections {
+		papers := make([]paperSummaryDTO, len(s.Papers))
+		for j, p := range s.Papers {
+			papers[j] = newSummaryDTO(p)
+		}
+		sections[i] = digestSectionDTO{
+			Title:       s.Title,
+			Description: s.Description,
+			Papers:      papers,
+		}
+	}
+	return userDigestDTO{
+		ID:           d.ID.String(),
+		UserID:       d.UserID.String(),
+		GeneratedAt:  d.GeneratedAt.UTC().Format(timeFormatRFC3339),
+		Frequency:    string(d.Frequency),
+		Pulses:       d.Pulses,
+		Sections:     sections,
+		TopTakeaways: d.TopTakeaways,
+	}
+}
+
 // Latest: GET /api/v1/research/digest/latest
+// If the caller is authenticated, returns their personalized briefing.
+// If unauthenticated (guest), returns a dynamic trending briefing across Athena.
 func (h *DigestHandlers) Latest(w http.ResponseWriter, r *http.Request) {
 	if h.Svc == nil {
 		WriteError(w, r, http.StatusServiceUnavailable, CodeInternal, "digest service unavailable")
 		return
 	}
-	user, ok := UserFromContext(r.Context())
-	if !ok {
-		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "authentication required")
-		return
+	var userID uuid.UUID
+	if user, ok := UserFromContext(r.Context()); ok {
+		userID = user.ID
 	}
 
-	d, err := h.Svc.GetLatestDigest(r.Context(), user.ID)
+	d, err := h.Svc.GetLatestDigest(r.Context(), userID)
 	if err != nil {
-		h.Logger.Error("failed to get digest", "error", err, "user_id", user.ID)
+		h.Logger.Error("failed to get digest", "error", err, "user_id", userID)
 		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "failed to get research digest")
 		return
 	}
 
-	WriteJSON(w, http.StatusOK, d)
+	WriteJSON(w, http.StatusOK, newDigestDTO(d))
 }
 
 // Generate: POST /api/v1/research/digest/generate
@@ -81,5 +124,5 @@ func (h *DigestHandlers) Generate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	WriteJSON(w, http.StatusCreated, d)
+	WriteJSON(w, http.StatusCreated, newDigestDTO(d))
 }
