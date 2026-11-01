@@ -479,13 +479,13 @@ class _ScoreBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
       decoration: BoxDecoration(
-        color: AppTheme.canaryYellow.withValues(alpha: 0.18),
+        color: AppTheme.coral.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         score.toStringAsFixed(1),
         style: const TextStyle(
-          color: AppTheme.canaryYellow,
+          color: AppTheme.coral,
           fontSize: 10.5,
           fontWeight: FontWeight.w900,
         ),

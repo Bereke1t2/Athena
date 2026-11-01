@@ -98,10 +98,10 @@ class _PaperExportSheetState extends ConsumerState<_PaperExportSheet> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                          color: AppTheme.coral.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.format_quote_rounded, size: 20, color: AppTheme.canaryYellow),
+                        child: const Icon(Icons.format_quote_rounded, size: 20, color: AppTheme.coral),
                       ),
                       const SizedBox(width: 12),
                       const Flexible(
@@ -183,7 +183,7 @@ class _PaperExportSheetState extends ConsumerState<_PaperExportSheet> {
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.canaryYellow,
+                      backgroundColor: AppTheme.coral,
                       foregroundColor: const Color(0xFF141416),
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),

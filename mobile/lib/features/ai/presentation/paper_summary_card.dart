@@ -49,13 +49,13 @@ class _PaperSummaryCardState extends ConsumerState<PaperSummaryCard> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: AppTheme.canaryYellow.withValues(alpha: 0.18),
+                        color: AppTheme.coral.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
                         Icons.auto_awesome,
                         size: 16,
-                        color: AppTheme.canaryYellow,
+                        color: AppTheme.coral,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -79,20 +79,20 @@ class _PaperSummaryCardState extends ConsumerState<PaperSummaryCard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                    color: AppTheme.coral.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.bolt_rounded, size: 13, color: AppTheme.canaryYellow),
+                      Icon(Icons.bolt_rounded, size: 13, color: AppTheme.coral),
                       SizedBox(width: 3),
                       Text(
                         'INSTANT',
                         style: TextStyle(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w900,
-                          color: AppTheme.canaryYellow,
+                          color: AppTheme.coral,
                         ),
                       ),
                     ],
@@ -160,7 +160,7 @@ class _PaperSummaryCardState extends ConsumerState<PaperSummaryCard> {
           const SizedBox(height: 14),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+              backgroundColor: isDark ? AppTheme.coral : const Color(0xFF141416),
               foregroundColor: isDark ? const Color(0xFF141416) : Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               shape: RoundedRectangleBorder(
@@ -234,7 +234,7 @@ class _PaperSummaryCardState extends ConsumerState<PaperSummaryCard> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
-                      color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                      color: isDark ? AppTheme.coral : const Color(0xFF141416),
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -294,7 +294,7 @@ class _PaperSummaryCardState extends ConsumerState<PaperSummaryCard> {
                     child: Icon(
                       Icons.circle,
                       size: 5,
-                      color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                      color: isDark ? AppTheme.coral : const Color(0xFF141416),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -384,7 +384,7 @@ class _PaperSummaryCardState extends ConsumerState<PaperSummaryCard> {
               color: isDark ? const Color(0xFF262118) : const Color(0xFFFFFDE8),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: AppTheme.canaryYellow.withValues(alpha: 0.6),
+                color: AppTheme.coral.withValues(alpha: 0.6),
               ),
             ),
             child: Column(

@@ -216,7 +216,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: AppTheme.canaryYellow,
+                                color: AppTheme.coral,
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(

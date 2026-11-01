@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di.dart';
 import '../../../core/error/failure.dart';
+import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../history/presentation/history_notifier.dart';
 
@@ -71,12 +72,8 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.title ?? 'PDF',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+      appBar: AthenaTopBar(
+        title: widget.title ?? 'PDF',
       ),
       body: _error != null
           ? ErrorView(

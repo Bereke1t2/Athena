@@ -173,7 +173,7 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.8,
                         color: isDark
-                            ? AppTheme.canaryYellow
+                            ? AppTheme.coral
                             : const Color(0xFF141416),
                       ),
                     ),
@@ -250,7 +250,7 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.8,
                     color:
-                        isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                        isDark ? AppTheme.coral : const Color(0xFF141416),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -290,7 +290,7 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? (isDark ? AppTheme.canaryYellow : const Color(0xFF141416))
+              ? (isDark ? AppTheme.coral : const Color(0xFF141416))
               : (isDark ? const Color(0xFF1F232D) : const Color(0xFFF3F4F6)),
           borderRadius: BorderRadius.circular(12),
         ),

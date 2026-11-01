@@ -129,7 +129,7 @@ class NotificationsScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isUnread
-                              ? (isDark ? AppTheme.canaryYellow.withValues(alpha: 0.4) : const Color(0xFFCBD5E1))
+                              ? (isDark ? AppTheme.coral.withValues(alpha: 0.4) : const Color(0xFFCBD5E1))
                               : (isDark ? const Color(0xFF222736) : const Color(0xFFE5E7EB)),
                           width: isUnread ? 1.4 : 1.0,
                         ),
@@ -167,7 +167,7 @@ class NotificationsScreen extends ConsumerWidget {
                                         width: 8,
                                         height: 8,
                                         decoration: const BoxDecoration(
-                                          color: AppTheme.canaryYellow,
+                                          color: AppTheme.coral,
                                           shape: BoxShape.circle,
                                         ),
                                       ),

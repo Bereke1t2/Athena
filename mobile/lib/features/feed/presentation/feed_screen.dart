@@ -547,7 +547,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                       decoration: BoxDecoration(
                                         color: i < 3
-                                            ? AppTheme.canaryYellow
+                                            ? AppTheme.coral
                                             : (isDark ? const Color(0xFF222736) : const Color(0xFFF1F3F7)),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -570,7 +570,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              const Icon(Icons.auto_awesome_rounded, size: 11, color: AppTheme.canaryYellow),
+                                              const Icon(Icons.auto_awesome_rounded, size: 11, color: AppTheme.coral),
                                               const SizedBox(width: 4),
                                               Text(
                                                 item.reason.isNotEmpty ? item.reason : 'Recommended',
@@ -801,7 +801,7 @@ class _ContinueListeningTile extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                         decoration: BoxDecoration(
-                          color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                          color: AppTheme.coral.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
@@ -809,7 +809,7 @@ class _ContinueListeningTile extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 8.5,
                             fontWeight: FontWeight.w900,
-                            color: AppTheme.canaryYellow,
+                            color: AppTheme.coral,
                           ),
                         ),
                       ),
@@ -839,7 +839,7 @@ class _ContinueListeningTile extends StatelessWidget {
                 height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isPlaying ? AppTheme.canaryYellow : const Color(0xFF141416),
+                  color: isPlaying ? AppTheme.coral : const Color(0xFF141416),
                 ),
                 child: Icon(
                   isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
@@ -945,7 +945,7 @@ class _TopicFilterChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
             color: isSelected
-                ? (isDark ? AppTheme.canaryYellow : const Color(0xFF141416))
+                ? (isDark ? AppTheme.coral : const Color(0xFF141416))
                 : (isDark ? const Color(0xFF1C2028) : Colors.white),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(

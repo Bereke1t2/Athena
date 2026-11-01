@@ -192,7 +192,7 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isFollowed
                       ? (isDark ? const Color(0xFF232836) : const Color(0xFFE5E7EB))
-                      : AppTheme.canaryYellow,
+                      : AppTheme.coral,
                   foregroundColor: isFollowed
                       ? (isDark ? Colors.white : const Color(0xFF141416))
                       : const Color(0xFF141416),
@@ -424,9 +424,9 @@ class _TopicTaxonomyPainter extends CustomPainter {
     for (final node in nodes) {
       Color nodeColor;
       if (node.isCenter) {
-        nodeColor = AppTheme.canaryYellow;
+        nodeColor = AppTheme.coral;
         final glowPaint = Paint()
-          ..color = AppTheme.canaryYellow.withValues(alpha: 0.22)
+          ..color = AppTheme.coral.withValues(alpha: 0.22)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 4.5;
         canvas.drawCircle(node.position, node.radius + 3.0, glowPaint);
