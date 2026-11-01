@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/prefs/prefs_providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/athena_top_bar.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import '../../auth/presentation/auth_notifier.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -17,14 +19,12 @@ class ProfileScreen extends ConsumerWidget {
     final user = authState.user;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: const Text(
-          'Profile & Settings',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-        ),
+      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      appBar: const AthenaTopBar(
+        title: 'Profile & Settings',
       ),
-      body: ListView(
+      body: DotGridBackground(
+        child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         children: [
           // User Card
@@ -42,13 +42,13 @@ class ProfileScreen extends ConsumerWidget {
                     children: [
                       CircleAvatar(
                         radius: 28,
-                        backgroundColor: AppTheme.canaryYellow,
+                        backgroundColor: AppTheme.coral,
                         child: Text(
                           user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : 'U',
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF141416),
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -112,8 +112,8 @@ class ProfileScreen extends ConsumerWidget {
                           Expanded(
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.canaryYellow,
-                                foregroundColor: const Color(0xFF141416),
+                                backgroundColor: AppTheme.coral,
+                                foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 elevation: 0,
                               ),
@@ -170,10 +170,10 @@ class ProfileScreen extends ConsumerWidget {
           _Tile(
             icon: Icons.brightness_6_rounded,
             title: 'Appearance',
-            subtitle: isDark ? 'Dark theme (Canary)' : 'Light theme',
+            subtitle: isDark ? 'Dark theme (Resarc)' : 'Light theme',
             trailing: Switch(
               value: isDark,
-              activeTrackColor: AppTheme.canaryYellow,
+              activeTrackColor: AppTheme.coral,
               onChanged: (_) => ref.read(appThemeModeProvider.notifier).toggle(),
             ),
             isDark: isDark,
@@ -261,8 +261,9 @@ class ProfileScreen extends ConsumerWidget {
           ],
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -320,13 +321,13 @@ class _Tile extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: (iconColor ?? (isDark ? AppTheme.canaryYellow : const Color(0xFF141416))).withValues(alpha: 0.12),
+            color: (iconColor ?? (isDark ? AppTheme.coral : const Color(0xFF111827))).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(
             icon,
             size: 20,
-            color: iconColor ?? (isDark ? AppTheme.canaryYellow : const Color(0xFF141416)),
+            color: iconColor ?? (isDark ? AppTheme.coral : const Color(0xFF111827)),
           ),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
