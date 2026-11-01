@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../auth/presentation/auth_notifier.dart';
@@ -20,21 +21,13 @@ class DigestScreen extends ConsumerWidget {
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: const Text(
-          'Research Digest',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-        ),
+      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      appBar: AthenaTopBar(
+        title: 'Research Digest',
+        showLeading: false,
         actions: [
-          IconButton(
-            icon: state.isGenerating
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh_rounded, size: 22),
+          AthenaCircularIconButton(
+            icon: Icons.refresh_rounded,
             tooltip: 'Regenerate Briefing',
             onPressed: state.isGenerating
                 ? null
@@ -142,14 +135,14 @@ class DigestScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: isDark
-                            ? [const Color(0xFF1E2330), const Color(0xFF151822)]
-                            : [const Color(0xFFEFF6FF), Colors.white],
+                            ? [const Color(0xFF1E222D), const Color(0xFF151822)]
+                            : [Colors.white, const Color(0xFFF9FAFC)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF2C3345) : const Color(0xFFDBEAFE),
+                        color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
                       ),
                     ),
                     child: Column(
@@ -161,7 +154,7 @@ class DigestScreen extends ConsumerWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: AppTheme.canaryYellow.withValues(alpha: 0.2),
+                                color: AppTheme.coral.withValues(alpha: isDark ? 0.2 : 0.12),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -169,7 +162,7 @@ class DigestScreen extends ConsumerWidget {
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w900,
-                                  color: AppTheme.canaryYellow,
+                                  color: AppTheme.coral,
                                   letterSpacing: 0.8,
                                 ),
                               ),
@@ -278,7 +271,7 @@ class DigestScreen extends ConsumerWidget {
                                 ),
                                 Row(
                                   children: [
-                                    const Icon(Icons.bolt_rounded, size: 16, color: AppTheme.canaryYellow),
+                                    const Icon(Icons.bolt_rounded, size: 16, color: AppTheme.coral),
                                     const SizedBox(width: 4),
                                     Flexible(
                                       child: Text(
@@ -288,7 +281,7 @@ class DigestScreen extends ConsumerWidget {
                                         style: const TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w700,
-                                          color: AppTheme.canaryYellow,
+                                          color: AppTheme.coral,
                                         ),
                                       ),
                                     ),
@@ -409,7 +402,7 @@ class _SectionTitle extends StatelessWidget {
         fontSize: 11,
         fontWeight: FontWeight.w900,
         letterSpacing: 0.8,
-        color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+        color: isDark ? AppTheme.coral : const Color(0xFF111827),
       ),
     );
   }
@@ -450,8 +443,8 @@ class _VelocitySparklinePainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          AppTheme.canaryYellow.withValues(alpha: isDark ? 0.25 : 0.2),
-          AppTheme.canaryYellow.withValues(alpha: 0.0),
+          AppTheme.coral.withValues(alpha: isDark ? 0.25 : 0.2),
+          AppTheme.coral.withValues(alpha: 0.0),
         ],
       ).createShader(Rect.fromLTWH(0, 0, w, h))
       ..style = PaintingStyle.fill;
@@ -459,7 +452,7 @@ class _VelocitySparklinePainter extends CustomPainter {
 
     // Sparkline curve stroke
     final strokePaint = Paint()
-      ..color = AppTheme.canaryYellow
+      ..color = AppTheme.coral
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -467,12 +460,12 @@ class _VelocitySparklinePainter extends CustomPainter {
 
     // Glowing tip dot
     final tipGlow = Paint()
-      ..color = AppTheme.canaryYellow.withValues(alpha: 0.35)
+      ..color = AppTheme.coral.withValues(alpha: 0.35)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(p3, 4.0, tipGlow);
 
     final tipDot = Paint()
-      ..color = AppTheme.canaryYellow
+      ..color = AppTheme.coral
       ..style = PaintingStyle.fill;
     canvas.drawCircle(p3, 2.0, tipDot);
   }
