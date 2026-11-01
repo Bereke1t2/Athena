@@ -271,7 +271,7 @@ class _PaperAudioPlayerScreenState extends ConsumerState<PaperAudioPlayerScreen>
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: AppTheme.canaryYellow,
+                                color: AppTheme.coral,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Text(
@@ -437,7 +437,7 @@ class _PaperAudioPlayerScreenState extends ConsumerState<PaperAudioPlayerScreen>
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: AppTheme.canaryYellow,
+                            color: AppTheme.coral,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Text(
@@ -680,12 +680,12 @@ class _UtilityPill extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isActive
-              ? AppTheme.canaryYellow
+              ? AppTheme.coral
               : (isDark ? const Color(0xFF1F232D) : const Color(0xFFF3F4F6)),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isActive
-                ? AppTheme.canaryYellow
+                ? AppTheme.coral
                 : (isDark ? const Color(0xFF2C3240) : const Color(0xFFE5E7EB)),
           ),
         ),
@@ -751,7 +751,7 @@ class _ChapterTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isActive
-                ? (isDark ? AppTheme.canaryYellow : const Color(0xFF141416))
+                ? (isDark ? AppTheme.coral : const Color(0xFF141416))
                 : Colors.transparent,
           ),
         ),
@@ -762,7 +762,7 @@ class _ChapterTile extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
-                color: isActive ? AppTheme.canaryYellow : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+                color: isActive ? AppTheme.coral : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
               ),
             ),
             const SizedBox(width: 12),

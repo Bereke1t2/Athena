@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/di.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
+import '../../../core/widgets/athena_top_bar.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import '../../papers/domain/audio_playback.dart';
 import '../../papers/presentation/audio_player_notifier.dart';
 import '../../papers/presentation/paper_audio_player_screen.dart';
@@ -212,20 +214,13 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
     final credits = ref.watch(userCreditsProvider);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: const Text(
-          'Create audio',
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
+      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      appBar: const AthenaTopBar(
+        title: 'Create audio',
+        isCloseButton: true,
       ),
-      body: SafeArea(
+      body: DotGridBackground(
+        child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: Column(
@@ -342,8 +337,8 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                           margin: const EdgeInsets.only(left: 8),
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.canaryYellow,
-                              foregroundColor: const Color(0xFF141416),
+                              backgroundColor: AppTheme.coral,
+                              foregroundColor: const Color(0xFF111827),
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               shape: RoundedRectangleBorder(
@@ -474,7 +469,7 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 13,
-                                color: _isRecording ? const Color(0xFFFF7675) : (isDark ? Colors.white : const Color(0xFF141416)),
+                                color: _isRecording ? const Color(0xFFFF7675) : (isDark ? Colors.white : const Color(0xFF111827)),
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -500,11 +495,11 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                             height: 48,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _isRecording ? const Color(0xFFFF7675) : (isDark ? AppTheme.canaryYellow : const Color(0xFF141416)),
+                              color: _isRecording ? const Color(0xFFFF7675) : (isDark ? AppTheme.coral : const Color(0xFF111827)),
                             ),
                             child: Icon(
                               _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
-                              color: _isRecording ? Colors.white : (isDark ? const Color(0xFF141416) : Colors.white),
+                              color: _isRecording ? Colors.white : (isDark ? const Color(0xFF111827) : Colors.white),
                             ),
                           ),
                         ),
@@ -615,7 +610,7 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: _selectedLength == len
-                                    ? (isDark ? AppTheme.canaryYellow : const Color(0xFF141416))
+                                    ? (isDark ? AppTheme.coral : const Color(0xFF111827))
                                     : Colors.transparent,
                                 width: 1.5,
                               ),
@@ -626,7 +621,7 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: _selectedLength == len ? FontWeight.w800 : FontWeight.w600,
-                                  color: isDark ? Colors.white : const Color(0xFF141416),
+                                  color: isDark ? Colors.white : const Color(0xFF111827),
                                 ),
                               ),
                             ),
@@ -685,7 +680,7 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                     color: isDark ? const Color(0xFF282516) : const Color(0xFFFFFDE6),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: AppTheme.canaryYellow.withValues(alpha: 0.6),
+                      color: AppTheme.coral.withValues(alpha: 0.6),
                     ),
                   ),
                   child: Row(
@@ -694,7 +689,7 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppTheme.canaryYellow,
+                          color: AppTheme.coral,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text(
@@ -702,7 +697,7 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                           style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.w900,
-                            color: Color(0xFF141416),
+                            color: Color(0xFF111827),
                           ),
                         ),
                       ),
@@ -734,8 +729,8 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                       height: 52,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.canaryYellow,
-                          foregroundColor: const Color(0xFF141416),
+                          backgroundColor: AppTheme.coral,
+                          foregroundColor: const Color(0xFF111827),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(26),
@@ -749,7 +744,7 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
                                   const SizedBox(
                                     width: 18,
                                     height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2.2, color: Color(0xFF141416)),
+                                    child: CircularProgressIndicator(strokeWidth: 2.2, color: Color(0xFF111827)),
                                   ),
                                   const SizedBox(width: 10),
                                   Flexible(
@@ -785,8 +780,9 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 extension on String {
@@ -824,7 +820,7 @@ class _ImportCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
-                ? (isDark ? AppTheme.canaryYellow : const Color(0xFF141416))
+                ? (isDark ? AppTheme.coral : const Color(0xFF111827))
                 : (isDark ? const Color(0xFF2C3240) : const Color(0xFFE5E7EB)),
             width: isSelected ? 1.6 : 1.0,
           ),
@@ -846,7 +842,7 @@ class _ImportCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF141416),
+                color: isDark ? Colors.white : const Color(0xFF111827),
               ),
             ),
             const SizedBox(height: 2),
@@ -890,12 +886,12 @@ class _VoiceCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF141416)
+              ? const Color(0xFF111827)
               : (isDark ? const Color(0xFF1A1D24) : Colors.white),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
-                ? const Color(0xFF141416)
+                ? const Color(0xFF111827)
                 : (isDark ? const Color(0xFF2C3240) : const Color(0xFFE5E7EB)),
           ),
         ),
@@ -904,7 +900,7 @@ class _VoiceCard extends StatelessWidget {
             Icon(
               Icons.graphic_eq_rounded,
               size: 20,
-              color: isSelected ? AppTheme.canaryYellow : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+              color: isSelected ? AppTheme.coral : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
             ),
             const SizedBox(height: 6),
             Text(
@@ -914,7 +910,7 @@ class _VoiceCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
-                color: isSelected ? Colors.white : (isDark ? Colors.white : const Color(0xFF141416)),
+                color: isSelected ? Colors.white : (isDark ? Colors.white : const Color(0xFF111827)),
               ),
             ),
             const SizedBox(height: 2),

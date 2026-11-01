@@ -145,6 +145,41 @@ void main() {
     expect(fakeRepo.lastKind, 'field');
   });
 
+  testWidgets('TopicsScreen filters by Following segment and allows toggling follow', (tester) async {
+    final fakeRepo = _FakeTopicsRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          topicsRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: const MaterialApp(
+          home: TopicsScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Tap 'Follow' button on Neural Networks
+    final followButtons = find.text('Follow');
+    expect(followButtons, findsWidgets);
+    await tester.tap(followButtons.first);
+    await tester.pumpAndSettle();
+
+    // Tap 'Following' segment in SegmentedButton
+    final followingSegment = find.descendant(
+      of: find.byType(SegmentedButton<String>),
+      matching: find.text('Following'),
+    );
+    await tester.tap(followingSegment);
+    await tester.pumpAndSettle();
+
+    // Only the followed topic card should appear
+    expect(find.widgetWithText(Card, 'Neural Networks'), findsOneWidget);
+    expect(find.widgetWithText(Card, 'Quantum Computing'), findsNothing);
+  });
+
   testWidgets('TopicDetailScreen displays papers and allows toggling sort between Newest and Most Cited', (tester) async {
     final fakeRepo = _FakeTopicsRepository();
 

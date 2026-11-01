@@ -18,6 +18,7 @@ import '../../features/papers/presentation/paper_detail_screen.dart';
 import '../../features/papers/presentation/pdf_viewer_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
+import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/topics/presentation/topic_detail_screen.dart';
 import '../../features/topics/presentation/topics_screen.dart';
 import '../prefs/user_preferences.dart';
@@ -33,11 +34,18 @@ GoRouter buildAppRouter() {
     redirect: (context, state) {
       final onboarded = UserPreferences.instance.onboarded;
       final location = state.uri.path;
+      if (location == '/splash') return null;
       if (!onboarded && location != '/onboarding') return '/onboarding';
       if (onboarded && location == '/onboarding') return '/';
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/onboarding',
         name: 'onboarding',
@@ -62,7 +70,18 @@ GoRouter buildAppRouter() {
             ),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/topics', name: 'topics', pageBuilder: _noTransition(TopicsScreen.new)),
+            GoRoute(
+              path: '/topics',
+              name: 'topics',
+              pageBuilder: (context, state) {
+                final filter = state.uri.queryParameters['filter'];
+                return CustomTransitionPage<void>(
+                  key: state.pageKey,
+                  child: TopicsScreen(initialFilter: filter),
+                  transitionsBuilder: (_, __, ___, child) => child,
+                );
+              },
+            ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: '/digest', name: 'digest-tab', pageBuilder: _noTransition(DigestScreen.new)),

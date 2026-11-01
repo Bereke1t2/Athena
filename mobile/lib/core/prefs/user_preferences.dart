@@ -10,6 +10,7 @@ class UserPreferences {
 
   static const _kOnboarded = 'athena.onboarding.complete';
   static const _kTopics = 'athena.onboarding.topics';
+  static const _kThemeMode = 'athena.theme.mode';
   static const _kLegacyAuthToken = 'athena.auth.token';
   static const _kSecureAuthToken = 'athena.auth.secure_token';
   static const _kUserId = 'athena.auth.user_id';
@@ -19,6 +20,7 @@ class UserPreferences {
   SharedPreferences? _prefs;
   FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   String? _cachedAuthToken;
+  String? _cachedThemeMode;
 
   @visibleForTesting
   void setSecureStorageForTest(FlutterSecureStorage storage) {
@@ -28,7 +30,8 @@ class UserPreferences {
   bool get _ready => _prefs != null;
 
   Future<void> load() async {
-    _prefs ??= await SharedPreferences.getInstance();
+    _prefs = await SharedPreferences.getInstance();
+    _cachedThemeMode = _prefs?.getString(_kThemeMode);
     try {
       _cachedAuthToken = await _secureStorage.read(key: _kSecureAuthToken);
     } catch (_) {
@@ -52,6 +55,18 @@ class UserPreferences {
 
   List<String> get topicSlugs =>
       _ready ? (_prefs!.getStringList(_kTopics) ?? const <String>[]) : const <String>[];
+
+  /// App theme mode setting: 'dark' (default obsidian black) or 'light'.
+  String get themeMode =>
+      _cachedThemeMode ?? (_ready ? (_prefs!.getString(_kThemeMode) ?? 'dark') : 'dark');
+
+  Future<void> setThemeMode(String mode) async {
+    _cachedThemeMode = mode;
+    await load();
+    if (_prefs != null) {
+      await _prefs!.setString(_kThemeMode, mode);
+    }
+  }
 
   String? get authToken => _cachedAuthToken;
   String? get userId => _ready ? _prefs!.getString(_kUserId) : null;
@@ -100,6 +115,7 @@ class UserPreferences {
     if (!_ready) return;
     await _prefs!.remove(_kTopics);
     await _prefs!.remove(_kOnboarded);
+    await _prefs!.remove(_kThemeMode);
     await clearAuthSession();
   }
 

@@ -143,7 +143,7 @@ class SavedScreen extends ConsumerWidget {
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.play_circle_fill_rounded, size: 32),
-                                  color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                                  color: isDark ? AppTheme.coral : const Color(0xFF141416),
                                   tooltip: 'Play audio',
                                   onPressed: () {
                                     Navigator.of(context).push(
@@ -190,7 +190,7 @@ class SavedScreen extends ConsumerWidget {
                                 child: Icon(
                                   Icons.history_rounded,
                                   size: 42,
-                                  color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                                  color: isDark ? AppTheme.coral : const Color(0xFF141416),
                                 ),
                               ),
                               const SizedBox(height: 18),

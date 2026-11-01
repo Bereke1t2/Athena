@@ -10,6 +10,8 @@ import '../../../core/prefs/user_preferences.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
+import '../../../core/widgets/athena_top_bar.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../ai/presentation/paper_summary_card.dart';
 import '../../follows/presentation/follows_notifier.dart';
@@ -88,17 +90,9 @@ class PaperDetailScreen extends ConsumerWidget {
     final paper = async.valueOrNull;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: Text(
-          'PAPER DETAILS',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
-            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-          ),
-        ),
+      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      appBar: AthenaTopBar(
+        title: 'PAPER DETAILS',
         centerTitle: true,
         actions: [
           if (paper != null) ...[
@@ -205,7 +199,8 @@ class PaperDetailScreen extends ConsumerWidget {
         ],
       ),
 
-      body: async.when(
+      body: DotGridBackground(
+        child: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(
           failure: e,
@@ -292,7 +287,7 @@ class PaperDetailScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                            color: AppTheme.coral.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -300,7 +295,7 @@ class PaperDetailScreen extends ConsumerWidget {
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              color: AppTheme.canaryYellow,
+                              color: AppTheme.coral,
                             ),
                           ),
                         ),
@@ -376,7 +371,7 @@ class PaperDetailScreen extends ConsumerWidget {
                               Expanded(
                                 child: ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                                    backgroundColor: isDark ? AppTheme.coral : const Color(0xFF111827),
                                     foregroundColor: isDark ? const Color(0xFF141416) : Colors.white,
                                     padding: const EdgeInsets.symmetric(vertical: 11),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -394,7 +389,7 @@ class PaperDetailScreen extends ConsumerWidget {
                               Expanded(
                                 child: ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                                    backgroundColor: isDark ? AppTheme.coral : const Color(0xFF111827),
                                     foregroundColor: isDark ? const Color(0xFF141416) : Colors.white,
                                     padding: const EdgeInsets.symmetric(vertical: 11),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -593,7 +588,7 @@ class PaperDetailScreen extends ConsumerWidget {
                                         Icon(
                                           Icons.label_outline_rounded,
                                           size: 12,
-                                          color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                                          color: isDark ? AppTheme.coral : const Color(0xFF111827),
                                         ),
                                         const SizedBox(width: 5),
                                         Text(
@@ -648,7 +643,7 @@ class PaperDetailScreen extends ConsumerWidget {
                             height: 46,
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                                backgroundColor: isDark ? AppTheme.coral : const Color(0xFF111827),
                                 foregroundColor: isDark ? const Color(0xFF141416) : Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
@@ -671,7 +666,7 @@ class PaperDetailScreen extends ConsumerWidget {
                             height: 46,
                             child: ElevatedButton.icon(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                                backgroundColor: isDark ? AppTheme.coral : const Color(0xFF111827),
                                 foregroundColor: isDark ? const Color(0xFF141416) : Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
@@ -724,8 +719,9 @@ class PaperDetailScreen extends ConsumerWidget {
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _openReader(BuildContext context, PaperDetail paper) {
     final encodedTitle = Uri.encodeComponent(paper.title);
@@ -790,7 +786,7 @@ class PaperDetailScreen extends ConsumerWidget {
                       children: [
                         CircleAvatar(
                           radius: 24,
-                          backgroundColor: AppTheme.canaryYellow,
+                          backgroundColor: AppTheme.coral,
                           child: Text(
                             author.name.isNotEmpty ? author.name[0].toUpperCase() : 'A',
                             style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF141416), fontSize: 20),
@@ -845,7 +841,7 @@ class PaperDetailScreen extends ConsumerWidget {
                         Expanded(
                           child: ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: following ? (isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB)) : AppTheme.canaryYellow,
+                              backgroundColor: following ? (isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB)) : AppTheme.coral,
                               foregroundColor: following ? (isDark ? Colors.white : const Color(0xFF141416)) : const Color(0xFF141416),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               elevation: 0,
@@ -914,7 +910,7 @@ class PaperDetailScreen extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                              color: isDark ? AppTheme.coral : const Color(0xFF111827),
                               decoration: TextDecoration.underline,
                             ),
                           ),
@@ -1268,10 +1264,10 @@ class _RelatedPapersCard extends ConsumerWidget {
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.canaryYellow.withValues(alpha: 0.12),
+                                  color: AppTheme.coral.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Icon(Icons.menu_book_rounded, size: 14, color: AppTheme.canaryYellow),
+                                child: const Icon(Icons.menu_book_rounded, size: 14, color: AppTheme.coral),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -1359,12 +1355,12 @@ class _CitationGraphExplorerCardState extends ConsumerState<_CitationGraphExplor
                     data: (g) => Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                        color: AppTheme.coral.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         '${g.totalNodes} papers · ${g.totalEdges} links',
-                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.canaryYellow),
+                        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppTheme.coral),
                       ),
                     ),
                     loading: () => const SizedBox.shrink(),
@@ -1422,7 +1418,7 @@ class _CitationGraphExplorerCardState extends ConsumerState<_CitationGraphExplor
                               Icons.hub_rounded,
                               size: 15,
                               color: _isVisualView
-                                  ? AppTheme.canaryYellow
+                                  ? AppTheme.coral
                                   : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                             ),
                           ),
@@ -1442,7 +1438,7 @@ class _CitationGraphExplorerCardState extends ConsumerState<_CitationGraphExplor
                               Icons.view_list_rounded,
                               size: 15,
                               color: !_isVisualView
-                                  ? AppTheme.canaryYellow
+                                  ? AppTheme.coral
                                   : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
                             ),
                           ),
@@ -1583,10 +1579,10 @@ class _CitationGraphExplorerCardState extends ConsumerState<_CitationGraphExplor
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                                   decoration: BoxDecoration(
-                                                    color: AppTheme.canaryYellow.withValues(alpha: 0.2),
+                                                    color: AppTheme.coral.withValues(alpha: 0.2),
                                                     borderRadius: BorderRadius.circular(4),
                                                   ),
-                                                  child: const Text('★ Influential', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.canaryYellow)),
+                                                  child: const Text('★ Influential', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.coral)),
                                                 ),
                                             ],
                                           ),
@@ -1731,7 +1727,7 @@ class _InteractiveCitationGraphCanvasState extends State<_InteractiveCitationGra
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
-                const _LegendDot(color: AppTheme.canaryYellow, label: 'Seed'),
+                const _LegendDot(color: AppTheme.coral, label: 'Seed'),
                 const SizedBox(width: 10),
                 const _LegendDot(color: Color(0xFF3B82F6), label: 'Hop 1'),
                 const SizedBox(width: 10),
@@ -1858,7 +1854,7 @@ class _CitationGraphPainter extends CustomPainter {
         edgeColor = const Color(0xFFEF4444);
         strokeWidth = isConnectedToSelected ? 2.4 : 1.6;
       } else if (edge.isInfluential) {
-        edgeColor = AppTheme.canaryYellow;
+        edgeColor = AppTheme.coral;
         strokeWidth = isConnectedToSelected ? 2.2 : 1.5;
       } else {
         edgeColor = isDark
@@ -1892,10 +1888,10 @@ class _CitationGraphPainter extends CustomPainter {
 
       if (isSeed) {
         radius = 17.0;
-        nodeColor = AppTheme.canaryYellow;
+        nodeColor = AppTheme.coral;
 
         final glowPaint = Paint()
-          ..color = AppTheme.canaryYellow.withValues(alpha: 0.25)
+          ..color = AppTheme.coral.withValues(alpha: 0.25)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 5.0;
         canvas.drawCircle(pos, radius + 4.0, glowPaint);
@@ -1982,7 +1978,7 @@ class _SelectedNodeCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: isSeed
-                      ? AppTheme.canaryYellow.withValues(alpha: 0.2)
+                      ? AppTheme.coral.withValues(alpha: 0.2)
                       : (node.depth == 1
                           ? const Color(0xFF3B82F6).withValues(alpha: 0.15)
                           : const Color(0xFF8B5CF6).withValues(alpha: 0.15)),
@@ -1994,7 +1990,7 @@ class _SelectedNodeCard extends StatelessWidget {
                     fontSize: 9.5,
                     fontWeight: FontWeight.w800,
                     color: isSeed
-                        ? AppTheme.canaryYellow
+                        ? AppTheme.coral
                         : (node.depth == 1 ? const Color(0xFF60A5FA) : const Color(0xFFA78BFA)),
                   ),
                 ),
@@ -2024,11 +2020,11 @@ class _SelectedNodeCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                   decoration: BoxDecoration(
-                    color: AppTheme.canaryYellow.withValues(alpha: 0.2),
+                    color: AppTheme.coral.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text('★ Influential',
-                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.canaryYellow)),
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.coral)),
                 ),
               const Spacer(),
               if (!isSeed)

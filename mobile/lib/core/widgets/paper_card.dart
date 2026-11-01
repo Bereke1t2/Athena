@@ -174,14 +174,14 @@ class PaperCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                              color: isDark ? AppTheme.coral : const Color(0xFF141416),
                             ),
                           ),
                           const SizedBox(width: 4),
                           Icon(
                             Icons.arrow_forward_rounded,
                             size: 12,
-                            color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                            color: isDark ? AppTheme.coral : const Color(0xFF141416),
                           ),
                         ],
                       ),

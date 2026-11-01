@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/di.dart';
 import '../../../core/prefs/saved_papers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/athena_top_bar.dart';
+import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/state_views.dart';
 import '../domain/comparison_models.dart';
 
@@ -62,47 +64,41 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB),
-      appBar: AppBar(
-        title: Text(
-          'PAPER COMPARISON',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
-            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-          ),
-        ),
+      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      appBar: AthenaTopBar(
+        title: 'PAPER COMPARISON',
         centerTitle: true,
         actions: [
           if (_paperIds.length < 4)
-            IconButton(
+            AthenaCircularIconButton(
+              icon: Icons.add_rounded,
               tooltip: 'Add Paper to Compare',
-              icon: const Icon(Icons.add_rounded, size: 22),
               onPressed: () => _showAddPaperDialog(context),
             ),
         ],
       ),
-      body: _paperIds.length < 2
-          ? _buildInsufficientPapersView(context)
-          : FutureBuilder<ComparisonReport>(
-              future: _reportFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return _buildLoadingView(context);
-                }
-                if (snapshot.hasError) {
-                  return ErrorView(
-                    failure: snapshot.error!,
-                    onRetry: _triggerComparison,
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: Text('No comparison available'));
-                }
-                return _buildComparisonReport(context, snapshot.data!);
-              },
-            ),
+      body: DotGridBackground(
+        child: _paperIds.length < 2
+            ? _buildInsufficientPapersView(context)
+            : FutureBuilder<ComparisonReport>(
+                future: _reportFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return _buildLoadingView(context);
+                  }
+                  if (snapshot.hasError) {
+                    return ErrorView(
+                      failure: snapshot.error!,
+                      onRetry: _triggerComparison,
+                    );
+                  }
+                  if (!snapshot.hasData) {
+                    return const Center(child: Text('No comparison available'));
+                  }
+                  return _buildComparisonReport(context, snapshot.data!);
+                },
+              ),
+      ),
     );
   }
 
@@ -114,7 +110,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const CircularProgressIndicator(color: AppTheme.canaryYellow),
+            const CircularProgressIndicator(color: AppTheme.coral),
             const SizedBox(height: 24),
             Text(
               'Synthesizing Comparison Matrix',
@@ -160,13 +156,13 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                  color: AppTheme.coral.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.compare_arrows_rounded,
                   size: 32,
-                  color: AppTheme.canaryYellow,
+                  color: AppTheme.coral,
                 ),
               ),
               const SizedBox(height: 14),
@@ -211,7 +207,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _paperIds.contains(p.id)
-                      ? AppTheme.canaryYellow
+                      ? AppTheme.coral
                       : (isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB)),
                   width: _paperIds.contains(p.id) ? 1.5 : 1.0,
                 ),
@@ -236,7 +232,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
                         ? Icons.check_circle_rounded
                         : Icons.add_circle_outline_rounded,
                     color: _paperIds.contains(p.id)
-                        ? AppTheme.canaryYellow
+                        ? AppTheme.coral
                         : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
                   ),
                   onPressed: () {
@@ -273,7 +269,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                        color: AppTheme.coral.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -281,7 +277,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w900,
-                          color: AppTheme.canaryYellow,
+                          color: AppTheme.coral,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -482,10 +478,10 @@ class _SynthesisCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppTheme.canaryYellow.withValues(alpha: 0.15),
+                  color: AppTheme.coral.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.canaryYellow),
+                child: const Icon(Icons.auto_awesome_rounded, size: 16, color: AppTheme.coral),
               ),
               const SizedBox(width: 8),
               Text(

@@ -46,7 +46,7 @@ class AiFormattedText extends StatelessWidget {
 
     if (text.trim().isEmpty) {
       return streaming
-          ? Text('▍', style: defaultStyle.copyWith(color: AppTheme.canaryYellow))
+          ? Text('▍', style: defaultStyle.copyWith(color: AppTheme.coral))
           : const SizedBox.shrink();
     }
 
@@ -123,7 +123,7 @@ class AiFormattedText extends StatelessWidget {
                   width: 5,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                    color: isDark ? AppTheme.coral : const Color(0xFF141416),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -147,7 +147,7 @@ class AiFormattedText extends StatelessWidget {
                   '${block.number}.',
                   style: baseStyle.copyWith(
                     fontWeight: FontWeight.w800,
-                    color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                    color: isDark ? AppTheme.coral : const Color(0xFF141416),
                   ),
                 ),
               ),
@@ -171,7 +171,7 @@ class AiFormattedText extends StatelessWidget {
             ),
             border: Border(
               left: BorderSide(
-                color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                color: isDark ? AppTheme.coral : const Color(0xFF141416),
                 width: 3,
               ),
             ),
@@ -196,7 +196,7 @@ class AiFormattedText extends StatelessWidget {
         TextSpan(
           text: '▍',
           style: baseStyle.copyWith(
-            color: AppTheme.canaryYellow,
+            color: AppTheme.coral,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -323,7 +323,7 @@ class AiFormattedText extends StatelessWidget {
                 fontFamily: 'monospace',
                 fontSize: (baseStyle.fontSize ?? 14) * 0.88,
                 fontWeight: FontWeight.w700,
-                color: isDark ? AppTheme.canaryYellow : const Color(0xFF141416),
+                color: isDark ? AppTheme.coral : const Color(0xFF141416),
               ),
             ),
           ),
@@ -336,10 +336,10 @@ class AiFormattedText extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
             margin: const EdgeInsets.symmetric(horizontal: 2),
             decoration: BoxDecoration(
-              color: AppTheme.canaryYellow.withValues(alpha: isDark ? 0.22 : 0.35),
+              color: AppTheme.coral.withValues(alpha: isDark ? 0.22 : 0.35),
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
-                color: AppTheme.canaryYellow.withValues(alpha: 0.6),
+                color: AppTheme.coral.withValues(alpha: 0.6),
                 width: 0.8,
               ),
             ),
@@ -348,7 +348,7 @@ class AiFormattedText extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w800,
-                color: AppTheme.canaryYellow,
+                color: AppTheme.coral,
               ),
             ),
           ),

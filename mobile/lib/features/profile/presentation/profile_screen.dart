@@ -7,6 +7,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
 import '../../auth/presentation/auth_notifier.dart';
+import '../../follows/domain/follow_models.dart';
+import '../../follows/presentation/follows_notifier.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -16,7 +18,9 @@ class ProfileScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final authState = ref.watch(authNotifierProvider);
+    final followsState = ref.watch(followsNotifierProvider);
     final user = authState.user;
+    final followedTopics = followsState.followedTopics;
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
@@ -161,13 +165,6 @@ class ProfileScreen extends ConsumerWidget {
             isDark: isDark,
           ),
           _Tile(
-            icon: Icons.category_rounded,
-            title: 'Subscribed Topics',
-            subtitle: 'Manage topic filters and focus areas',
-            onTap: () => context.push('/topics'),
-            isDark: isDark,
-          ),
-          _Tile(
             icon: Icons.brightness_6_rounded,
             title: 'Appearance',
             subtitle: isDark ? 'Dark theme (Resarc)' : 'Light theme',
@@ -177,6 +174,19 @@ class ProfileScreen extends ConsumerWidget {
               onChanged: (_) => ref.read(appThemeModeProvider.notifier).toggle(),
             ),
             isDark: isDark,
+          ),
+
+          const SizedBox(height: 24),
+
+          // Section: Followed Topics
+          _SectionHeader(title: 'FOLLOWED TOPICS', isDark: isDark),
+          const SizedBox(height: 8),
+          _FollowedTopicsCard(
+            topics: followedTopics,
+            isDark: isDark,
+            onUnfollow: (slug, name) =>
+                ref.read(followsNotifierProvider.notifier).toggleTopicFollow(slug, name),
+            onExploreTap: () => context.push('/topics'),
           ),
 
           const SizedBox(height: 24),
@@ -316,30 +326,229 @@ class _Tile extends StatelessWidget {
           color: isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB),
         ),
       ),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: (iconColor ?? (isDark ? AppTheme.coral : const Color(0xFF111827))).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: (iconColor ?? (isDark ? AppTheme.coral : const Color(0xFF111827))).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: iconColor ?? (isDark ? AppTheme.coral : const Color(0xFF111827)),
+            ),
           ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: iconColor ?? (isDark ? AppTheme.coral : const Color(0xFF111827)),
+          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+            ),
           ),
+          trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right_rounded, size: 20) : null),
+          onTap: onTap,
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 12,
-            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-          ),
+      ),
+    );
+  }
+}
+
+class _FollowedTopicsCard extends StatelessWidget {
+  const _FollowedTopicsCard({
+    required this.topics,
+    required this.isDark,
+    required this.onUnfollow,
+    required this.onExploreTap,
+  });
+
+  final List<TopicFollow> topics;
+  final bool isDark;
+  final void Function(String slug, String name) onUnfollow;
+  final VoidCallback onExploreTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF161922) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB),
         ),
-        trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right_rounded, size: 20) : null),
-        onTap: onTap,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.coral.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.tag_rounded, size: 16, color: AppTheme.coral),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Subscribed Areas',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF232836) : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${topics.length}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.coral,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                ),
+                onPressed: onExploreTap,
+                icon: const Text('Browse All', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                label: const Icon(Icons.arrow_forward_rounded, size: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (topics.isNotEmpty) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final topic in topics)
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(100),
+                      onTap: () => context.push('/topics/${topic.topicSlug}'),
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF222634) : const Color(0xFFF9FAFB),
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF333A4D) : const Color(0xFFE5E7EB),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              '#',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                color: AppTheme.coral,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              topic.topicName,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : const Color(0xFF141416),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(50),
+                              onTap: () => onUnfollow(topic.topicSlug, topic.topicName),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isDark ? const Color(0xFF2E3547) : const Color(0xFFE5E7EB),
+                                ),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 12,
+                                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ] else ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1B1F2A) : const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF2A3142) : const Color(0xFFF0F2F5),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.category_outlined,
+                    size: 32,
+                    color: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'No topics followed yet',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.white : const Color(0xFF141416),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Subscribe to topics to personalize your feed and research digest.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.coral,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: onExploreTap,
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: const Text('Explore Topics', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
