@@ -6,6 +6,7 @@ import 'core/prefs/saved_papers.dart';
 import 'core/prefs/user_preferences.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/athena_launch_splash.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +18,9 @@ Future<void> main() async {
 }
 
 class AthenaApp extends ConsumerWidget {
-  const AthenaApp({super.key});
+  const AthenaApp({super.key, this.enableSplash = true});
+
+  final bool enableSplash;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -29,6 +32,12 @@ class AthenaApp extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       themeMode: mode,
       routerConfig: buildAppRouter(),
+      builder: (context, child) {
+        if (!enableSplash) return child ?? const SizedBox.shrink();
+        return AthenaLaunchSplash(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

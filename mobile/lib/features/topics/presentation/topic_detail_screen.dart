@@ -202,17 +202,15 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                 ),
                 onPressed: () {
                   final isAuthenticated = ref.read(authNotifierProvider).isAuthenticated;
-                  if (!isAuthenticated) {
+                  ref.read(followsNotifierProvider.notifier).toggleTopicFollow(topic.slug, topic.name);
+                  if (!isAuthenticated && !isFollowed) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Please sign in to follow topics'),
+                        content: Text('Topic followed! Sign in anytime to sync across devices.'),
                         duration: Duration(seconds: 2),
                       ),
                     );
-                    context.push('/login');
-                    return;
                   }
-                  ref.read(followsNotifierProvider.notifier).toggleTopicFollow(topic.slug, topic.name);
                 },
                 icon: Icon(isFollowed ? Icons.check_rounded : Icons.add_rounded, size: 16),
                 label: Text(

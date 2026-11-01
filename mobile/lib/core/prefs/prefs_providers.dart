@@ -24,13 +24,20 @@ final appThemeModeProvider = NotifierProvider<AppThemeModeNotifier, ThemeMode>(A
 
 class AppThemeModeNotifier extends Notifier<ThemeMode> {
   @override
-  ThemeMode build() => ThemeMode.light;
+  ThemeMode build() {
+    // Defaults to black / obsidian dark mode unless explicitly set to light
+    final saved = UserPreferences.instance.themeMode;
+    return saved == 'light' ? ThemeMode.light : ThemeMode.dark;
+  }
 
   void toggle() {
-    state = state == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    final next = state == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    state = next;
+    UserPreferences.instance.setThemeMode(next == ThemeMode.dark ? 'dark' : 'light');
   }
 
   void setMode(ThemeMode mode) {
     state = mode;
+    UserPreferences.instance.setThemeMode(mode == ThemeMode.dark ? 'dark' : 'light');
   }
 }
