@@ -164,11 +164,11 @@ func run() error {
 
 	// Phase 4 AI layer: only wired when an LLM provider is configured.
 	var aiHandlers *v1.AIHandlers
+	var llm domainai.LLMProvider
 	if cfg.AIEnabled() {
 		aiStore := database.NewAIStore(pool)
 		paperStore := database.NewPaperStore(pool, log)
 
-		var llm domainai.LLMProvider
 		switch cfg.LLMProvider {
 		case "stub":
 			llm = stubai.New()
@@ -231,7 +231,7 @@ func run() error {
 
 	exportHandlers := v1.NewExportHandlers(appexport.NewService(store), log)
 	digestStore := database.NewDigestStore(pool)
-	digestHandlers := v1.NewDigestHandlers(appdigest.NewService(store, followStore, digestStore, log), log)
+	digestHandlers := v1.NewDigestHandlers(appdigest.NewService(store, followStore, digestStore, llm, log), log)
 
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,

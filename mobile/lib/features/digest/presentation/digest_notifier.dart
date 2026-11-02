@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/di.dart';
 import '../../../core/error/failure.dart';
 import '../../auth/presentation/auth_notifier.dart';
+import '../../follows/presentation/follows_notifier.dart';
 import '../domain/digest_models.dart';
 import '../domain/digest_repository.dart';
 
@@ -35,17 +36,26 @@ class DigestState {
 }
 
 class DigestNotifier extends StateNotifier<DigestState> {
-  DigestNotifier(this._repo, {this.isAuthenticated = false}) : super(const DigestState()) {
+  DigestNotifier(
+    this._repo, {
+    this.isAuthenticated = false,
+    List<String> followedTopics = const [],
+  })  : _followedTopics = followedTopics,
+        super(const DigestState()) {
     loadLatest();
   }
 
   final DigestRepository _repo;
   final bool isAuthenticated;
+  final List<String> _followedTopics;
 
-  Future<void> loadLatest() async {
+  List<String> get followedTopics => List.unmodifiable(_followedTopics);
+
+  Future<void> loadLatest({List<String>? topics}) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final d = await _repo.getLatestDigest();
+      final activeTopics = topics ?? _followedTopics;
+      final d = await _repo.getLatestDigest(topics: activeTopics.isNotEmpty ? activeTopics : null);
       state = state.copyWith(isLoading: false, digest: d, error: null);
     } catch (e) {
       final failure = e is Failure ? e : Failure.unknown(cause: e);
@@ -53,10 +63,11 @@ class DigestNotifier extends StateNotifier<DigestState> {
     }
   }
 
-  Future<void> regenerate({String frequency = 'weekly'}) async {
+  Future<void> regenerate({String frequency = 'weekly', List<String>? topics}) async {
     state = state.copyWith(isGenerating: true, error: null);
     try {
-      final d = await _repo.generateDigest(frequency: frequency);
+      final activeTopics = topics ?? _followedTopics;
+      final d = await _repo.generateDigest(frequency: frequency, topics: activeTopics.isNotEmpty ? activeTopics : null);
       state = state.copyWith(isGenerating: false, digest: d, error: null);
     } catch (e) {
       final failure = e is Failure ? e : Failure.unknown(cause: e);
@@ -69,5 +80,11 @@ final digestNotifierProvider =
     StateNotifierProvider<DigestNotifier, DigestState>((ref) {
   final repo = ref.watch(digestRepositoryProvider);
   final auth = ref.watch(authNotifierProvider);
-  return DigestNotifier(repo, isAuthenticated: auth.isAuthenticated);
+  final follows = ref.watch(followsNotifierProvider);
+  final topicSlugs = follows.followedTopics.map((t) => t.topicSlug).toList();
+  return DigestNotifier(
+    repo,
+    isAuthenticated: auth.isAuthenticated,
+    followedTopics: topicSlugs,
+  );
 });

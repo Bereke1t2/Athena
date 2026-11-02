@@ -86,9 +86,9 @@ func TestDigestService(t *testing.T) {
 	}
 
 	repo := &fakeDigestRepo{digests: make(map[uuid.UUID]domaindigest.UserDigest)}
-	svc := NewService(papersReader, followStore, repo, nil)
+	svc := NewService(papersReader, followStore, repo, nil, nil)
 
-	t.Run("generates digest with user topics", func(t *testing.T) {
+	t.Run("generates digest with user topics and AI summary", func(t *testing.T) {
 		d, err := svc.GenerateDigest(context.Background(), userID, domaindigest.FrequencyWeekly)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -105,6 +105,28 @@ func TestDigestService(t *testing.T) {
 		if len(d.TopTakeaways) == 0 {
 			t.Errorf("expected non-empty takeaways")
 		}
+		if d.AISummary == "" {
+			t.Errorf("expected non-empty AI summary")
+		}
+	})
+
+	t.Run("generates tailored digest for guest with custom topics", func(t *testing.T) {
+		d, err := svc.GenerateDigest(context.Background(), uuid.Nil, domaindigest.FrequencyWeekly, "nlp")
+		if err != nil {
+			t.Fatalf("unexpected error for guest: %v", err)
+		}
+		if d.UserID != uuid.Nil {
+			t.Errorf("expected nil user ID, got %s", d.UserID)
+		}
+		if len(d.Sections) != 1 {
+			t.Fatalf("expected 1 section for custom topic, got %d", len(d.Sections))
+		}
+		if d.Sections[0].Title != "Highlights in nlp" {
+			t.Errorf("expected Highlights in nlp, got %s", d.Sections[0].Title)
+		}
+		if d.AISummary == "" {
+			t.Errorf("expected non-empty AI summary for guest tailored digest")
+		}
 	})
 
 	t.Run("fallback when user follows no topics", func(t *testing.T) {
@@ -119,9 +141,12 @@ func TestDigestService(t *testing.T) {
 		if d.Sections[0].Title != "Trending Across Athena" {
 			t.Errorf("unexpected fallback section title: %s", d.Sections[0].Title)
 		}
+		if d.AISummary == "" {
+			t.Errorf("expected non-empty AI summary")
+		}
 	})
 
-	t.Run("generates trending digest for guest (nil user ID)", func(t *testing.T) {
+	t.Run("generates trending digest for guest without topics", func(t *testing.T) {
 		d, err := svc.GenerateDigest(context.Background(), uuid.Nil, domaindigest.FrequencyWeekly)
 		if err != nil {
 			t.Fatalf("unexpected error for guest: %v", err)

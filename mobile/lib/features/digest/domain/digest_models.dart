@@ -33,6 +33,7 @@ class UserDigest {
     required this.id,
     required this.generatedAt,
     required this.frequency,
+    this.aiSummary = '',
     required this.pulses,
     required this.sections,
     required this.topTakeaways,
@@ -41,6 +42,7 @@ class UserDigest {
   final String id;
   final DateTime generatedAt;
   final String frequency;
+  final String aiSummary;
   final List<TopicPulse> pulses;
   final List<DigestSection> sections;
   final List<String> topTakeaways;

@@ -52,7 +52,7 @@ func TestDigestHandlers(t *testing.T) {
 		},
 	}
 
-	svc := appdigest.NewService(paperReader, followReader, nil, discardLogger())
+	svc := appdigest.NewService(paperReader, followReader, nil, nil, discardLogger())
 	h := NewDigestHandlers(svc, discardLogger())
 
 	userCtx := context.WithValue(context.Background(), userKey{},
@@ -80,6 +80,26 @@ func TestDigestHandlers(t *testing.T) {
 			if !bytes.Contains(rec.Body.Bytes(), []byte(key)) {
 				t.Errorf("digest wire format missing snake_case field %q: %s", key, body)
 			}
+		}
+		if d.AISummary == "" {
+			t.Errorf("expected non-empty ai_summary in wire format")
+		}
+	})
+
+	t.Run("latest returns tailored digest for guest with topics query param", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/research/digest/latest?topics=ai", nil)
+		rec := httptest.NewRecorder()
+		h.Latest(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+		var d userDigestDTO
+		if err := json.Unmarshal(rec.Body.Bytes(), &d); err != nil {
+			t.Fatalf("failed to decode digest response: %v", err)
+		}
+		if len(d.Sections) == 0 || d.Sections[0].Title != "Highlights in ai" {
+			t.Errorf("expected section 'Highlights in ai', got %+v", d.Sections)
 		}
 	})
 

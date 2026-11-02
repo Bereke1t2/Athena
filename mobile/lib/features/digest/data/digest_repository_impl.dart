@@ -12,9 +12,16 @@ class DigestRepositoryImpl implements DigestRepository {
   final Dio _dio;
 
   @override
-  Future<UserDigest> getLatestDigest() async {
+  Future<UserDigest> getLatestDigest({List<String>? topics}) async {
     try {
-      final res = await _dio.get<Map<String, dynamic>>('/research/digest/latest');
+      final queryParams = <String, dynamic>{};
+      if (topics != null && topics.isNotEmpty) {
+        queryParams['topics'] = topics.join(',');
+      }
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/research/digest/latest',
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
       return _parseDigest(res.data!);
     } catch (e) {
       throw failureFromDio(e);
@@ -22,11 +29,15 @@ class DigestRepositoryImpl implements DigestRepository {
   }
 
   @override
-  Future<UserDigest> generateDigest({String frequency = 'weekly'}) async {
+  Future<UserDigest> generateDigest({String frequency = 'weekly', List<String>? topics}) async {
     try {
+      final payload = <String, dynamic>{'frequency': frequency};
+      if (topics != null && topics.isNotEmpty) {
+        payload['topics'] = topics;
+      }
       final res = await _dio.post<Map<String, dynamic>>(
         '/research/digest/generate',
-        data: {'frequency': frequency},
+        data: payload,
       );
       return _parseDigest(res.data!);
     } catch (e) {
@@ -102,11 +113,13 @@ class DigestRepositoryImpl implements DigestRepository {
 
     final takeawaysRaw = (data['top_takeaways'] as List<dynamic>?) ?? [];
     final takeaways = takeawaysRaw.map((e) => e.toString()).toList();
+    final aiSummary = (data['ai_summary'] ?? data['aiSummary'] ?? '').toString();
 
     return UserDigest(
       id: data['id'] as String? ?? '',
       generatedAt: DateTime.tryParse(data['generated_at'] as String? ?? '') ?? DateTime.now(),
       frequency: data['frequency'] as String? ?? 'weekly',
+      aiSummary: aiSummary,
       pulses: pulses,
       sections: sections,
       topTakeaways: takeaways,

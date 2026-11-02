@@ -46,6 +46,7 @@ type UserDigest struct {
 	UserID       uuid.UUID       `json:"user_id"`
 	GeneratedAt  time.Time       `json:"generated_at"`
 	Frequency    Frequency       `json:"frequency"`
+	AISummary    string          `json:"ai_summary"`
 	Pulses       []TopicPulse    `json:"pulses"`
 	Sections     []DigestSection `json:"sections"`
 	TopTakeaways []string        `json:"top_takeaways"`

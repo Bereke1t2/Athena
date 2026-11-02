@@ -55,9 +55,9 @@ func (s *DigestStore) SaveDigest(ctx context.Context, d domaindigest.UserDigest)
 	}
 
 	_, err = s.pool.Exec(ctx, `
-		INSERT INTO user_digests (id, user_id, frequency, pulses, sections, top_takeaways, generated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		d.ID, d.UserID, string(d.Frequency), pulsesJSON, sectionsJSON, takeawaysJSON, d.GeneratedAt)
+		INSERT INTO user_digests (id, user_id, frequency, ai_summary, pulses, sections, top_takeaways, generated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		d.ID, d.UserID, string(d.Frequency), d.AISummary, pulsesJSON, sectionsJSON, takeawaysJSON, d.GeneratedAt)
 	if err != nil {
 		return fmt.Errorf("save digest: %w", err)
 	}
@@ -72,7 +72,7 @@ func (s *DigestStore) GetLatestDigest(ctx context.Context, userID uuid.UUID) (do
 	}
 
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, user_id, frequency, pulses, sections, top_takeaways, generated_at
+		SELECT id, user_id, frequency, COALESCE(ai_summary, ''), pulses, sections, top_takeaways, generated_at
 		FROM user_digests
 		WHERE user_id = $1
 		ORDER BY generated_at DESC
@@ -91,7 +91,7 @@ func (s *DigestStore) ListDigests(ctx context.Context, userID uuid.UUID, limit i
 	}
 
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, user_id, frequency, pulses, sections, top_takeaways, generated_at
+		SELECT id, user_id, frequency, COALESCE(ai_summary, ''), pulses, sections, top_takeaways, generated_at
 		FROM user_digests
 		WHERE user_id = $1
 		ORDER BY generated_at DESC
@@ -122,7 +122,7 @@ func scanDigest(s rowScanner) (domaindigest.UserDigest, error) {
 		takeawaysRaw  []byte
 	)
 
-	err := s.Scan(&d.ID, &d.UserID, &freqStr, &pulsesRaw, &sectionsRaw, &takeawaysRaw, &d.GeneratedAt)
+	err := s.Scan(&d.ID, &d.UserID, &freqStr, &d.AISummary, &pulsesRaw, &sectionsRaw, &takeawaysRaw, &d.GeneratedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domaindigest.UserDigest{}, domaindigest.ErrDigestNotFound

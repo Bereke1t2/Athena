@@ -105,7 +105,24 @@ func main() {
 	workers.AddAll(riverWorkers, service, log)
 	workers.AddNotificationsWithPush(riverWorkers, pool, pushSender, log)
 
-	digestSvc := appdigest.NewService(store, database.NewFollowStore(pool), database.NewDigestStore(pool), log)
+	var llm domainai.LLMProvider
+	if cfg.AIEnabled() {
+		switch cfg.LLMProvider {
+		case "stub":
+			llm = stubai.New()
+		default:
+			base := cfg.LLMBaseURL
+			if cfg.LLMOverrideBaseURL != "" {
+				base = cfg.LLMOverrideBaseURL
+			}
+			llm = openaicompat.NewClient(openaicompat.Config{
+				BaseURL: base, APIKey: cfg.LLMAPIKey, Model: cfg.LLMModel,
+				Timeout: 90 * time.Second,
+			})
+		}
+	}
+
+	digestSvc := appdigest.NewService(store, database.NewFollowStore(pool), database.NewDigestStore(pool), llm, log)
 	workers.AddDigest(riverWorkers, digestSvc, pool, log)
 
 	// Phase 4: full-text RAG indexing when an LLM/embedding stack is set.

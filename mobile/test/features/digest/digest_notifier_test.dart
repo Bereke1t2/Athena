@@ -13,7 +13,7 @@ class FakeDigestRepository implements DigestRepository {
   bool shouldThrow = false;
 
   @override
-  Future<UserDigest> getLatestDigest() async {
+  Future<UserDigest> getLatestDigest({List<String>? topics}) async {
     if (shouldThrow) {
       throw const Failure.server(statusCode: 500, message: 'Server error');
     }
@@ -22,6 +22,7 @@ class FakeDigestRepository implements DigestRepository {
           id: 'd1',
           generatedAt: DateTime.utc(2026, 10, 20),
           frequency: 'weekly',
+          aiSummary: 'Weekly synthesis of key AI developments.',
           pulses: const [
             TopicPulse(
               topicSlug: 'ai',
@@ -37,7 +38,7 @@ class FakeDigestRepository implements DigestRepository {
   }
 
   @override
-  Future<UserDigest> generateDigest({String frequency = 'weekly'}) async {
+  Future<UserDigest> generateDigest({String frequency = 'weekly', List<String>? topics}) async {
     if (shouldThrow) {
       throw const Failure.server(statusCode: 500, message: 'Server error');
     }
@@ -45,6 +46,7 @@ class FakeDigestRepository implements DigestRepository {
       id: 'd2',
       generatedAt: DateTime.utc(2026, 10, 20),
       frequency: frequency,
+      aiSummary: 'Regenerated weekly executive synthesis.',
       pulses: const [],
       sections: const [],
       topTakeaways: const ['Fresh finding'],
@@ -72,6 +74,7 @@ void main() {
       expect(state.isLoading, isFalse);
       expect(state.digest, isNotNull);
       expect(state.digest!.id, 'd1');
+      expect(state.digest!.aiSummary, 'Weekly synthesis of key AI developments.');
       expect(state.digest!.pulses.length, 1);
       expect(state.digest!.pulses.first.topicSlug, 'ai');
 
@@ -79,6 +82,7 @@ void main() {
       await notifier.regenerate();
       final updated = container.read(digestNotifierProvider);
       expect(updated.digest!.id, 'd2');
+      expect(updated.digest!.aiSummary, 'Regenerated weekly executive synthesis.');
       expect(updated.digest!.topTakeaways.first, 'Fresh finding');
     });
 
@@ -101,7 +105,7 @@ void main() {
   });
 
   group('DigestRepositoryImpl', () {
-    test('parses standard snake_case wire DTO payload', () async {
+    test('parses standard snake_case wire DTO payload including ai_summary and topics query', () async {
       final dio = Dio();
       dio.interceptors.add(InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -113,6 +117,7 @@ void main() {
               'user_id': 'user-456',
               'generated_at': '2026-11-01T12:00:00Z',
               'frequency': 'weekly',
+              'ai_summary': 'Major advances in deep learning were published this week.',
               'pulses': [
                 {
                   'topic_slug': 'ai',
@@ -149,9 +154,10 @@ void main() {
       ));
 
       final repo = DigestRepositoryImpl(dio);
-      final digest = await repo.getLatestDigest();
+      final digest = await repo.getLatestDigest(topics: ['ai', 'vision']);
 
       expect(digest.id, 'digest-123');
+      expect(digest.aiSummary, 'Major advances in deep learning were published this week.');
       expect(digest.sections.length, 1);
       expect(digest.sections.first.papers.length, 1);
       final paper = digest.sections.first.papers.first;
@@ -173,6 +179,7 @@ void main() {
               'id': 'legacy-digest-1',
               'generated_at': '2026-11-01T12:00:00Z',
               'frequency': 'weekly',
+              'ai_summary': 'Legacy briefing synthesis',
               'pulses': [],
               'sections': [
                 {
@@ -203,6 +210,7 @@ void main() {
       final digest = await repo.getLatestDigest();
 
       expect(digest.id, 'legacy-digest-1');
+      expect(digest.aiSummary, 'Legacy briefing synthesis');
       expect(digest.sections.first.papers.length, 1);
       final paper = digest.sections.first.papers.first;
       expect(paper.id, '00000000-0000-0000-0000-000000000002');

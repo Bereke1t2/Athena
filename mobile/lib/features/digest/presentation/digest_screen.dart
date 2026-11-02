@@ -28,23 +28,21 @@ class DigestScreen extends ConsumerWidget {
         actions: [
           AthenaCircularIconButton(
             icon: Icons.refresh_rounded,
-            tooltip: 'Regenerate Briefing',
-            onPressed: state.isGenerating
+            tooltip: 'Refresh Briefing',
+            onPressed: state.isGenerating || state.isLoading
                 ? null
                 : () {
                     if (!authState.isAuthenticated) {
+                      notifier.loadLatest();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Sign in to personalize your weekly research briefings.'),
-                          action: SnackBarAction(
-                            label: 'Sign In',
-                            onPressed: () => context.push('/login'),
-                          ),
+                        const SnackBar(
+                          content: Text('Updated latest research briefing for your topics.'),
+                          duration: Duration(seconds: 2),
                         ),
                       );
-                      return;
+                    } else {
+                      notifier.regenerate();
                     }
-                    notifier.regenerate();
                   },
           ),
         ],
@@ -69,6 +67,8 @@ class DigestScreen extends ConsumerWidget {
                 subtitle: 'Follow research topics to receive periodic briefings.',
               );
             }
+
+            final totalPapers = digest.sections.fold<int>(0, (sum, sec) => sum + sec.papers.length);
 
             return RefreshIndicator(
               onRefresh: () => notifier.loadLatest(),
@@ -97,13 +97,17 @@ class DigestScreen extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Trending Athena Briefing',
-                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                                Text(
+                                  notifier.followedTopics.isNotEmpty
+                                      ? 'Tailored Research Briefing'
+                                      : 'Trending Athena Briefing',
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Sign in to tailor briefings to your followed topics.',
+                                  notifier.followedTopics.isNotEmpty
+                                      ? 'Personalized to ${notifier.followedTopics.length} followed topics. Sign in to enable push alerts.'
+                                      : 'Follow topics to tailor weekly intelligence to your scientific focus.',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
@@ -178,7 +182,7 @@ class DigestScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Executive Research Briefing',
+                          'Weekly Research Briefing',
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w900,
                             fontSize: 20,
@@ -186,7 +190,7 @@ class DigestScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'High-velocity developments, empirical consensus, and curated breakthroughs tailored to scientific focus.',
+                          'Recent breakthroughs, empirical discoveries, and key methodologies published this week across your topics.',
                           style: TextStyle(
                             fontSize: 13,
                             color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563),
@@ -197,7 +201,124 @@ class DigestScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+
+                  // AI Weekly Executive Synthesis Card
+                  if (digest.aiSummary.isNotEmpty) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF181C26) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isDark
+                              ? AppTheme.coral.withValues(alpha: 0.35)
+                              : AppTheme.coral.withValues(alpha: 0.25),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.coral.withValues(alpha: isDark ? 0.08 : 0.05),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.coral.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.auto_awesome, color: AppTheme.coral, size: 16),
+                              ),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Text(
+                                  'ATHENA AI · WEEKLY RESEARCH SYNTHESIS',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.8,
+                                    color: AppTheme.coral,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'GROUNDED',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF10B981),
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            digest.aiSummary,
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              height: 1.55,
+                              color: isDark ? const Color(0xFFF3F4F6) : const Color(0xFF1F2937),
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF232733) : const Color(0xFFF3F4F6),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '$totalPapers recent publications',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                  ),
+                                ),
+                              ),
+                              ...digest.pulses.take(4).map((pulse) => Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.coral.withValues(alpha: isDark ? 0.12 : 0.08),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '#${pulse.topicSlug}',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.coral,
+                                      ),
+                                    ),
+                                  )),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   // Takeaways Section
                   if (digest.topTakeaways.isNotEmpty) ...[
@@ -346,12 +467,37 @@ class DigestScreen extends ConsumerWidget {
                                             fontWeight: FontWeight.w800,
                                           ),
                                         ),
-                                        const SizedBox(height: 6),
+                                        const SizedBox(height: 8),
                                         Row(
                                           children: [
+                                            // Publication Date Badge
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: isDark ? const Color(0xFF232733) : const Color(0xFFF3F4F6),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.calendar_today_outlined,
+                                                      size: 11, color: AppTheme.coral),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    _formatPublicationDate(paper.publishedOn, paper.year),
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF374151),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
-                                                '${paper.year} · ${paper.venueName.isNotEmpty ? paper.venueName : "Preprint"}',
+                                                paper.venueName.isNotEmpty ? paper.venueName : 'Preprint',
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
@@ -386,6 +532,16 @@ class DigestScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  static String _formatPublicationDate(DateTime? date, int year) {
+    if (date == null) return '$year';
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final m = (date.month >= 1 && date.month <= 12) ? months[date.month - 1] : '';
+    return '${date.day} $m ${date.year}';
   }
 }
 
@@ -448,30 +604,25 @@ class _VelocitySparklinePainter extends CustomPainter {
         ],
       ).createShader(Rect.fromLTWH(0, 0, w, h))
       ..style = PaintingStyle.fill;
+
     canvas.drawPath(fillPath, fillPaint);
 
-    // Sparkline curve stroke
-    final strokePaint = Paint()
+    final linePaint = Paint()
       ..color = AppTheme.coral
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, strokePaint);
 
-    // Glowing tip dot
-    final tipGlow = Paint()
-      ..color = AppTheme.coral.withValues(alpha: 0.35)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(p3, 4.0, tipGlow);
+    canvas.drawPath(path, linePaint);
 
-    final tipDot = Paint()
+    // End pulse dot
+    final dotPaint = Paint()
       ..color = AppTheme.coral
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(p3, 2.0, tipDot);
+    canvas.drawCircle(p3, 3.0, dotPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _VelocitySparklinePainter oldDelegate) {
-    return oldDelegate.velocity != velocity || oldDelegate.isDark != isDark;
-  }
+  bool shouldRepaint(covariant _VelocitySparklinePainter oldDelegate) =>
+      oldDelegate.velocity != velocity || oldDelegate.isDark != isDark;
 }
