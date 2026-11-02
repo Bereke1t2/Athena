@@ -4,12 +4,15 @@
 package ai
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"html"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -45,6 +48,9 @@ type RAGService struct {
 func NewRAGService(papers PaperSource, chunks ChunkWriter,
 	extractor domainai.TextExtractor, embedder domainai.EmbeddingProvider,
 	fetcher DocumentFetcher, log *slog.Logger) *RAGService {
+	if log == nil {
+		log = slog.Default()
+	}
 	return &RAGService{
 		Papers: papers, Chunks: chunks, Extractor: extractor,
 		Embedder: embedder, Fetcher: fetcher, Logger: log,
@@ -55,27 +61,40 @@ func NewRAGService(papers PaperSource, chunks ChunkWriter,
 // HTTPFetcher is the production DocumentFetcher with a size cap and redirect handling.
 type HTTPFetcher struct{}
 
+type cancelCloser struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (c *cancelCloser) Close() error {
+	defer c.cancel()
+	return c.ReadCloser.Close()
+}
+
 func (HTTPFetcher) Fetch(ctx context.Context, docURL string) (io.ReadCloser, error) {
-	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, docURL, nil)
+	reqCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, docURL, nil)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "athena/0.1 (research aggregator; full-text indexing; mailto:bot@athenaresearch.app)")
-	req.Header.Set("Accept", "application/pdf, text/html;q=0.9, */*;q=0.8")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 AthenaResearch/1.0")
+	req.Header.Set("Accept", "application/pdf, text/html;q=0.9, application/xhtml+xml, */*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	client := &http.Client{
 		Timeout: 45 * time.Second,
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("fetch %s: %w", redacted(docURL), err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
+		cancel()
 		return nil, fmt.Errorf("fetch %s: http %d", redacted(docURL), resp.StatusCode)
 	}
-	return resp.Body, nil
+	return &cancelCloser{ReadCloser: resp.Body, cancel: cancel}, nil
 }
 
 func redacted(u string) string {
@@ -83,6 +102,38 @@ func redacted(u string) string {
 		return parsed.Host + parsed.Path
 	}
 	return u
+}
+
+var citationMetaRegexes = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)<meta\s+[^>]*name=["']citation_pdf_url["'][^>]*content=["']([^"']+)["']`),
+	regexp.MustCompile(`(?i)<meta\s+[^>]*content=["']([^"']+)["'][^>]*name=["']citation_pdf_url["']`),
+	regexp.MustCompile(`(?i)<link\s+[^>]*rel=["']alternate["'][^>]*type=["']application/pdf["'][^>]*href=["']([^"']+)["']`),
+	regexp.MustCompile(`(?i)<link\s+[^>]*type=["']application/pdf["'][^>]*rel=["']alternate["'][^>]*href=["']([^"']+)["']`),
+	regexp.MustCompile(`(?i)<link\s+[^>]*href=["']([^"']+)["'][^>]*rel=["']alternate["'][^>]*type=["']application/pdf["']`),
+}
+
+func extractCitationPDFURL(baseStr, raw string) string {
+	for _, re := range citationMetaRegexes {
+		if match := re.FindStringSubmatch(raw); len(match) > 1 {
+			u := strings.TrimSpace(html.UnescapeString(match[1]))
+			if u == "" {
+				continue
+			}
+			if strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") {
+				return u
+			}
+			baseURL, err := url.Parse(baseStr)
+			if err != nil {
+				continue
+			}
+			relURL, err := url.Parse(u)
+			if err != nil {
+				continue
+			}
+			return baseURL.ResolveReference(relURL).String()
+		}
+	}
+	return ""
 }
 
 var ErrNoPermittedFullText = fmt.Errorf("%w: no text-mining-permitted full text",
@@ -121,9 +172,46 @@ func (s *RAGService) IngestPaper(ctx context.Context, paperID uuid.UUID) (int, e
 			continue
 		}
 
-		raw, xerr := s.Extractor.Extract(fetchCtx, body)
+		data, rerr := io.ReadAll(io.LimitReader(body, 20<<20))
 		body.Close()
 		cancel()
+		if rerr != nil || len(data) == 0 {
+			if rerr != nil {
+				lastErr = rerr
+			}
+			continue
+		}
+
+		// Check if this is an HTML landing page with a direct PDF citation link
+		sampleLen := len(data)
+		if sampleLen > 8192 {
+			sampleLen = 8192
+		}
+		sample := strings.ToLower(string(data[:sampleLen]))
+		if strings.Contains(sample, "<html") || strings.Contains(sample, "<!doctype") || strings.Contains(sample, "<head") {
+			metaScanLen := len(data)
+			if metaScanLen > 65536 {
+				metaScanLen = 65536
+			}
+			if pdfURL := extractCitationPDFURL(targetURL, string(data[:metaScanLen])); pdfURL != "" && pdfURL != targetURL {
+				s.Logger.Info("discovered citation PDF URL in HTML metadata", "url", redacted(pdfURL), "parent", redacted(targetURL))
+				pCtx, pCancel := context.WithTimeout(ctx, s.FetchTimeout)
+				pBody, pErr := s.Fetcher.Fetch(pCtx, pdfURL)
+				if pErr == nil {
+					pData, pReadErr := io.ReadAll(io.LimitReader(pBody, 20<<20))
+					pBody.Close()
+					pCancel()
+					if pReadErr == nil && len(pData) > 0 {
+						data = pData
+					}
+				} else {
+					pCancel()
+					s.Logger.Debug("fetch discovered citation PDF failed; keeping HTML", "pdf_url", redacted(pdfURL), "error", pErr)
+				}
+			}
+		}
+
+		raw, xerr := s.Extractor.Extract(ctx, bytes.NewReader(data))
 		if xerr != nil {
 			lastErr = xerr
 			s.Logger.Debug("extract candidate failed, trying next", "url", redacted(targetURL), "error", xerr)
@@ -201,6 +289,7 @@ func CandidateFullTextURLs(d research.PaperDetail) []string {
 		// Strip any version suffix or prefix for clean URLs if needed
 		cleanID := strings.TrimPrefix(arxivID, "arXiv:")
 		add("https://arxiv.org/pdf/" + cleanID)
+		add("https://arxiv.org/pdf/" + cleanID + ".pdf")
 		add("https://ar5iv.labs.arxiv.org/html/" + cleanID)
 	}
 
@@ -212,6 +301,15 @@ func CandidateFullTextURLs(d research.PaperDetail) []string {
 		if v.URL != "" {
 			add(normalizeCandidateURL(v.URL))
 		}
+	}
+
+	// 3. DOI resolution if present
+	doi := strings.TrimSpace(d.DOI)
+	if doi != "" {
+		cleanDOI := strings.TrimPrefix(doi, "https://doi.org/")
+		cleanDOI = strings.TrimPrefix(cleanDOI, "http://doi.org/")
+		cleanDOI = strings.TrimPrefix(cleanDOI, "doi:")
+		add("https://doi.org/" + cleanDOI)
 	}
 
 	// Filter and prioritize direct PDFs and recognized open access repositories

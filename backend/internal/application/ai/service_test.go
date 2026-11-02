@@ -309,3 +309,35 @@ func TestFullTextURLResolution(t *testing.T) {
 	}
 }
 
+func TestExtractCitationPDFURL(t *testing.T) {
+	htmlSample := `<!DOCTYPE html>
+<html>
+<head>
+    <title>Academic Paper</title>
+    <meta name="citation_title" content="Deep Learning">
+    <meta name="citation_pdf_url" content="https://publisher.com/articles/12345.pdf">
+</head>
+<body><h1>Deep Learning</h1></body>
+</html>`
+
+	got := extractCitationPDFURL("https://publisher.com/articles/12345", htmlSample)
+	want := "https://publisher.com/articles/12345.pdf"
+	if got != want {
+		t.Fatalf("extractCitationPDFURL() = %q, want %q", got, want)
+	}
+
+	relHTML := `<html><head><meta content="/content/pdf/paper.pdf" name="citation_pdf_url"></head></html>`
+	gotRel := extractCitationPDFURL("https://example.org/entry/view", relHTML)
+	wantRel := "https://example.org/content/pdf/paper.pdf"
+	if gotRel != wantRel {
+		t.Fatalf("extractCitationPDFURL(relative) = %q, want %q", gotRel, wantRel)
+	}
+
+	linkHTML := `<html><head><link rel="alternate" type="application/pdf" href="https://other.org/doc.pdf"></head></html>`
+	gotLink := extractCitationPDFURL("https://other.org", linkHTML)
+	wantLink := "https://other.org/doc.pdf"
+	if gotLink != wantLink {
+		t.Fatalf("extractCitationPDFURL(link) = %q, want %q", gotLink, wantLink)
+	}
+}
+

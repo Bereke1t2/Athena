@@ -37,6 +37,54 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
+1. **Full-Text Paper RAG & Deep AI Conversation Engine (2026-11-02)**:
+   - **Scope**: Fixed the root causes preventing full-text academic papers from being chunked, embedded, and retrieved in paper conversations (`ChatScreen`) and structured summaries (`POST /research/papers/{id}/summary`), which previously forced responses into "Based on only the abstract...".
+   - **Root Causes**:
+     - *Premature Context Cancellation in `HTTPFetcher.Fetch`*: In [`rag.go`](file:///home/bereket/startup/Athena/backend/internal/application/ai/rag.go), `defer cancel()` was placed inside `Fetch()` right after creating a timeout context. Because `resp.Body` is returned as a live stream, `defer cancel()` canceled the context before the caller could read the stream, causing `io.ReadAll` to fail with `read document stream: context canceled` on 100% of PDF/HTML fetches.
+     - *Gemini Embedding 404 Endpoint Mismatch*: Configured model was `text-embedding-004`. Gemini's OpenAI-compatible endpoint (`/v1beta/openai/embeddings`) rejected this with HTTP 404. Gemini's active embedding model is `gemini-embedding-001` (with `dimensions: 768`).
+     - *Academic Bot Blocking & Missing Citation PDF Resolution*: Publisher servers rejected `athena/0.1` user-agent with HTTP 403. Also, article landing pages contain `<meta name="citation_pdf_url" content="...">` and `<link rel="alternate" type="application/pdf" href="...">`, which were ignored.
+     - *First-Turn Latency*: Ingestion only ran lazily on the first prompt in `Ask()`.
+   - **Core Deliverables**:
+     - *Stream Lifecycle & Realistic Headers* ([`rag.go`](file:///home/bereket/startup/Athena/backend/internal/application/ai/rag.go)): Wrapped `resp.Body` in a `cancelCloser` executing `cancel()` strictly upon `Close()`. Added realistic academic browser `User-Agent`, `Accept`, and `Accept-Language` headers.
+     - *HTML Citation Metadata Discovery* ([`rag.go`](file:///home/bereket/startup/Athena/backend/internal/application/ai/rag.go)): Added `extractCitationPDFURL` scanning `<meta name="citation_pdf_url">` and alternate PDF links to download the full-text PDF directly when landing pages are encountered.
+     - *Gemini Embedding Model Alignment* ([`config.go`](file:///home/bereket/startup/Athena/backend/internal/platform/config/config.go), [`.env`](file:///home/bereket/startup/Athena/.env)): Configured `gemini-embedding-001` with `dimensions: 768`, matching PostgreSQL's `vector(768)` schema.
+     - *Background Pre-Indexing* ([`chat/service.go`](file:///home/bereket/startup/Athena/backend/internal/application/chat/service.go)): Triggered background indexing upon `CreateSession` so full-text chunks and embeddings are prepared ahead of the user's first prompt.
+   - **Verification**: `go test -v -count=1 ./internal/application/ai/... ./internal/application/chat/...` 100% green; `go test -count=1 ./...` 100% green across all packages; `make build-backend` clean.
+
+1. **AI Weekly Research Digest & Followed Topics Synthesis (2026-11-02)**:
+   - **Scope**: Upgraded the Research Digest with recency-first paper queries published during the week, an overarching AI weekly executive briefing synthesizing what happened across followed topics, dynamic empirical takeaways, guest personalization via followed topic parameters, and explicit paper publication date badges.
+   - **Root Causes**:
+     - *Historical Paper Sorting*: Backend `appdigest.Service` previously queried `Sort: research.SortCitations` with no date boundaries, surfacing papers from years ago rather than research published during the current week.
+     - *Missing Generative AI Narrative*: The briefing had no overarching generative synthesis explaining what occurred during the week across followed topics; `top_takeaways` were hardcoded boilerplate strings (`"Compiled %d relevant papers..."`).
+     - *Guest User Topic Silo*: Unauthenticated users defaulted to a generic "Trending Across Athena" briefing because the API did not accept followed topics as query parameters, ignoring guest selections from onboarding.
+   - **Core Deliverables**:
+     - *Recency-First Ingestion & Resilient Fallback* ([`service.go`](file:///home/bereket/startup/Athena/backend/internal/application/digest/service.go)): Queries papers published during the last 7 days (`SortNewest` + `PublishedAfter: now - 7d`) per topic, with an automated fallback to newest papers if the strict 7-day cutoff contains fewer than 2 papers, guaranteeing relevant, newest research is always present.
+     - *AI Weekly Synthesis Engine* ([`service.go`](file:///home/bereket/startup/Athena/backend/internal/application/digest/service.go)): Wired `domainai.LLMProvider` (Gemini / OpenAI-compat / offline stub) into `appdigest.NewService`. Formulates structured prompts feeding weekly papers, abstracts, and followed topics to generate:
+       1. `ai_summary`: Cohesive 2-3 paragraph executive weekly briefing explaining what occurred this week across followed topics.
+       2. `top_takeaways`: Specific empirical breakthroughs and methodological discoveries from actual papers.
+       3. `topic_themes`: Dynamic momentum themes for `TopicPulse.KeyThemes`.
+       Includes resilient deterministic fallback if LLM is offline or in stub mode.
+     - *Database Persistence* ([`000019_digest_ai_summary.up.sql`](file:///home/bereket/startup/Athena/backend/migrations/000019_digest_ai_summary.up.sql), [`digest_store.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/database/digest_store.go)): Added `ai_summary` column to `user_digests` table with automated scanning and saving.
+     - *Topic Query Delivery* ([`digest.go`](file:///home/bereket/startup/Athena/backend/internal/delivery/http/v1/digest.go)): Updated `GET /api/v1/research/digest/latest` and `POST /research/digest/generate` to accept `?topics=slug1,slug2` query parameters and JSON body, allowing guests with local follows to receive fully tailored briefings.
+     - *Mobile UI Overhaul* ([`digest_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/digest/presentation/digest_screen.dart)):
+       - Added **✨ ATHENA AI · WEEKLY RESEARCH SYNTHESIS** card with coral aperture badge, grounded indicator, multi-paragraph synthesis, and topic chips.
+       - Added calendar publication date badge (e.g. `12 Aug 2026`) to every paper card.
+       - Upgraded guest banner informing users that their briefing is personalized to their followed topics.
+       - Connected `followsNotifierProvider` to `DigestNotifier` to pass active followed topics automatically.
+   - **Verification**: `dart analyze` clean (0 issues); `flutter test` 76 passed, 1 skipped (100% green); Go tests 100% green across all packages; Go binaries (`api`, `worker`) build cleanly.
+
+1. **AI Chat UX Declutter & Input Visibility Enhancement (2026-11-01)**:
+   - **Scope**: Eliminated unnecessary controls (model chooser capsule, non-functional paperclip and mic icons) from the chat prompt bar and dramatically increased input field width and text visibility.
+   - **Root Causes**:
+     - *Severely Constrained Input Width*: The docked prompt bar squeezed a paperclip button (34px), voice mic button (34px), model selector capsule (86px), and circular send button (36px) alongside the `TextField`. On standard mobile screens (~360dp), the text field was choked to an ~82px sliver, causing typed text to truncate and appear virtually invisible.
+     - *Unnecessary Controls*: The bottom-sheet model picker was redundant as the backend manages inference models automatically.
+   - **Core Deliverables**:
+     - *Full-Width Input Field* ([`chat_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/ai/presentation/chat_screen.dart)): Removed the paperclip icon, mic icon, and model selector capsule, giving the `TextField` the entire width of the prompt card (~260px+). Increased font size to 15.0 with high-contrast text (`#FFFFFF` in dark mode, `#111827` in light mode), `cursorColor: AppTheme.coral`, and clear auto-expanding multi-line support.
+     - *Dynamic Send & Clear Actions*: Added real-time text listener with a one-tap clear button (`✕`) when text is present, and an upward send button that lights up in vibrant `AppTheme.coral` as soon as text is typed.
+     - *High-Contrast Message Bubbles*: Upgraded user speech bubbles to `#1E222D` with subtle coral border accent (`Border.all(color: AppTheme.coral.withValues(alpha: 0.45), width: 1.2)`) and crisp white `#F9FAFB` typography for instant, effortless legibility.
+     - *Shared Floating Bar Streamlined* ([`floating_research_prompt_bar.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/floating_research_prompt_bar.dart)): Cleaned model selector and non-functional attachments to maintain consistent minimalist editorial UX across all screens.
+   - **Verification**: `dart analyze` clean (0 issues); `flutter test` 76 passed, 1 skipped (100% green); debug APK compiled cleanly.
+
 1. **Topic Discovery & Profile Followed Topics Resolution (2026-11-01)**:
    - **Scope**: Resolved the missing followed topics in Profile and enhanced the Topics discovery experience across mobile.
    - **Root Causes**:

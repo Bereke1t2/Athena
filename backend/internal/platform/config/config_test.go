@@ -90,7 +90,7 @@ func TestFromEnvGeminiEmbeddingDefaults(t *testing.T) {
 	cfg, err := FromEnv()
 	require.NoError(t, err)
 	assert.Equal(t, "gemini", cfg.EmbeddingProviderName)
-	assert.Equal(t, "text-embedding-004", cfg.EmbeddingModel)
+	assert.Equal(t, "gemini-embedding-001", cfg.EmbeddingModel)
 	assert.Equal(t, 768, cfg.EmbeddingDim)
 }
 

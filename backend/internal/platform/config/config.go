@@ -194,9 +194,9 @@ func FromEnv() (Config, error) {
 		}
 		switch cfg.EmbeddingProviderName {
 		case "openai_compatible", "gemini":
-			if cfg.EmbeddingModel == "" {
+			if cfg.EmbeddingModel == "" || (cfg.EmbeddingProviderName == "gemini" && cfg.EmbeddingModel == "text-embedding-004") {
 				if cfg.EmbeddingProviderName == "gemini" {
-					cfg.EmbeddingModel = "text-embedding-004"
+					cfg.EmbeddingModel = "gemini-embedding-001"
 				} else {
 					cfg.EmbeddingModel = "text-embedding-3-small"
 				}

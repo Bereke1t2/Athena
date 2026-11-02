@@ -65,9 +65,28 @@ func NewService(llm domainai.LLMProvider, sessions SessionStore,
 		indexTimeout: 60 * time.Second}
 }
 
-// CreateSession opens a single-paper chat container.
+// CreateSession opens a single-paper chat container and starts background indexing
+// if full-text chunks have not yet been generated for this paper.
 func (s *Service) CreateSession(ctx context.Context, in domainai.NewSessionInput) (domainai.Session, error) {
-	return s.Sessions.CreateSession(ctx, in)
+	session, err := s.Sessions.CreateSession(ctx, in)
+	if err != nil {
+		return domainai.Session{}, err
+	}
+	if s.Indexer != nil {
+		paperID := in.PaperID
+		go func() {
+			ictx, cancel := context.WithTimeout(context.Background(), s.indexTimeout)
+			defer cancel()
+			if _, ierr := s.Indexer.IngestPaper(ictx, paperID); ierr != nil {
+				if s.Logger != nil {
+					s.Logger.Debug("background chat pre-indexing skipped or failed", "paper_id", paperID, "error", ierr)
+				}
+			} else if s.Logger != nil {
+				s.Logger.Info("background chat pre-indexing completed", "paper_id", paperID)
+			}
+		}()
+	}
+	return session, nil
 }
 
 // Messages lists the transcript oldest-first.
