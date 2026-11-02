@@ -34,11 +34,11 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
-  String _selectedModel = 'arc-1a';
 
   @override
   void initState() {
     super.initState();
+    _input.addListener(_onInputChanged);
     if (widget.initialQuery != null && widget.initialQuery!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _handleSend(widget.initialQuery!);
@@ -46,8 +46,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  void _onInputChanged() {
+    setState(() {});
+  }
+
   @override
   void dispose() {
+    _input.removeListener(_onInputChanged);
     _input.dispose();
     _scroll.dispose();
     super.dispose();
@@ -91,97 +96,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         : hour < 17
             ? 'Good Afternoon'
             : 'Good Evening';
-    return '$timeGreeting, Agnes.';
-  }
-
-  void _showModelPicker(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: isDark ? const Color(0xFF181A20) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        final models = [
-          ('arc-1a', 'Gemini 3.5 Flash — Ultra-fast synthesis & deep citations'),
-          ('arc-1b', 'Reasoning Pro — High-depth cross-paper comparison'),
-          ('arc-mini', 'On-device summary & fast offline retrieval'),
-        ];
-
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    AthenaArcEmblem(size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'AI RESEARCH ENGINE',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.0,
-                        color: AppTheme.coral,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                for (final (id, desc) in models)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _selectedModel == id
-                              ? AppTheme.coral
-                              : (isDark ? const Color(0xFF4B5563) : const Color(0xFFD1D5DB)),
-                          width: 2.0,
-                        ),
-                      ),
-                      child: _selectedModel == id
-                          ? Center(
-                              child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppTheme.coral,
-                                ),
-                              ),
-                            )
-                          : null,
-                    ),
-                    title: Text(
-                      id,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: Text(
-                      desc,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                      ),
-                    ),
-                    onTap: () {
-                      setState(() => _selectedModel = id);
-                      Navigator.pop(ctx);
-                    },
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    return '$timeGreeting, Scholar.';
   }
 
   @override
@@ -433,131 +348,89 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
               // Docked Universal Resarc AI Research Prompt Bar
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF161922) : Colors.white,
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(
                       color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
-                      width: 1.0,
+                      width: 1.2,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.05),
                         blurRadius: 16,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Paperclip Attachment Icon
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isDark ? const Color(0xFF2F3544) : const Color(0xFFE5E7EB),
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.attach_file_rounded,
-                          size: 17,
-                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Voice Mic Icon
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isDark ? const Color(0xFF2F3544) : const Color(0xFFE5E7EB),
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.mic_none_rounded,
-                          size: 17,
-                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Model Selector Capsule: arc-1a with green-dot emblem
-                      InkWell(
-                        onTap: () => _showModelPicker(context),
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF1E222D) : const Color(0xFFF3F4F6),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: isDark ? const Color(0xFF2E3444) : const Color(0xFFE5E7EB),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const AthenaArcEmblem(size: 13),
-                              const SizedBox(width: 5),
-                              Text(
-                                _selectedModel,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : const Color(0xFF1F2937),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-
-                      // Input Text Field
+                      // Full-width Input Text Field
                       Expanded(
                         child: TextField(
                           controller: _input,
                           minLines: 1,
-                          maxLines: 4,
+                          maxLines: 5,
                           enabled: !state.sending,
                           textInputAction: TextInputAction.send,
                           onSubmitted: (_) => _handleSend(),
+                          cursorColor: AppTheme.coral,
                           style: TextStyle(
-                            fontSize: 13.5,
+                            fontSize: 15.0,
+                            fontWeight: FontWeight.w500,
                             color: isDark ? Colors.white : const Color(0xFF111827),
+                            height: 1.35,
                           ),
                           decoration: InputDecoration(
                             isDense: true,
-                            hintText: 'Curious? Ask scholarly insights…',
+                            hintText: 'Ask Athena anything about this research…',
                             hintStyle: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                              fontSize: 14.0,
+                              fontWeight: FontWeight.w400,
+                              color: isDark ? const Color(0xFF8B92A0) : const Color(0xFF9CA3AF),
                             ),
                             border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
+
+                      // Clear button when text is entered
+                      if (_input.text.isNotEmpty && !state.sending) ...[
+                        IconButton(
+                          icon: Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _input.clear(),
+                          tooltip: 'Clear',
+                        ),
+                        const SizedBox(width: 4),
+                      ],
 
                       // Upward Circular Send Button
                       InkWell(
-                        onTap: state.sending ? null : () => _handleSend(),
+                        onTap: (state.sending || _input.text.trim().isEmpty)
+                            ? null
+                            : () => _handleSend(),
                         borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: const BoxDecoration(
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Color(0xFF111827),
+                            color: _input.text.trim().isEmpty && !state.sending
+                                ? (isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB))
+                                : AppTheme.coral,
                           ),
                           child: Center(
                             child: state.sending
@@ -569,9 +442,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Icon(
+                                : Icon(
                                     Icons.arrow_upward_rounded,
-                                    color: Colors.white,
+                                    color: _input.text.trim().isEmpty && !state.sending
+                                        ? (isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF))
+                                        : Colors.white,
                                     size: 20,
                                   ),
                           ),
@@ -608,24 +483,30 @@ class _Bubble extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 6),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.82,
+            maxWidth: MediaQuery.of(context).size.width * 0.84,
           ),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF262A36) : const Color(0xFF111827),
+            color: isDark ? const Color(0xFF1E222D) : const Color(0xFF111827),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(18),
               topRight: Radius.circular(18),
               bottomLeft: Radius.circular(18),
               bottomRight: Radius.circular(4),
             ),
+            border: Border.all(
+              color: isDark
+                  ? AppTheme.coral.withValues(alpha: 0.45)
+                  : const Color(0xFF282C38),
+              width: 1.2,
+            ),
           ),
-          child: SelectableText(
+          child: Text(
             message.content,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
-              height: 1.4,
+              color: Color(0xFFF9FAFB),
+              height: 1.45,
             ),
           ),
         ),
@@ -669,7 +550,7 @@ class _Bubble extends StatelessWidget {
                 const AthenaArcEmblem(size: 14),
                 const SizedBox(width: 7),
                 const Text(
-                  'ATHENA arc-1a',
+                  'ATHENA',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
