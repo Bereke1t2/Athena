@@ -1,6 +1,6 @@
 # AGENTS.md — working notes for AI agents on Athena
 
-Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
+Last updated: 2026-11-04 (platform consistency, branch reconciliation & Phase 5/6 verification). Read this first.
 
 ## Stack & layout
 
@@ -37,7 +37,15 @@ Last updated: 2026-08-25 (end of a multi-feature session). Read this first.
 
 ## Unfinished / verify next session
 
-1. **Full-Text Paper RAG & Deep AI Conversation Engine (2026-11-02)**:
+1. **Platform Consistency & Branch Reconciliation (2026-11-04)**:
+   - **Scope**: Reconciled unmerged branches (`feat/audio-studio-tts-engine`, `fix/ai-paper-chat-and-mobile-overflows`, `feat/platform-enhancements-and-phase5`), verified roadmap acceptance criteria for Phases 5 and 6, and synchronized test suites across both Go backend and Flutter mobile.
+   - **Reconciliation Audit**:
+     - *`feat/audio-studio-tts-engine`*: Commit `b8c52fd` documentation updates (`README.md`, `backend/README.md`, `mobile/README.md`) verified 100% identical and present on `main`.
+     - *`fix/ai-paper-chat-and-mobile-overflows`*: Subtoken wildcard extraction, topic pattern synonyms (`ai`, `ml`, `llm`), feed zero-result widen guard, `gemini-3.5-flash-lite` config, and `activeTopicFilterProvider` verified 100% incorporated on `main`.
+     - *`feat/platform-enhancements-and-phase5`*: Older snapshot verified fully superseded by Phase 5 and Phase 6 PR implementations (`/comparison`, `/citations`, `/audio`, and `weekly_digest.go`).
+   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); Flutter tests 76 passed, 1 skipped (`flutter test`); static analysis clean (`dart analyze`, 0 issues).
+
+2. **Full-Text Paper RAG & Deep AI Conversation Engine (2026-11-02)**:
    - **Scope**: Fixed the root causes preventing full-text academic papers from being chunked, embedded, and retrieved in paper conversations (`ChatScreen`) and structured summaries (`POST /research/papers/{id}/summary`), which previously forced responses into "Based on only the abstract...".
    - **Root Causes**:
      - *Premature Context Cancellation in `HTTPFetcher.Fetch`*: In [`rag.go`](file:///home/bereket/startup/Athena/backend/internal/application/ai/rag.go), `defer cancel()` was placed inside `Fetch()` right after creating a timeout context. Because `resp.Body` is returned as a live stream, `defer cancel()` canceled the context before the caller could read the stream, causing `io.ReadAll` to fail with `read document stream: context canceled` on 100% of PDF/HTML fetches.

@@ -128,17 +128,48 @@ excerpts.
 
 ---
 
-## Phase 5 (product) — Personalization
+## Phase 5 (product) — Personalization ✅ (2026-10-28)
 
-Auth (email + OAuth), bookmarks, follow topics/authors, personalized feed &
-recommendations v1 (topic-affinity scoring), notification fan-out (in-app;
-push adapter seam).
+Scope: Auth (email + JWT, refresh tokens, password reset), bookmarks, follow
+topics/authors, personalized feed & recommendations, notification fan-out
+(FCM/APNs gateway + River worker).
 
-## Phase 6 (product) — Advanced Research Intelligence
+Acceptance:
 
-Paper comparison (map-reduce pipeline); citation graph traversal APIs;
-supports/contradicts detection (embedding stance analysis + citation context);
-research trends; weekly personalized digests.
+- [x] Authentication lifecycle: email/password registration, login with JWT and
+      refresh token rotation, password reset requests (`/auth/*`).
+- [x] Bookmarks & Library: authenticated user bookmarks with offline-first
+      SharedPreferences fallback and bookmark toggle on paper detail.
+- [x] Follows & Affinity: follow topics and authors (`/follows/*`) with unified
+      guest-to-authenticated state reconciliation upon sign-in.
+- [x] Push Notification Gateway: multi-platform router supporting FCM HTTP v1 and
+      APNs HTTP/2 with background River fanout (`notification_fanout`).
+- [x] Reading history & progress tracking: progress persistence and retrieval
+      (`internal/application/history/`).
+
+---
+
+## Phase 6 (product) — Advanced Research Intelligence ✅ (2026-11-04)
+
+Scope: Paper comparison pipeline, citation graph traversal & visualization,
+Audio Studio TTS streaming, weekly personalized AI research digests, and full-text
+academic RAG enhancements.
+
+Acceptance:
+
+- [x] Multi-paper comparison: structured comparative matrix analyzing methodologies,
+      empirical findings, and limitations across papers (`/research/compare`).
+- [x] Citation network & visual graph: citation edge traversal APIs (`/citations`,
+      `/related`) and mobile interactive canvas graph visualization.
+- [x] Audio Studio & TTS: RFC-7233 partial content HTTP byte-range streaming
+      (`206 Partial Content`, `Accept-Ranges: bytes`) with OpenAI TTS adapter
+      and mobile audio player screen.
+- [x] Weekly AI Research Digest: recency-first paper aggregation, generative AI
+      executive briefing across followed topics, empirical takeaways, and guest
+      personalization via topic parameters (`/research/digest/latest`).
+- [x] Full-Text RAG Engine: robust streaming response lifecycle, academic publisher
+      HTML citation metadata resolution (`citation_pdf_url`), and alignment with
+      `gemini-embedding-001` (768 dimensions).
 
 ## Future / vision
 
