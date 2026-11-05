@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/prefs/saved_papers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ai_formatted_text.dart';
 import '../../../core/widgets/athena_branding.dart';
@@ -34,6 +35,8 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _input = TextEditingController();
   final _scroll = ScrollController();
+  String? _overridePaperId;
+  String? _overridePaperTitle;
 
   @override
   void initState() {
@@ -59,6 +62,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   String _resolveActivePaperId() {
+    if (_overridePaperId != null && _overridePaperId!.isNotEmpty) {
+      return _overridePaperId!;
+    }
     if (widget.paperId != null && widget.paperId!.isNotEmpty) {
       return widget.paperId!;
     }
@@ -70,18 +76,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return '';
   }
 
+  String _resolveActivePaperTitle() {
+    if (_overridePaperTitle != null && _overridePaperTitle!.isNotEmpty) {
+      return _overridePaperTitle!;
+    }
+    if (widget.paperTitle != null && widget.paperTitle!.isNotEmpty) {
+      return widget.paperTitle!;
+    }
+    final feedAsync = ref.watch(feedNotifierProvider(FeedSection.latest));
+    final firstItem = feedAsync.valueOrNull?.items.firstOrNull;
+    if (firstItem != null && firstItem.paper.title.isNotEmpty) {
+      return firstItem.paper.title;
+    }
+    return '';
+  }
+
   void _handleSend([String? explicitText]) {
     final text = (explicitText ?? _input.text).trim();
     if (text.isEmpty) return;
 
     final activePaperId = _resolveActivePaperId();
     if (activePaperId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connecting to scholarly research corpus, please try again in a moment...'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _showPaperSelectorModal(context);
       return;
     }
 
@@ -114,16 +130,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final activePaperId = _resolveActivePaperId();
+    final activePaperTitle = _resolveActivePaperTitle();
     final state = activePaperId.isNotEmpty
         ? ref.watch(chatThreadProvider(activePaperId))
         : const ChatThreadState();
 
-    final feedAsync = ref.watch(feedNotifierProvider(FeedSection.latest));
-    final firstItem = feedAsync.valueOrNull?.items.firstOrNull;
-    final targetSuggestedTitle = widget.paperTitle ??
-        (firstItem != null
-            ? firstItem.paper.title
-            : 'Exploring the Use of Technology in Elementary School Classrooms');
+    final targetSuggestedTitle = activePaperTitle.isNotEmpty
+        ? activePaperTitle
+        : 'Exploring the Use of Technology in Elementary School Classrooms';
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F1115) : const Color(0xFFFBFBFB),
@@ -196,11 +210,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
 
-              // RAG Grounding Context Banner
+              // RAG Grounding Context Banner (Interactive Switcher)
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF161922) : Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -208,47 +221,108 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     color: isDark ? const Color(0xFF242936) : const Color(0xFFE5E7EB),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.verified_rounded,
-                      size: 14,
-                      color: Color(0xFF10B981), // Emerald green verification dot
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        widget.paperTitle != null
-                            ? 'Grounding: ${widget.paperTitle}'
-                            : (firstItem != null
-                                ? 'Grounding: ${firstItem.paper.title}'
-                                : 'RAG Grounded: Peer-Reviewed Scientific Corpus'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF4B5563),
-                        ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _showPaperSelectorModal(context),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.verified_rounded,
+                            size: 16,
+                            color: Color(0xFF10B981), // Emerald green verification dot
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'ACTIVE GROUNDING',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.6,
+                                        color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'RAG',
+                                        style: TextStyle(
+                                          color: Color(0xFF10B981),
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.4,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  activePaperTitle.isNotEmpty
+                                      ? activePaperTitle
+                                      : 'Tap to select paper from library or feed',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: activePaperTitle.isNotEmpty
+                                        ? (isDark ? Colors.white : const Color(0xFF111827))
+                                        : AppTheme.coral,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF222634) : const Color(0xFFF3F4F6),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF2E3446) : const Color(0xFFE5E7EB),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.swap_horiz_rounded,
+                                  size: 13,
+                                  color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF374151),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Switch',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF374151),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'VERIFIED',
-                        style: TextStyle(
-                          color: Color(0xFF10B981),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
 
@@ -476,6 +550,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showPaperSelectorModal(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentActiveId = _resolveActivePaperId();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF161922) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return _PaperSelectorSheet(
+          currentActiveId: currentActiveId,
+          onSelect: (id, title) {
+            setState(() {
+              _overridePaperId = id;
+              _overridePaperTitle = title;
+            });
+            Navigator.of(sheetContext).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Grounding switched to: $title',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -718,6 +829,333 @@ class _CitationChip extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _PaperOption {
+  final String id;
+  final String title;
+  final String subtitle;
+  final bool isSaved;
+
+  const _PaperOption({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.isSaved,
+  });
+}
+
+class _PaperSelectorSheet extends ConsumerStatefulWidget {
+  const _PaperSelectorSheet({
+    required this.currentActiveId,
+    required this.onSelect,
+  });
+
+  final String currentActiveId;
+  final void Function(String id, String title) onSelect;
+
+  @override
+  ConsumerState<_PaperSelectorSheet> createState() => _PaperSelectorSheetState();
+}
+
+class _PaperSelectorSheetState extends ConsumerState<_PaperSelectorSheet> {
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final saved = ref.watch(savedPapersProvider);
+    final feedAsync = ref.watch(feedNotifierProvider(FeedSection.latest));
+    final feedItems = feedAsync.valueOrNull?.items ?? [];
+
+    final options = <_PaperOption>[];
+    final seenIds = <String>{};
+
+    for (final s in saved) {
+      if (seenIds.add(s.id)) {
+        final sub = s.venue.isNotEmpty
+            ? '${s.venue} • ${s.year > 0 ? s.year : "Saved"}'
+            : (s.year > 0 ? '${s.year} • Saved Paper' : 'Saved Paper');
+        options.add(_PaperOption(id: s.id, title: s.title, subtitle: sub, isSaved: true));
+      }
+    }
+
+    for (final f in feedItems) {
+      if (seenIds.add(f.paper.id)) {
+        final year = f.paper.year > 0 ? '${f.paper.year}' : '';
+        final venue = f.paper.venueName.isNotEmpty ? f.paper.venueName : 'Feed Discovery';
+        final sub = year.isNotEmpty ? '$venue • $year' : venue;
+        options.add(_PaperOption(id: f.paper.id, title: f.paper.title, subtitle: sub, isSaved: false));
+      }
+    }
+
+    final query = _searchController.text.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? options
+        : options.where((o) =>
+            o.title.toLowerCase().contains(query) ||
+            o.subtitle.toLowerCase().contains(query)).toList();
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 12,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF374151) : const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.coral.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.menu_book_rounded,
+                      color: AppTheme.coral,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'GROUNDING PAPER',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                            color: isDark ? Colors.white : const Color(0xFF111827),
+                          ),
+                        ),
+                        Text(
+                          'Select a paper for grounded RAG analysis',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF101216) : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
+                  ),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white : const Color(0xFF111827),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Filter saved and recent papers...',
+                    hintStyle: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+                    ),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, size: 16),
+                            onPressed: () => _searchController.clear(),
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (filtered.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.article_outlined,
+                          size: 32,
+                          color: isDark ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          query.isNotEmpty
+                              ? 'No matching papers found'
+                              : 'No papers found in library or feed yet',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (ctx, i) {
+                      final opt = filtered[i];
+                      final isCurrent = opt.id == widget.currentActiveId;
+
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => widget.onSelect(opt.id, opt.title),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isCurrent
+                                ? (isDark
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.10)
+                                    : const Color(0xFF10B981).withValues(alpha: 0.08))
+                                : (isDark ? const Color(0xFF101216) : const Color(0xFFF9FAFB)),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isCurrent
+                                  ? const Color(0xFF10B981).withValues(alpha: 0.5)
+                                  : (isDark ? const Color(0xFF222634) : const Color(0xFFE5E7EB)),
+                              width: isCurrent ? 1.4 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                opt.isSaved ? Icons.bookmark_rounded : Icons.article_outlined,
+                                size: 18,
+                                color: opt.isSaved
+                                    ? AppTheme.coral
+                                    : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      opt.title,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark ? Colors.white : const Color(0xFF111827),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      opt.subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              if (isCurrent)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check_rounded, size: 12, color: Color(0xFF10B981)),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'ACTIVE',
+                                        style: TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF10B981),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 18,
+                                  color: isDark ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -115,10 +115,15 @@ void main() {
     await UserPreferences.instance.load();
   });
 
-  testWidgets('route /chat renders conversational research interface',
+  testWidgets('route /chat renders conversational research interface and allows switching grounding',
       (tester) async {
     await _pump(tester, location: '/chat');
     expect(find.text('What are we exploring today?'), findsOneWidget);
+    expect(find.text('ACTIVE GROUNDING'), findsOneWidget);
+    expect(find.text('Switch'), findsOneWidget);
+    await tester.tap(find.text('Switch'));
+    await tester.pumpAndSettle();
+    expect(find.text('GROUNDING PAPER'), findsOneWidget);
   });
 
   testWidgets('canonical route /papers/{id} renders detail content',
