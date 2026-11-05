@@ -4,6 +4,8 @@ import 'package:athena/features/digest/data/digest_repository_impl.dart';
 import 'package:athena/features/digest/domain/digest_models.dart';
 import 'package:athena/features/digest/domain/digest_repository.dart';
 import 'package:athena/features/digest/presentation/digest_notifier.dart';
+import 'package:athena/features/digest/presentation/digest_screen.dart';
+import 'package:athena/features/papers/domain/paper.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -241,6 +243,53 @@ void main() {
 
       final repo = DigestRepositoryImpl(dio);
       expect(() => repo.getLatestDigest(), throwsA(isA<ServerFailure>()));
+    });
+
+    test('formatDigestMarkdown exports structured markdown document', () {
+      final digest = UserDigest(
+        id: 'd1',
+        generatedAt: DateTime.utc(2026, 11, 5),
+        frequency: 'weekly',
+        aiSummary: 'A major breakthrough in AI efficiency occurred.',
+        pulses: [
+          const TopicPulse(
+            topicSlug: 'ai',
+            topicName: 'Artificial Intelligence',
+            paperCount: 14,
+            velocity: 1.8,
+            keyThemes: ['Sparse Attention', 'Quantization'],
+          ),
+        ],
+        sections: [
+          DigestSection(
+            title: 'Top Breakthroughs',
+            description: 'Weekly Highlights',
+            papers: [
+              PaperSummary(
+                id: 'p1',
+                title: 'Efficient Transformers',
+                year: 2026,
+                venueName: 'ICLR',
+                publishedOn: DateTime.utc(2026, 11, 1),
+                publicationType: 'conference',
+                oaStatus: 'gold',
+                isOpenAccess: true,
+                citedByCount: 42,
+              ),
+            ],
+          ),
+        ],
+        topTakeaways: ['4x speedup on mobile hardware'],
+      );
+
+      final md = formatDigestMarkdown(digest);
+      expect(md, contains('# Athena AI · Weekly Research Briefing'));
+      expect(md, contains('## Executive AI Synthesis'));
+      expect(md, contains('A major breakthrough in AI efficiency occurred.'));
+      expect(md, contains('## Key Empirical Takeaways'));
+      expect(md, contains('- 4x speedup on mobile hardware'));
+      expect(md, contains('**Artificial Intelligence**: 14 recent papers (Sparse Attention, Quantization)'));
+      expect(md, contains('- **Efficient Transformers** (2026) — ICLR'));
     });
   });
 }

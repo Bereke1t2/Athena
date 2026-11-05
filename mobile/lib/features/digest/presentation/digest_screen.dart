@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,6 +8,7 @@ import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../auth/presentation/auth_notifier.dart';
+import '../domain/digest_models.dart';
 import 'digest_notifier.dart';
 
 class DigestScreen extends ConsumerWidget {
@@ -26,6 +28,24 @@ class DigestScreen extends ConsumerWidget {
         title: 'Research Digest',
         showLeading: false,
         actions: [
+          if (state.digest != null)
+            AthenaCircularIconButton(
+              icon: Icons.copy_all_rounded,
+              tooltip: 'Copy Briefing',
+              onPressed: () async {
+                final md = formatDigestMarkdown(state.digest!);
+                await Clipboard.setData(ClipboardData(text: md));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Research briefing copied to clipboard as Markdown.'),
+                      behavior: SnackBarBehavior.floating,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+            ),
           AthenaCircularIconButton(
             icon: Icons.refresh_rounded,
             tooltip: 'Refresh Briefing',
@@ -625,4 +645,52 @@ class _VelocitySparklinePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _VelocitySparklinePainter oldDelegate) =>
       oldDelegate.velocity != velocity || oldDelegate.isDark != isDark;
+}
+
+/// Formats a research digest as a clean, structured Markdown document for export/sharing.
+String formatDigestMarkdown(UserDigest digest) {
+  final buffer = StringBuffer();
+  buffer.writeln('# Athena AI · Weekly Research Briefing');
+  buffer.writeln('Generated: ${digest.generatedAt.toLocal().toString().split(" ")[0]}');
+  buffer.writeln();
+
+  if (digest.aiSummary.isNotEmpty) {
+    buffer.writeln('## Executive AI Synthesis');
+    buffer.writeln(digest.aiSummary);
+    buffer.writeln();
+  }
+
+  if (digest.topTakeaways.isNotEmpty) {
+    buffer.writeln('## Key Empirical Takeaways');
+    for (final takeaway in digest.topTakeaways) {
+      buffer.writeln('- $takeaway');
+    }
+    buffer.writeln();
+  }
+
+  if (digest.pulses.isNotEmpty) {
+    buffer.writeln('## Topic Momentum');
+    for (final p in digest.pulses) {
+      final themes = p.keyThemes.isNotEmpty ? ' (${p.keyThemes.join(", ")})' : '';
+      buffer.writeln('- **${p.topicName}**: ${p.paperCount} recent papers$themes');
+    }
+    buffer.writeln();
+  }
+
+  if (digest.sections.isNotEmpty) {
+    buffer.writeln('## Featured Research');
+    for (final sec in digest.sections) {
+      buffer.writeln('### ${sec.title}');
+      for (final paper in sec.papers) {
+        final year = paper.year > 0 ? ' (${paper.year})' : '';
+        final venue = paper.venueName.isNotEmpty ? ' — ${paper.venueName}' : '';
+        buffer.writeln('- **${paper.title}**$year$venue');
+      }
+      buffer.writeln();
+    }
+  }
+
+  buffer.writeln('---');
+  buffer.writeln('*Curated with Athena AI · Research Intelligence Platform*');
+  return buffer.toString().trim();
 }
