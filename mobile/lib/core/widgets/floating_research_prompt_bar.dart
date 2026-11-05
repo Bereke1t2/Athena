@@ -60,8 +60,8 @@ class _FloatingResearchPromptBarState extends State<FloatingResearchPromptBar> {
         '/papers/${widget.paperId}/chat?title=$titleParam&q=$queryParam',
       );
     } else {
-      // Global exploration: navigate to search or chat
-      context.push('/search?q=${Uri.encodeComponent(query)}');
+      // Global exploration: navigate to chat with query
+      context.push('/chat?q=${Uri.encodeComponent(query)}');
     }
     _controller.clear();
   }

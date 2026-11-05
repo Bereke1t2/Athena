@@ -113,6 +113,16 @@ GoRouter buildAppRouter() {
         ),
       ),
       GoRoute(
+        path: '/chat',
+        name: 'chat',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => ChatScreen(
+          paperId: state.uri.queryParameters['paperId'],
+          paperTitle: state.uri.queryParameters['title'],
+          initialQuery: state.uri.queryParameters['q'],
+        ),
+      ),
+      GoRoute(
         path: '/papers/:id/pdf',
         name: 'paper-pdf',
         parentNavigatorKey: _rootNavigatorKey,

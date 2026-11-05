@@ -140,7 +140,16 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                         size: 16,
                                       ),
                                     ),
-                                    onPressed: () => context.push('/chat'),
+                                    onPressed: () {
+                                      final firstPaper = items.firstOrNull?.paper;
+                                      if (firstPaper != null) {
+                                        context.push(
+                                          '/papers/${firstPaper.id}/chat?title=${Uri.encodeComponent(firstPaper.title)}',
+                                        );
+                                      } else {
+                                        context.push('/chat');
+                                      }
+                                    },
                                   ),
                                   IconButton(
                                     tooltip: 'Notifications',

@@ -58,24 +58,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.dispose();
   }
 
-  String _resolveActivePaperId(WidgetRef ref) {
+  String _resolveActivePaperId() {
     if (widget.paperId != null && widget.paperId!.isNotEmpty) {
       return widget.paperId!;
     }
-    final feedAsync = ref.read(feedNotifierProvider(FeedSection.latest));
-    final firstItem = feedAsync.value?.items.firstOrNull;
+    final feedAsync = ref.watch(feedNotifierProvider(FeedSection.latest));
+    final firstItem = feedAsync.valueOrNull?.items.firstOrNull;
     if (firstItem != null && firstItem.paper.id.isNotEmpty) {
       return firstItem.paper.id;
     }
-    return '00000000-0000-0000-0000-000000000001';
+    return '';
   }
 
   void _handleSend([String? explicitText]) {
     final text = (explicitText ?? _input.text).trim();
     if (text.isEmpty) return;
-    _input.clear();
 
-    final activePaperId = _resolveActivePaperId(ref);
+    final activePaperId = _resolveActivePaperId();
+    if (activePaperId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connecting to scholarly research corpus, please try again in a moment...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    _input.clear();
     ref.read(chatThreadProvider(activePaperId).notifier).send(text);
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
   }
@@ -103,11 +113,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final activePaperId = _resolveActivePaperId(ref);
-    final state = ref.watch(chatThreadProvider(activePaperId));
+    final activePaperId = _resolveActivePaperId();
+    final state = activePaperId.isNotEmpty
+        ? ref.watch(chatThreadProvider(activePaperId))
+        : const ChatThreadState();
 
     final feedAsync = ref.watch(feedNotifierProvider(FeedSection.latest));
-    final firstItem = feedAsync.value?.items.firstOrNull;
+    final firstItem = feedAsync.valueOrNull?.items.firstOrNull;
     final targetSuggestedTitle = widget.paperTitle ??
         (firstItem != null
             ? firstItem.paper.title
@@ -175,7 +187,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         child: const Icon(Icons.refresh_rounded, size: 18),
                       ),
                       onPressed: () {
-                        ref.invalidate(chatThreadProvider(activePaperId));
+                        if (activePaperId.isNotEmpty) {
+                          ref.invalidate(chatThreadProvider(activePaperId));
+                        }
                       },
                     ),
                   ],
@@ -206,7 +220,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: Text(
                         widget.paperTitle != null
                             ? 'Grounding: ${widget.paperTitle}'
-                            : 'RAG Grounded: Peer-Reviewed Scientific Corpus',
+                            : (firstItem != null
+                                ? 'Grounding: ${firstItem.paper.title}'
+                                : 'RAG Grounded: Peer-Reviewed Scientific Corpus'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

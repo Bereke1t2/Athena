@@ -246,6 +246,8 @@ func TestCitedChunkIndices(t *testing.T) {
 	}{
 		{"valid single", "x [chunk 1]", 2, []int{1}},
 		{"valid multiple sorted", "b [chunk 2] a [chunk 1]", 3, []int{1, 2}},
+		{"valid plain numbers", "attention mechanism [1] achieved state of the art [2]", 3, []int{1, 2}},
+		{"plain numbers with external bib ref", "as established in [2024], we demonstrate [1]", 2, []int{1}},
 		{"out of range invalidates", "[chunk 5]", 2, nil},
 		{"no citations", "nothing here", 2, nil},
 		{"mixed invalid", "[chunk 1] [chunk 7]", 3, nil},

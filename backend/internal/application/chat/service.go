@@ -39,7 +39,7 @@ type PaperSource interface {
 	GetDetailByID(ctx context.Context, id uuid.UUID) (research.PaperDetail, error)
 }
 
-var chunkRefRe = regexp.MustCompile(`(?i)\[(?:chunk|source)\s*[:#]?\s*(\d+)\]`)
+var chunkRefRe = regexp.MustCompile(`(?i)\[(?:chunk|source)\s*[:#]?\s*(\d+)\]|\[(\d{1,2})\]`)
 
 // Service orchestrates grounded single-paper conversations.
 type Service struct {
@@ -158,7 +158,7 @@ func (s *Service) Ask(ctx context.Context, sessionID uuid.UUID, question string,
 	refused := strings.Contains(answer, RefusalSentence)
 	if len(chunks) > 0 && len(cited) == 0 && !refused {
 		s.Logger.Warn("citation validation failed; regenerating", "session", sessionID)
-		answer2, usage2, model2, err2 := s.groundedAnswerStrict(ctx, detail, chunks, question, answer, onDelta)
+		answer2, usage2, model2, err2 := s.groundedAnswerStrict(ctx, detail, chunks, question, answer, nil)
 		if err2 != nil {
 			s.Logger.Error("strict chat regeneration failed", "error", err2, "session", sessionID)
 			return domainai.Message{}, err2
@@ -313,11 +313,10 @@ Rules you must never break:
 	b.WriteString(question)
 	b.WriteString("\n\n")
 	if len(chunks) > 0 {
-		b.WriteString("Answer from the context only, citing [chunk N]. If it is not there, reply exactly:\n")
+		b.WriteString("Instructions: Answer the user's question clearly, thoroughly, and factually based on the excerpts provided above. Cite your sources using [chunk N] or [N] (e.g. [chunk 1] or [1]). If the question is completely outside the scope of this paper, reply with:\n" + RefusalSentence)
 	} else {
-		b.WriteString("Answer from the title and abstract context above. If the title/abstract is insufficient, reply exactly:\n")
+		b.WriteString("Instructions: Answer the user's question based on the paper title and abstract provided above. State clearly what is covered and note that full-text excerpts have not yet been indexed for this paper. If the question is completely outside the scope of this paper, reply with:\n" + RefusalSentence)
 	}
-	b.WriteString(RefusalSentence)
 
 	text, usage, model, err := s.runStream(ctx, system, b.String(), onDelta)
 	if err != nil {
@@ -333,13 +332,13 @@ func (s *Service) groundedAnswerStrict(ctx context.Context, d research.PaperDeta
 
 	system := appai.GroundingSystem() + `
 
-CRITICAL: Your previous answer violated citation rules. Every claim must carry a [chunk N] marker that exists in the provided CONTEXT, or you must refuse with exactly:
+CRITICAL: Every claim must cite the relevant context excerpt using [chunk N] or [N] (e.g. [chunk 1] or [1]). If the context does not contain enough evidence to answer, reply with:
 ` + RefusalSentence
 
 	prompt := s.buildContext(d, chunks) +
 		"\n### QUESTION\n" + question +
-		"\n\nPrevious invalid answer:\n" + truncate(badAnswer, 800) +
-		"\n\nRewrite the answer correctly or refuse."
+		"\n\nPrevious draft:\n" + truncate(badAnswer, 800) +
+		"\n\nInstructions: Include citation brackets [chunk N] or [N] for each factual point, or reply with the refusal sentence if not supported."
 
 	text, usage, model, err := s.runStream(ctx, system, prompt, onDelta)
 	if err != nil {
@@ -348,20 +347,39 @@ CRITICAL: Your previous answer violated citation rules. Every claim must carry a
 	return text, usage, model, nil
 }
 
-// citedChunkIndices extracts [chunk N] references that exist in the retrieved
-// set. Any unknown index invalidates the whole answer.
+// citedChunkIndices extracts [chunk N], [source N], or [N] references that exist
+// in the retrieved set. Out-of-range explicit chunk indices invalidate the whole
+// answer; external bracketed bibliography numbers outside 1..n are safely ignored.
 func citedChunkIndices(answer string, n int) []int {
 	seen := map[int]bool{}
 	valid := true
 	found := false
 	for _, m := range chunkRefRe.FindAllStringSubmatch(answer, -1) {
-		found = true
-		idx, err := strconv.Atoi(m[1])
-		if err != nil || idx < 1 || idx > n {
-			valid = false
+		numStr := m[1]
+		if numStr == "" {
+			numStr = m[2]
+		}
+		if numStr == "" {
 			continue
 		}
-		seen[idx] = true
+		idx, err := strconv.Atoi(numStr)
+		if err != nil {
+			continue
+		}
+		isExplicitChunk := strings.Contains(strings.ToLower(m[0]), "chunk") || strings.Contains(strings.ToLower(m[0]), "source")
+		if isExplicitChunk {
+			found = true
+			if idx < 1 || idx > n {
+				valid = false
+				continue
+			}
+			seen[idx] = true
+		} else {
+			if idx >= 1 && idx <= n {
+				found = true
+				seen[idx] = true
+			}
+		}
 	}
 	if !found || !valid {
 		return nil
@@ -471,14 +489,15 @@ func handleGreeting(d research.PaperDetail, q string) (string, bool) {
 		"whats up": true, "what's up": true, "sup": true, "yo": true,
 		"greetings": true, "hiya": true, "heya": true, "how are you": true, "how are you doing": true,
 		"good morning": true, "good afternoon": true, "good evening": true,
-		"who are you": true, "what can you do": true, "help": true,
+		"who are you": true, "what can you do": true, "help": true, "can you help": true, "can you help me": true,
 		"thanks": true, "thank you": true, "thank you!": true,
 	}
 
 	if greetings[norm] ||
 		strings.HasPrefix(norm, "hi athena") || strings.HasPrefix(norm, "hello athena") ||
 		strings.HasPrefix(norm, "hey athena") || strings.HasPrefix(norm, "hey there athena") ||
-		strings.HasPrefix(norm, "hi there athena") || strings.HasPrefix(norm, "hello there athena") {
+		strings.HasPrefix(norm, "hi there athena") || strings.HasPrefix(norm, "hello there athena") ||
+		strings.HasPrefix(norm, "can you help") || strings.HasPrefix(norm, "what can you do") {
 		if norm == "thanks" || norm == "thank you" {
 			return "You're welcome! Feel free to ask any questions about the methodology, experimental results, or findings.", true
 		}

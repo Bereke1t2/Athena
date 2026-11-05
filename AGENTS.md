@@ -1,6 +1,6 @@
 # AGENTS.md — working notes for AI agents on Athena
 
-Last updated: 2026-11-04 (platform consistency, branch reconciliation & Phase 5/6 verification). Read this first.
+Last updated: 2026-11-05 (AI conversation completeness, dual-stream elimination, citation regex flexibility & /chat route). Read this first.
 
 ## Stack & layout
 
@@ -37,7 +37,23 @@ Last updated: 2026-11-04 (platform consistency, branch reconciliation & Phase 5/
 
 ## Unfinished / verify next session
 
-1. **Platform Consistency & Branch Reconciliation (2026-11-04)**:
+1. **AI Conversation Completeness & RAG Dialogue Repair (2026-11-05)**:
+   - **Scope**: Fixed broken and incomplete AI chat responses, streaming concatenation bugs, harsh refusal loops, and navigation routing for the conversational AI research assistant.
+   - **Root Causes**:
+     - *Dual-Stream Contamination*: When citation validation failed on the initial stream, `service.go` re-called `groundedAnswerStrict(..., onDelta)` with the live SSE callback. This streamed a second answer directly appended onto the first answer in the client's single buffer, producing repetitive, jumbled, or cutoff responses.
+     - *Overwritten Responses on Strict Fallback*: If the LLM failed to include `[chunk N]` tags on the second pass, the backend discarded the generated answer and replaced `message.content` with `RefusalSentence` ("The provided material does not contain enough evidence to answer this."), completely wiping out good answers the user watched stream in.
+     - *Hyper-Restrictive Citation Regex*: `chunkRefRe` previously only matched `[chunk N]` or `[source N]`. Standard numbered citations `[1]`, `[2]` or external bibliography brackets like `[2024]` caused `citedChunkIndices` to fail or invalidate the entire response.
+     - *Prompt Refusal Forcing*: Grounding prompts ended with an imperative `"reply exactly: The provided material does not contain enough evidence to answer this."`, which caused instruction-tuned models (Gemini 3.5) to treat the refusal sentence as the expected output for general queries or methodology summaries.
+     - *Unregistered `/chat` Route & Dummy Paper UUID*: Tapping the chat icon on `FeedScreen` or typing in `FloatingResearchPromptBar` previously failed or routed to search because `/chat` was missing in `app_router.dart`. Additionally, `ChatScreen` defaulted to a non-existent dummy UUID (`00000000-0000-0000-0000-000000000001`), violating the database foreign key constraint and throwing 400/500 errors.
+   - **Core Deliverables**:
+     - *Eliminated Dual Streaming* ([`chat/service.go`](file:///home/bereket/startup/Athena/backend/internal/application/chat/service.go)): Passed `nil` for `onDelta` during strict regeneration, protecting the SSE stream from duplicated text.
+     - *Flexible Citation Extraction* ([`chat/service.go`](file:///home/bereket/startup/Athena/backend/internal/application/chat/service.go)): Updated `chunkRefRe` and `citedChunkIndices` to recognize standard `[1]`, `[2]`, `[chunk 1]`, and `[source 1]`, while safely ignoring external bibliography brackets.
+     - *Balanced Grounding Prompts* ([`service.go`](file:///home/bereket/startup/Athena/backend/internal/application/ai/service.go), [`chat/service.go`](file:///home/bereket/startup/Athena/backend/internal/application/chat/service.go)): Instructed the model to answer thoroughly, clearly, and factually, reserving refusals strictly for queries completely outside the paper's scope.
+     - *Warm Conversational Handling* ([`chat/service.go`](file:///home/bereket/startup/Athena/backend/internal/application/chat/service.go)): Expanded `handleGreeting` to handle help and introductory queries without citation refusal.
+     - *Routing & Paper Resolution* ([`app_router.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/router/app_router.dart), [`chat_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/ai/presentation/chat_screen.dart), [`floating_research_prompt_bar.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/floating_research_prompt_bar.dart)): Registered `/chat` route, linked floating prompt bar to `/chat?q=...`, and resolved active papers reactively without dummy foreign key violations.
+   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); Flutter tests 76 passed, 1 skipped (`flutter test`); static analysis clean (`dart analyze`, 0 issues).
+
+2. **Platform Consistency & Branch Reconciliation (2026-11-04)**:
    - **Scope**: Reconciled unmerged branches (`feat/audio-studio-tts-engine`, `fix/ai-paper-chat-and-mobile-overflows`, `feat/platform-enhancements-and-phase5`), verified roadmap acceptance criteria for Phases 5 and 6, and synchronized test suites across both Go backend and Flutter mobile.
    - **Reconciliation Audit**:
      - *`feat/audio-studio-tts-engine`*: Commit `b8c52fd` documentation updates (`README.md`, `backend/README.md`, `mobile/README.md`) verified 100% identical and present on `main`.
