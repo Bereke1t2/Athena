@@ -298,8 +298,8 @@ class _HomeShell extends StatelessWidget {
                 label: 'Topics',
               ),
               NavigationDestination(
-                icon: Icon(Icons.chat_bubble_outline_rounded),
-                selectedIcon: Icon(Icons.chat_bubble_rounded, color: AppTheme.coral),
+                icon: Icon(Icons.auto_stories_outlined),
+                selectedIcon: Icon(Icons.auto_stories_rounded, color: AppTheme.coral),
                 label: 'Digest',
               ),
               NavigationDestination(

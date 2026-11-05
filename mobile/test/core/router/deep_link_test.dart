@@ -115,6 +115,12 @@ void main() {
     await UserPreferences.instance.load();
   });
 
+  testWidgets('route /chat renders conversational research interface',
+      (tester) async {
+    await _pump(tester, location: '/chat');
+    expect(find.text('What are we exploring today?'), findsOneWidget);
+  });
+
   testWidgets('canonical route /papers/{id} renders detail content',
       (tester) async {
     const id = '0197c0de-0000-7000-8000-000000000001';
