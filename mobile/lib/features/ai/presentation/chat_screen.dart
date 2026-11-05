@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/prefs/saved_papers.dart';
+import '../../../core/prefs/user_preferences.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ai_formatted_text.dart';
 import '../../../core/widgets/athena_branding.dart';
@@ -200,8 +201,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         ),
                         child: const Icon(Icons.refresh_rounded, size: 18),
                       ),
-                      onPressed: () {
+                      onPressed: () async {
                         if (activePaperId.isNotEmpty) {
+                          await UserPreferences.instance.setChatSessionId(activePaperId, '');
                           ref.invalidate(chatThreadProvider(activePaperId));
                         }
                       },

@@ -111,6 +111,23 @@ class UserPreferences {
     await _prefs!.remove(_kUserDisplayName);
   }
 
+  String? getChatSessionId(String paperId) {
+    if (!_ready || paperId.isEmpty) return null;
+    return _prefs!.getString('athena.chat.session.$paperId');
+  }
+
+  Future<void> setChatSessionId(String paperId, String sessionId) async {
+    if (paperId.isEmpty) return;
+    await load();
+    if (_prefs != null) {
+      if (sessionId.isEmpty) {
+        await _prefs!.remove('athena.chat.session.$paperId');
+      } else {
+        await _prefs!.setString('athena.chat.session.$paperId', sessionId);
+      }
+    }
+  }
+
   Future<void> reset() async {
     if (!_ready) return;
     await _prefs!.remove(_kTopics);

@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/di.dart';
+import '../../../core/prefs/user_preferences.dart';
 import '../domain/ai_models.dart';
 
 part 'chat_notifier.freezed.dart';
@@ -24,7 +25,26 @@ sealed class ChatThreadState with _$ChatThreadState {
 @riverpod
 class ChatThread extends _$ChatThread {
   @override
-  ChatThreadState build(String paperId) => const ChatThreadState();
+  ChatThreadState build(String paperId) {
+    final savedSessionId = UserPreferences.instance.getChatSessionId(paperId);
+    if (savedSessionId != null && savedSessionId.isNotEmpty) {
+      Future.microtask(() => _restoreSession(savedSessionId));
+      return ChatThreadState(sessionId: savedSessionId);
+    }
+    return const ChatThreadState();
+  }
+
+  Future<void> _restoreSession(String sessionId) async {
+    try {
+      final repo = ref.read(aiRepositoryProvider);
+      final msgs = await repo.messages(sessionId);
+      if (msgs.isNotEmpty && state.sessionId == sessionId && state.messages.isEmpty) {
+        state = state.copyWith(messages: msgs);
+      }
+    } catch (_) {
+      // Graceful fallback if offline or session expired
+    }
+  }
 
   Future<void> send(String text) async {
     final content = text.trim();
@@ -33,7 +53,10 @@ class ChatThread extends _$ChatThread {
 
     var sessionId = state.sessionId;
     try {
-      sessionId ??= await repo.createSession(paperId);
+      if (sessionId == null) {
+        sessionId = await repo.createSession(paperId);
+        await UserPreferences.instance.setChatSessionId(paperId, sessionId);
+      }
     } catch (e) {
       state = state.copyWith(
         messages: [
