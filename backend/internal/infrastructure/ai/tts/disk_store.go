@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sync"
 	"time"
+
+	domainaudio "athena/backend/internal/domain/audio"
 )
 
 var safeKeyPattern = regexp.MustCompile(`[^a-zA-Z0-9_\-]`)
@@ -63,4 +65,25 @@ func (d *DiskMediaStore) SaveAudio(_ context.Context, key string, data []byte) e
 	}
 
 	return nil
+}
+
+// GetAudio retrieves binary audio track bytes from disk.
+func (d *DiskMediaStore) GetAudio(_ context.Context, key string) ([]byte, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	targetPath := d.filePath(key)
+	data, err := os.ReadFile(targetPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, domainaudio.ErrAudioNotFound
+		}
+		return nil, fmt.Errorf("read audio file: %w", err)
+	}
+
+	if len(data) == 0 {
+		return nil, domainaudio.ErrAudioNotFound
+	}
+
+	return data, nil
 }
