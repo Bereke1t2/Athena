@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../data/audio_player_service.dart';
-
 import '../domain/audio_playback.dart';
 import '../domain/paper.dart';
 
@@ -54,6 +53,7 @@ class AudioPlayerNotifier extends Notifier<AudioPlaybackState> {
         }
       }
     });
+
     ref.onDispose(() {
       _ticker?.cancel();
       _sleepTimer?.cancel();
@@ -69,6 +69,26 @@ class AudioPlayerNotifier extends Notifier<AudioPlaybackState> {
       speed: 1.0,
       recentTracks: [],
     );
+  }
+
+  String _resolveAudioUrl(AudioTrack track) {
+    final url = track.audioUrl;
+    if (url != null && url.isNotEmpty) {
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+      }
+      final base = ApiConfig.baseUrl;
+      final uri = Uri.tryParse(base);
+      if (uri != null && uri.hasScheme && uri.host.isNotEmpty) {
+        final port = uri.hasPort ? ':${uri.port}' : '';
+        return '${uri.scheme}://${uri.host}$port$url';
+      }
+      return '$base$url';
+    }
+    if (track.paperId != null && track.paperId!.isNotEmpty) {
+      return '${ApiConfig.baseUrl}/research/papers/${track.paperId}/audio/stream';
+    }
+    return '';
   }
 
   void _startTicker() {
@@ -140,23 +160,44 @@ class AudioPlayerNotifier extends Notifier<AudioPlaybackState> {
     }
   }
 
-  void play() {
+  Future<void> play() async {
     state = state.copyWith(isPlaying: true);
+    if (_playerService != null) {
+      try {
+        await _playerService!.play();
+      } catch (e) {
+        debugPrint('AudioPlayerNotifier.play error: $e');
+      }
+    }
     _startTicker();
   }
 
-  void pause() {
+  Future<void> pause() async {
     _ticker?.cancel();
     state = state.copyWith(isPlaying: false);
+    if (_playerService != null) {
+      try {
+        await _playerService!.pause();
+      } catch (e) {
+        debugPrint('AudioPlayerNotifier.pause error: $e');
+      }
+    }
   }
 
-  void seekTo(Duration position) {
+  Future<void> seekTo(Duration position) async {
     final track = state.currentTrack;
     if (track == null) return;
     final clamped = Duration(
       milliseconds: position.inMilliseconds.clamp(0, track.totalDuration.inMilliseconds),
     );
     state = state.copyWith(currentPosition: clamped);
+    if (_playerService != null) {
+      try {
+        await _playerService!.seek(clamped);
+      } catch (e) {
+        debugPrint('AudioPlayerNotifier.seekTo error: $e');
+      }
+    }
   }
 
   void seekToProgress(double ratio) {
@@ -181,8 +222,15 @@ class AudioPlayerNotifier extends Notifier<AudioPlaybackState> {
     seekTo(ch.startOffset);
   }
 
-  void setSpeed(double speed) {
+  Future<void> setSpeed(double speed) async {
     state = state.copyWith(speed: speed);
+    if (_playerService != null) {
+      try {
+        await _playerService!.setSpeed(speed);
+      } catch (e) {
+        debugPrint('AudioPlayerNotifier.setSpeed error: $e');
+      }
+    }
   }
 
   void setSleepTimer(int? minutes) {
@@ -204,9 +252,16 @@ class AudioPlayerNotifier extends Notifier<AudioPlaybackState> {
     state = state.copyWith(queue: [...state.queue, track]);
   }
 
-  void stopAndDismiss() {
+  Future<void> stopAndDismiss() async {
     _ticker?.cancel();
     _sleepTimer?.cancel();
+    if (_playerService != null) {
+      try {
+        await _playerService!.stop();
+      } catch (e) {
+        debugPrint('AudioPlayerNotifier.stop error: $e');
+      }
+    }
     state = state.copyWith(
       isPlaying: false,
       clearCurrentTrack: true,
