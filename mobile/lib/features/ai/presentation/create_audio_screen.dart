@@ -189,7 +189,7 @@ class _CreateAudioScreenState extends ConsumerState<CreateAudioScreen> {
       gradientThemeIndex: 3,
     );
 
-    ref.read(audioPlayerProvider.notifier).playTrack(newTrack);
+    await ref.read(audioPlayerProvider.notifier).playTrack(newTrack);
 
     setState(() {
       _isGenerating = false;
