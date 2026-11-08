@@ -224,8 +224,10 @@ class AudioPlaybackState {
   int get currentChapterIndex {
     final track = currentTrack;
     if (track == null || track.chapters.isEmpty) return 1;
-    for (final ch in track.chapters) {
-      if (currentPosition >= ch.startOffset && currentPosition <= ch.endOffset) {
+    for (var i = 0; i < track.chapters.length; i++) {
+      final ch = track.chapters[i];
+      final isLast = i == track.chapters.length - 1;
+      if (currentPosition >= ch.startOffset && (currentPosition < ch.endOffset || isLast)) {
         return ch.index;
       }
     }
