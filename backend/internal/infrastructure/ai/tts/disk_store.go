@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sync"
+	"time"
 )
 
 var safeKeyPattern = regexp.MustCompile(`[^a-zA-Z0-9_\-]`)
@@ -38,4 +39,28 @@ func (d *DiskMediaStore) BaseDir() string {
 func (d *DiskMediaStore) filePath(key string) string {
 	safeKey := safeKeyPattern.ReplaceAllString(key, "_")
 	return filepath.Join(d.baseDir, safeKey+".mp3")
+}
+
+// SaveAudio saves binary audio track bytes to disk atomically.
+func (d *DiskMediaStore) SaveAudio(_ context.Context, key string, data []byte) error {
+	if len(data) == 0 {
+		return fmt.Errorf("cannot save empty audio track")
+	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	targetPath := d.filePath(key)
+	tempPath := fmt.Sprintf("%s.tmp.%d", targetPath, time.Now().UnixNano())
+
+	if err := os.WriteFile(tempPath, data, 0644); err != nil {
+		return fmt.Errorf("write temporary audio file: %w", err)
+	}
+
+	if err := os.Rename(tempPath, targetPath); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("rename temporary audio file: %w", err)
+	}
+
+	return nil
 }
