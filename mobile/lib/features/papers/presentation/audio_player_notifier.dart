@@ -1,6 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/constants/app_constants.dart';
+import '../data/audio_player_service.dart';
 
 import '../domain/audio_playback.dart';
 import '../domain/paper.dart';
@@ -11,12 +15,51 @@ final audioPlayerProvider =
 class AudioPlayerNotifier extends Notifier<AudioPlaybackState> {
   Timer? _ticker;
   Timer? _sleepTimer;
+  AudioPlayerService? _playerService;
+  StreamSubscription<Duration>? _posSub;
+  StreamSubscription<Duration?>? _durSub;
+  StreamSubscription<bool>? _playingSub;
 
   @override
   AudioPlaybackState build() {
+    _playerService = ref.watch(audioPlayerServiceProvider);
+
+    _posSub?.cancel();
+    _durSub?.cancel();
+    _playingSub?.cancel();
+
+    _posSub = _playerService?.positionStream.listen((pos) {
+      if (state.currentTrack != null) {
+        state = state.copyWith(currentPosition: pos);
+      }
+    });
+
+    _durSub = _playerService?.durationStream.listen((dur) {
+      if (dur != null && dur > Duration.zero && state.currentTrack != null) {
+        if (state.currentTrack!.totalDuration != dur) {
+          state = state.copyWith(
+            currentTrack: state.currentTrack!.copyWith(totalDuration: dur),
+          );
+        }
+      }
+    });
+
+    _playingSub = _playerService?.playingStream.listen((playing) {
+      if (state.isPlaying != playing) {
+        state = state.copyWith(isPlaying: playing);
+        if (playing) {
+          _startTicker();
+        } else {
+          _ticker?.cancel();
+        }
+      }
+    });
     ref.onDispose(() {
       _ticker?.cancel();
       _sleepTimer?.cancel();
+      _posSub?.cancel();
+      _durSub?.cancel();
+      _playingSub?.cancel();
     });
 
     return const AudioPlaybackState(
