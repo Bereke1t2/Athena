@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 
 import '../theme/app_theme.dart';
 
@@ -15,9 +16,9 @@ String normalizeAiText(String text) {
   return s.trim();
 }
 
-/// Rich Markdown & AI Text renderer that transforms raw LLM responses
-/// (headers, bullet lists, bold, italics, code spans, chunk citations)
-/// into beautiful, clean typography with no raw '#', '*', '**', or stray symbols.
+/// Rich Markdown, Code & LaTeX Math renderer that transforms raw LLM responses
+/// (headers, bullet lists, bold, italics, code spans, chunk citations, and mathematical formulas)
+/// into beautiful, clean typography with high-fidelity scientific formatting.
 class AiFormattedText extends StatelessWidget {
   const AiFormattedText({
     super.key,
@@ -184,6 +185,90 @@ class AiFormattedText extends StatelessWidget {
           ),
         );
 
+      case _BlockType.displayMath:
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF141720) : const Color(0xFFF8F9FA),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isDark ? const Color(0xFF2D3342) : const Color(0xFFE5E7EB),
+              width: 1,
+            ),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Math.tex(
+              block.text,
+              mathStyle: MathStyle.display,
+              textStyle: baseStyle.copyWith(
+                fontSize: (baseStyle.fontSize ?? 14) + 1.5,
+                color: isDark ? Colors.white : const Color(0xFF111827),
+              ),
+              onErrorFallback: (err) => SelectableText(
+                block.text,
+                style: baseStyle.copyWith(
+                  fontFamily: 'monospace',
+                  color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF374151),
+                ),
+              ),
+            ),
+          ),
+        );
+
+      case _BlockType.codeBlock:
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F1117) : const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (block.language != null && block.language!.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF181C26) : const Color(0xFFE5E7EB),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
+                  ),
+                  child: Text(
+                    block.language!.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: AppTheme.coral,
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SelectableText(
+                    block.text,
+                    style: TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: (baseStyle.fontSize ?? 14) * 0.9,
+                      height: 1.45,
+                      color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF1F2937),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
       case _BlockType.paragraph:
         return _renderText(block.text, baseStyle, isDark, isLastStreaming);
     }
@@ -222,6 +307,13 @@ class AiFormattedText extends StatelessWidget {
     final blocks = <_AiBlock>[];
     final buffer = StringBuffer();
 
+    bool inCodeBlock = false;
+    String? codeBlockLang;
+    final codeBlockBuffer = StringBuffer();
+
+    bool inDisplayMath = false;
+    final mathBlockBuffer = StringBuffer();
+
     void flushBuffer() {
       final t = buffer.toString().trim();
       if (t.isNotEmpty) {
@@ -232,6 +324,74 @@ class AiFormattedText extends StatelessWidget {
 
     for (final line in lines) {
       final trimmed = line.trim();
+
+      // Handle code block fences
+      if (trimmed.startsWith('```')) {
+        if (inCodeBlock) {
+          blocks.add(_AiBlock(_BlockType.codeBlock, codeBlockBuffer.toString().trimRight(), language: codeBlockLang));
+          codeBlockBuffer.clear();
+          codeBlockLang = null;
+          inCodeBlock = false;
+        } else {
+          flushBuffer();
+          inCodeBlock = true;
+          codeBlockLang = trimmed.substring(3).trim();
+          codeBlockBuffer.clear();
+        }
+        continue;
+      }
+
+      if (inCodeBlock) {
+        if (codeBlockBuffer.isNotEmpty) codeBlockBuffer.write('\n');
+        codeBlockBuffer.write(line);
+        continue;
+      }
+
+      // Handle single-line display math: $$...$$
+      if (trimmed.startsWith('$$') && trimmed.endsWith('$$') && trimmed.length > 2) {
+        flushBuffer();
+        final math = trimmed.substring(2, trimmed.length - 2).trim();
+        if (math.isNotEmpty) {
+          blocks.add(_AiBlock(_BlockType.displayMath, math));
+        }
+        continue;
+      }
+
+      // Handle multi-line display math opening: $$ or \[
+      if (trimmed == r'\[' || (trimmed.startsWith('$$') && !trimmed.endsWith('$$'))) {
+        if (inDisplayMath) {
+          blocks.add(_AiBlock(_BlockType.displayMath, mathBlockBuffer.toString().trim()));
+          mathBlockBuffer.clear();
+          inDisplayMath = false;
+        } else {
+          flushBuffer();
+          inDisplayMath = true;
+          final content = trimmed.startsWith('$$') ? trimmed.substring(2).trim() : '';
+          mathBlockBuffer.clear();
+          if (content.isNotEmpty) mathBlockBuffer.write(content);
+        }
+        continue;
+      }
+
+      if (inDisplayMath) {
+        if (trimmed == r'\]' || trimmed.endsWith('$$')) {
+          final content = trimmed.endsWith('$$')
+              ? trimmed.substring(0, trimmed.length - 2).trim()
+              : (trimmed == r'\]' ? '' : trimmed);
+          if (content.isNotEmpty) {
+            if (mathBlockBuffer.isNotEmpty) mathBlockBuffer.write(' ');
+            mathBlockBuffer.write(content);
+          }
+          blocks.add(_AiBlock(_BlockType.displayMath, mathBlockBuffer.toString().trim()));
+          mathBlockBuffer.clear();
+          inDisplayMath = false;
+        } else {
+          if (mathBlockBuffer.isNotEmpty) mathBlockBuffer.write(' ');
+          mathBlockBuffer.write(trimmed);
+        }
+        continue;
+      }
+
       if (trimmed.isEmpty) {
         flushBuffer();
         continue;
@@ -267,14 +427,23 @@ class AiFormattedText extends StatelessWidget {
       }
     }
 
-    flushBuffer();
+    if (inCodeBlock) {
+      blocks.add(_AiBlock(_BlockType.codeBlock, codeBlockBuffer.toString().trimRight(), language: codeBlockLang));
+    } else if (inDisplayMath) {
+      blocks.add(_AiBlock(_BlockType.displayMath, mathBlockBuffer.toString().trim()));
+    } else {
+      flushBuffer();
+    }
+
     return blocks;
   }
 
   List<InlineSpan> _parseInlineSpans(String text, TextStyle baseStyle, bool isDark) {
     final spans = <InlineSpan>[];
-    // Regex pattern for bold, italics, inline code, and chunk citations [chunk N]
-    final regex = RegExp(r'(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[chunk\s+(\d+)\]|\[(\d+)\])');
+    // Regex pattern for bold, italics, inline code, chunk citations, and inline LaTeX math
+    final regex = RegExp(
+      r'(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[chunk\s+(\d+)\]|\[(\d+)\]|(?<!\\)\$([^\$\n]+?)(?<!\\)\$|\\\((.+?)\\\))',
+    );
     var lastIndex = 0;
 
     for (final match in regex.allMatches(text)) {
@@ -353,6 +522,36 @@ class AiFormattedText extends StatelessWidget {
             ),
           ),
         ));
+      } else if (match.group(8) != null || match.group(9) != null) {
+        final mathContent = (match.group(8) ?? match.group(9) ?? '').trim();
+        // Disambiguate monetary currency (e.g. $100, $5.99) from mathematical formulas
+        if (RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(mathContent)) {
+          spans.add(TextSpan(
+            text: '\$$mathContent',
+            style: baseStyle,
+          ));
+        } else {
+          spans.add(WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Math.tex(
+                mathContent,
+                mathStyle: MathStyle.text,
+                textStyle: baseStyle.copyWith(
+                  color: isDark ? const Color(0xFFF3F4F6) : const Color(0xFF111827),
+                ),
+                onErrorFallback: (err) => Text(
+                  '\$$mathContent\$',
+                  style: baseStyle.copyWith(
+                    fontStyle: FontStyle.italic,
+                    fontFamily: 'serif',
+                  ),
+                ),
+              ),
+            ),
+          ));
+        }
       }
 
       lastIndex = match.end;
@@ -369,12 +568,23 @@ class AiFormattedText extends StatelessWidget {
   }
 }
 
-enum _BlockType { paragraph, header1, header2, header3, bullet, numbered, quote }
+enum _BlockType {
+  paragraph,
+  header1,
+  header2,
+  header3,
+  bullet,
+  numbered,
+  quote,
+  codeBlock,
+  displayMath,
+}
 
 class _AiBlock {
-  const _AiBlock(this.type, this.text, {this.number});
+  const _AiBlock(this.type, this.text, {this.number, this.language});
 
   final _BlockType type;
   final String text;
   final int? number;
+  final String? language;
 }
