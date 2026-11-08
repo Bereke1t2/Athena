@@ -93,7 +93,14 @@ func (w *SyncProviderWindowWorker) Work(ctx context.Context, job *river.Job[Sync
 	}
 	cont := args
 	cont.Cursor = stats.NextCursor
-	if _, err := client.Insert(ctx, cont, nil); err != nil {
+	queue := "ingestion"
+	if job.Queue != "" {
+		queue = job.Queue
+	}
+	if _, err := client.Insert(ctx, cont, &river.InsertOpts{
+		Queue:       queue,
+		MaxAttempts: MaxJobAttempts,
+	}); err != nil {
 		return fmt.Errorf("enqueue continuation: %w", err)
 	}
 	return nil
