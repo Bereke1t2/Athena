@@ -73,7 +73,8 @@ type Config struct {
 	TTSProvider string // mock | openai | noop
 	TTSBaseURL  string
 	TTSAPIKey   string
-	TTSModel    string
+	TTSModel        string
+	AudioStorageDir string // Optional directory for persistent audio storage; empty uses in-memory
 }
 
 // AIEnabled reports whether summary/chat endpoints should be wired.
