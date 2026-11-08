@@ -40,3 +40,10 @@ func TestPeriodicSyncWindow(t *testing.T) {
 	assert.Equal(t, 50, syncArgs.MaxPages)
 	assert.True(t, syncArgs.To.After(syncArgs.From))
 }
+
+func TestJobKinds(t *testing.T) {
+	assert.Equal(t, "weekly_digest", workers.WeeklyDigestArgs{}.Kind())
+	assert.Equal(t, "sync_provider_window", workers.SyncProviderWindowArgs{}.Kind())
+	assert.Equal(t, "notification_fanout", workers.NotificationFanoutArgs{}.Kind())
+	assert.Equal(t, "rag_index_paper", workers.RagIndexArgs{}.Kind())
+}
