@@ -86,6 +86,7 @@ func TestDiskMediaStore(t *testing.T) {
 	assert.Equal(t, tempDir, store.BaseDir())
 
 	key := "paper-uuid:1234/test"
+	sampleData := []byte{0xFF, 0xFB, 0x90, 0x64, 0x01, 0x02, 0x03}
 
 	// 1. Not found initially
 	_, err = store.GetAudio(ctx, key)
@@ -93,4 +94,17 @@ func TestDiskMediaStore(t *testing.T) {
 
 	// 2. Cannot save empty data
 	assert.Error(t, store.SaveAudio(ctx, key, []byte{}))
+
+	// 3. Save and retrieve
+	require.NoError(t, store.SaveAudio(ctx, key, sampleData))
+	retrieved, err := store.GetAudio(ctx, key)
+	require.NoError(t, err)
+	assert.Equal(t, sampleData, retrieved)
+
+	// 4. Persistence across store reinstantiation with the same directory
+	storeReopened, err := tts.NewDiskMediaStore(tempDir)
+	require.NoError(t, err)
+	retrievedReopened, err := storeReopened.GetAudio(ctx, key)
+	require.NoError(t, err)
+	assert.Equal(t, sampleData, retrievedReopened)
 }
