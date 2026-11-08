@@ -1,6 +1,6 @@
 # AGENTS.md — working notes for AI agents on Athena
 
-Last updated: 2026-11-05 (AI conversation completeness, dual-stream elimination, citation regex flexibility & /chat route). Read this first.
+Last updated: 2026-11-08 (River queue configuration alignment, DiskMediaStore persistent audio storage, mobile native audio hardware streaming via just_audio). Read this first.
 
 ## Stack & layout
 
@@ -37,7 +37,36 @@ Last updated: 2026-11-05 (AI conversation completeness, dual-stream elimination,
 
 ## Unfinished / verify next session
 
-1. **AI Conversation Completeness & RAG Dialogue Repair (2026-11-05)**:
+1. **Mobile Native Hardware Audio Streaming Engine (2026-11-08)**:
+   - **Scope**: Replaced software `Timer.periodic` playback simulation in `AudioPlayerNotifier` with true hardware audio streaming from the Go backend's RFC-7233 byte-range endpoint (`GET /api/v1/research/papers/{id}/audio/stream`).
+   - **Core Deliverables**:
+     - *Clean Architecture Service Abstraction* ([`audio_player_service.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/data/audio_player_service.dart)): Implemented `AudioPlayerService` interface and `JustAudioPlayerService` backed by `just_audio 0.10.6`, exposing reactive streams for position, duration, playing state, and processing state.
+     - *Streamlined Player Controller* ([`audio_player_notifier.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/audio_player_notifier.dart)): Bound notifier to hardware streams, implemented automatic relative URL resolution (`_resolveAudioUrl`), real hardware play/pause/seek/speed operations, and resilient fallback to simulated playback when offline or in test environments.
+     - *Chapter Boundary Correction* ([`audio_playback.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/domain/audio_playback.dart)): Corrected chapter index boundary computation (`currentPosition >= ch.startOffset && (currentPosition < ch.endOffset || isLast)`) and added `AudioTrack.copyWith`.
+     - *Comprehensive Unit Tests* ([`audio_player_notifier_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/papers/audio_player_notifier_test.dart)): Created 7 unit tests verifying idle state, URL resolution, playback streaming, seeking, chapter tracking, speed changes, and hardware stream propagation.
+   - **Verification**: Flutter tests 88 passed, 1 skipped (100% green); static analysis clean (`dart analyze`, 0 issues); Go backend tests 100% green (`go test -count=1 ./...`).
+
+2. **River Queue Alignment & Persistent Disk Audio Store (2026-11-08)**:
+   - **Scope**: Resolved River job queue omission for periodic jobs and continuations, and implemented persistent filesystem audio media storage for synthesized OpenAI TTS briefings.
+   - **Root Causes**:
+     - *Default Queue Omission in Worker*: `cmd/worker/main.go` configured `clientOpts.Queues` listening strictly to `"ingestion"`, `"ai"`, and `"notifications"`. River defaults jobs to `river.QueueDefault` ("default") when `InsertOpts` is nil. Because `PeriodicWeeklyDigest`, `PeriodicSyncWindow`, and `SyncProviderWindowWorker` continuations inserted jobs with `nil` options, they routed to the `"default"` queue and sat unprocessed indefinitely.
+     - *Volatile In-Memory Audio Storage*: `MemoryMediaStore` stored synthesized MP3 audio tracks purely in memory. On API container restarts or deployments, generated audio was lost, triggering repeated expensive TTS regeneration calls on subsequent requests to `/audio/stream`.
+   - **Core Deliverables**:
+     - *River Queue Subscription & Options* ([`main.go`](file:///home/bereket/startup/Athena/backend/cmd/worker/main.go), [`weekly_digest.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/workers/weekly_digest.go), [`sync_provider_window.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/workers/sync_provider_window.go)):
+       - Added `river.QueueDefault: {MaxWorkers: cfg.WorkerConcurrency}` to `clientOpts.Queues` in `cmd/worker/main.go`.
+       - Updated `PeriodicWeeklyDigest` to explicitly target `Queue: "notifications"`.
+       - Updated `PeriodicSyncWindow` to target `Queue: "ingestion"` with `MaxAttempts: MaxJobAttempts`.
+       - Updated `SyncProviderWindowWorker` continuation insert to inherit the current queue (`job.Queue`) with `MaxJobAttempts`.
+       - Added unit tests in [`workers_test.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/workers/workers_test.go).
+     - *Persistent Filesystem Audio Storage* ([`disk_store.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/ai/tts/disk_store.go), [`config.go`](file:///home/bereket/startup/Athena/backend/internal/platform/config/config.go), [`main.go`](file:///home/bereket/startup/Athena/backend/cmd/api/main.go), [`docker-compose.yml`](file:///home/bereket/startup/Athena/docker-compose.yml)):
+       - Implemented `DiskMediaStore` adhering to `domainaudio.MediaStore` with thread-safe atomic file writes (`safeKey + .tmp.*` -> `os.Rename`), key sanitization, and `domainaudio.ErrAudioNotFound` error mapping.
+       - Added `ATHENA_AUDIO_DIR` configuration in `config.go` and `.env.example`.
+       - Configured `cmd/api/main.go` to instantiate `DiskMediaStore` whenever `ATHENA_AUDIO_DIR` is set, with graceful fallback to `MemoryMediaStore`.
+       - Mounted `audio_data:/var/lib/athena/audio` volume in `docker-compose.yml`.
+       - Added unit tests for `DiskMediaStore` in [`tts_test.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/ai/tts/tts_test.go).
+   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); binaries `bin/api` and `bin/worker` compile cleanly.
+
+2. **AI Conversation Completeness & RAG Dialogue Repair (2026-11-05)**:
    - **Scope**: Fixed broken and incomplete AI chat responses, streaming concatenation bugs, harsh refusal loops, and navigation routing for the conversational AI research assistant.
    - **Root Causes**:
      - *Dual-Stream Contamination*: When citation validation failed on the initial stream, `service.go` re-called `groundedAnswerStrict(..., onDelta)` with the live SSE callback. This streamed a second answer directly appended onto the first answer in the client's single buffer, producing repetitive, jumbled, or cutoff responses.
