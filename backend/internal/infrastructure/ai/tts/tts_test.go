@@ -76,3 +76,21 @@ func TestMemoryMediaStore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, sampleData, retrieved)
 }
+
+func TestDiskMediaStore(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	store, err := tts.NewDiskMediaStore(tempDir)
+	require.NoError(t, err)
+	assert.Equal(t, tempDir, store.BaseDir())
+
+	key := "paper-uuid:1234/test"
+
+	// 1. Not found initially
+	_, err = store.GetAudio(ctx, key)
+	assert.ErrorIs(t, err, domainaudio.ErrAudioNotFound)
+
+	// 2. Cannot save empty data
+	assert.Error(t, store.SaveAudio(ctx, key, []byte{}))
+}
