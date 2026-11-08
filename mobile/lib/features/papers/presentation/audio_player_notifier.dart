@@ -93,7 +93,7 @@ class AudioPlayerNotifier extends Notifier<AudioPlaybackState> {
     });
   }
 
-  void playTrack(AudioTrack track) {
+  Future<void> playTrack(AudioTrack track) async {
     final recent = [track, ...state.recentTracks.where((t) => t.id != track.id)].take(5).toList();
     state = state.copyWith(
       currentTrack: track,
@@ -101,7 +101,23 @@ class AudioPlayerNotifier extends Notifier<AudioPlaybackState> {
       currentPosition: Duration.zero,
       recentTracks: recent,
     );
-    _startTicker();
+
+    final streamUrl = _resolveAudioUrl(track);
+    bool streamStarted = false;
+    if (streamUrl.isNotEmpty && _playerService != null) {
+      try {
+        await _playerService!.setUrl(streamUrl);
+        await _playerService!.setSpeed(state.speed);
+        await _playerService!.play();
+        streamStarted = true;
+      } catch (e) {
+        debugPrint('AudioPlayerNotifier: hardware streaming failed, falling back to simulated playback: $e');
+      }
+    }
+
+    if (!streamStarted) {
+      _startTicker();
+    }
   }
 
   void playPaper(PaperSummary paper, {String? abstractText, List<String> topics = const []}) {
