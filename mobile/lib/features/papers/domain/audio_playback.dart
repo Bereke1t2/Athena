@@ -165,6 +165,34 @@ class AudioTrack {
       gradientThemeIndex: id.hashCode.abs() % 4,
     );
   }
+
+  AudioTrack copyWith({
+    String? id,
+    String? paperId,
+    String? title,
+    String? authorVenue,
+    Duration? totalDuration,
+    List<AudioChapter>? chapters,
+    List<String>? takeaways,
+    AudioQuote? pullQuote,
+    List<String>? tags,
+    String? audioUrl,
+    int? gradientThemeIndex,
+  }) {
+    return AudioTrack(
+      id: id ?? this.id,
+      paperId: paperId ?? this.paperId,
+      title: title ?? this.title,
+      authorVenue: authorVenue ?? this.authorVenue,
+      totalDuration: totalDuration ?? this.totalDuration,
+      chapters: chapters ?? this.chapters,
+      takeaways: takeaways ?? this.takeaways,
+      pullQuote: pullQuote ?? this.pullQuote,
+      tags: tags ?? this.tags,
+      audioUrl: audioUrl ?? this.audioUrl,
+      gradientThemeIndex: gradientThemeIndex ?? this.gradientThemeIndex,
+    );
+  }
 }
 
 class AudioPlaybackState {
