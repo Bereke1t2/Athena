@@ -33,13 +33,11 @@ class PdfRepositoryImpl implements PdfRepository {
       }
     }
 
-    final file = await _localFile(paperId);
-    if (await file.exists() && await file.length() > 0) return file.path;
-
+    // 3. Download directly to persistent storage.
     try {
       final res = await _dio.download(
         url,
-        file.path,
+        docFile.path,
         options: Options(
           receiveTimeout: _downloadTimeout,
           followRedirects: true,
@@ -54,11 +52,11 @@ class PdfRepositoryImpl implements PdfRepository {
       // Verify it's actually a PDF — reject HTML error pages / landing pages.
       final contentType = res.headers.value('content-type') ?? '';
       if (contentType.contains('text/html')) {
-        await file.delete();
+        await docFile.delete();
         throw const Failure.unknown(cause: 'The link points to a web page, not a PDF file.');
       }
 
-      final raf = await file.open();
+      final raf = await docFile.open();
       final header = await raf.read(4);
       await raf.close();
       if (header.length < 4 || String.fromCharCodes(header) != '%PDF') {
@@ -66,18 +64,11 @@ class PdfRepositoryImpl implements PdfRepository {
       }
     } catch (e) {
       // Don't leave partial files behind.
-      if (await file.exists()) await file.delete();
+      if (await docFile.exists()) await docFile.delete();
       if (e is Failure) rethrow;
       throw failureFromDio(e);
     }
-    return file.path;
-  }
-
-  Future<File> _localFile(String paperId) async {
-    final dir = await getTemporaryDirectory();
-    final pdfs = Directory('${dir.path}/pdfs');
-    if (!await pdfs.exists()) await pdfs.create(recursive: true);
-    return File('${pdfs.path}/$paperId.pdf');
+    return docFile.path;
   }
 
   Future<File> _documentsFile(String paperId) async {
