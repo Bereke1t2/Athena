@@ -82,6 +82,23 @@ class PdfRepositoryImpl implements PdfRepository {
   }
 
   @override
+  Future<bool> isCached(String paperId) async {
+    final docFile = await _documentsFile(paperId);
+    if (await docFile.exists() && await docFile.length() > 0) return true;
+    final tempFile = await _temporaryFile(paperId);
+    return await tempFile.exists() && await tempFile.length() > 0;
+  }
+
+  @override
+  Future<String?> getCachedPath(String paperId) async {
+    final docFile = await _documentsFile(paperId);
+    if (await docFile.exists() && await docFile.length() > 0) return docFile.path;
+    final tempFile = await _temporaryFile(paperId);
+    if (await tempFile.exists() && await tempFile.length() > 0) return tempFile.path;
+    return null;
+  }
+
+  @override
   Future<void> deleteCache(String paperId) async {
     final file = await _localFile(paperId);
     if (await file.exists()) await file.delete();
