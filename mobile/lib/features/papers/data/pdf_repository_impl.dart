@@ -67,6 +67,20 @@ class PdfRepositoryImpl implements PdfRepository {
     return File('${pdfs.path}/$paperId.pdf');
   }
 
+  Future<File> _documentsFile(String paperId) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final pdfs = Directory('${dir.path}/pdfs');
+    if (!await pdfs.exists()) await pdfs.create(recursive: true);
+    return File('${pdfs.path}/$paperId.pdf');
+  }
+
+  Future<File> _temporaryFile(String paperId) async {
+    final dir = await getTemporaryDirectory();
+    final pdfs = Directory('${dir.path}/pdfs');
+    if (!await pdfs.exists()) await pdfs.create(recursive: true);
+    return File('${pdfs.path}/$paperId.pdf');
+  }
+
   @override
   Future<void> deleteCache(String paperId) async {
     final file = await _localFile(paperId);
