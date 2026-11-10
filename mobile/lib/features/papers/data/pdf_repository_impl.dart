@@ -20,6 +20,19 @@ class PdfRepositoryImpl implements PdfRepository {
   @override
   Future<String> download(String paperId, String url,
       {void Function(int received, int? total)? onProgress}) async {
+    final docFile = await _documentsFile(paperId);
+    if (await docFile.exists() && await docFile.length() > 0) return docFile.path;
+
+    final tempFile = await _temporaryFile(paperId);
+    if (await tempFile.exists() && await tempFile.length() > 0) {
+      try {
+        await tempFile.copy(docFile.path);
+        return docFile.path;
+      } catch (_) {
+        return tempFile.path;
+      }
+    }
+
     final file = await _localFile(paperId);
     if (await file.exists() && await file.length() > 0) return file.path;
 
