@@ -151,6 +151,52 @@ class MiniAudioPlayer extends ConsumerWidget {
                     ),
                   ),
                 ),
+                // Skip forward 10 seconds
+                IconButton(
+                  key: const Key('mini_audio_player_skip_10'),
+                  icon: const Icon(Icons.forward_10_rounded, size: 22),
+                  color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF4B5563),
+                  tooltip: 'Forward 10s',
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  onPressed: () => ref.read(audioPlayerProvider.notifier).skipSeconds(10),
+                ),
+                // Play / Pause Toggle Button
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppTheme.coral.withValues(alpha: 0.16)
+                        : AppTheme.coralSubtle,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    key: const Key('mini_audio_player_play_pause'),
+                    icon: Icon(
+                      audioState.isPlaying
+                          ? Icons.pause_rounded
+                          : Icons.play_arrow_rounded,
+                      size: 22,
+                    ),
+                    color: AppTheme.coral,
+                    tooltip: audioState.isPlaying ? 'Pause' : 'Play',
+                    padding: const EdgeInsets.all(8),
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    onPressed: () =>
+                        ref.read(audioPlayerProvider.notifier).togglePlayPause(),
+                  ),
+                ),
+                // Dismiss / Close Button
+                IconButton(
+                  key: const Key('mini_audio_player_dismiss'),
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                  tooltip: 'Dismiss player',
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  onPressed: () =>
+                      ref.read(audioPlayerProvider.notifier).stopAndDismiss(),
+                ),
               ],
             ),
           ),
