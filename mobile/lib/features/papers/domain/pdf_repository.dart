@@ -10,6 +10,9 @@ abstract interface class PdfRepository {
 
   /// Delete cached PDF for [paperId] so next [download] re-fetches.
   Future<void> deleteCache(String paperId);
+
+  /// Checks whether a local cached PDF exists and is non-empty for [paperId].
+  Future<bool> isCached(String paperId);
 }
 
 /// Checks whether a URL points directly to a PDF resource.
