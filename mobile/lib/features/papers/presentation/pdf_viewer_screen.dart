@@ -34,15 +34,34 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
   int _received = 0;
   int? _total;
   int _retries = 0;
+  bool _isOfflineCached = false;
   static const _maxRetries = 2;
 
   @override
   void initState() {
     super.initState();
+    _checkCachedAndFetch();
+  }
+
+  Future<void> _checkCachedAndFetch() async {
+    final repo = ref.read(pdfRepositoryProvider);
+    final cached = await repo.getCachedPath(widget.paperId);
+    if (!mounted) return;
+
+    if (cached != null && cached.isNotEmpty) {
+      setState(() {
+        _localPath = cached;
+        _isOfflineCached = true;
+      });
+      return;
+    }
+
     if (widget.url.isEmpty) {
-      _error = const Failure.unknown(cause: 'No PDF URL available for this paper');
+      setState(() {
+        _error = const Failure.unknown(cause: 'No PDF URL available for this paper');
+      });
     } else {
-      _fetch();
+      unawaited(_fetch());
     }
   }
 
