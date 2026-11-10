@@ -16,6 +16,7 @@ import '../../features/papers/presentation/article_reader_screen.dart';
 import '../../features/papers/presentation/paper_audio_player_screen.dart';
 import '../../features/papers/presentation/paper_detail_screen.dart';
 import '../../features/papers/presentation/pdf_viewer_screen.dart';
+import '../../features/papers/presentation/widgets/mini_audio_player.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
@@ -260,56 +261,62 @@ class _HomeShell extends StatelessWidget {
 
     return Scaffold(
       body: shell,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF111216) : Colors.white,
-          border: Border(
-            top: BorderSide(
-              color: isDark ? const Color(0xFF222632) : const Color(0xFFE5E7EB),
-              width: 1.0,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const MiniAudioPlayer(),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF111216) : Colors.white,
+              border: Border(
+                top: BorderSide(
+                  color: isDark ? const Color(0xFF222632) : const Color(0xFFE5E7EB),
+                  width: 1.0,
+                ),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: NavigationBar(
+                selectedIndex: shell.currentIndex,
+                onDestinationSelected: shell.goBranch,
+                height: 64,
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                indicatorColor: isDark
+                    ? AppTheme.coral.withValues(alpha: 0.18)
+                    : AppTheme.coralSubtle,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home_rounded, color: AppTheme.coral),
+                    label: 'Feed',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.description_outlined),
+                    selectedIcon: Icon(Icons.description_rounded, color: AppTheme.coral),
+                    label: 'Search',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.category_outlined),
+                    selectedIcon: Icon(Icons.category_rounded, color: AppTheme.coral),
+                    label: 'Topics',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.auto_stories_outlined),
+                    selectedIcon: Icon(Icons.auto_stories_rounded, color: AppTheme.coral),
+                    label: 'Digest',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.assignment_turned_in_outlined),
+                    selectedIcon: Icon(Icons.assignment_turned_in_rounded, color: AppTheme.coral),
+                    label: 'Saved',
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: NavigationBar(
-            selectedIndex: shell.currentIndex,
-            onDestinationSelected: shell.goBranch,
-            height: 64,
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            indicatorColor: isDark
-                ? AppTheme.coral.withValues(alpha: 0.18)
-                : AppTheme.coralSubtle,
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded, color: AppTheme.coral),
-                label: 'Feed',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.description_outlined),
-                selectedIcon: Icon(Icons.description_rounded, color: AppTheme.coral),
-                label: 'Search',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.category_outlined),
-                selectedIcon: Icon(Icons.category_rounded, color: AppTheme.coral),
-                label: 'Topics',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.auto_stories_outlined),
-                selectedIcon: Icon(Icons.auto_stories_rounded, color: AppTheme.coral),
-                label: 'Digest',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.assignment_turned_in_outlined),
-                selectedIcon: Icon(Icons.assignment_turned_in_rounded, color: AppTheme.coral),
-                label: 'Saved',
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
