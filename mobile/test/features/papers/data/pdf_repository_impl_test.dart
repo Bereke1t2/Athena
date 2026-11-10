@@ -87,5 +87,20 @@ void main() {
       expect(await file.exists(), isFalse);
       expect(await repository.getCachedPath('paper-test-3'), isNull);
     });
+
+    test('promotes temporary cache file into persistent documents directory', () async {
+      final tempPdfsDir = Directory('${tempDir.path}/pdfs');
+      await tempPdfsDir.create(recursive: true);
+      final tempFile = File('${tempPdfsDir.path}/paper-test-4.pdf');
+      await tempFile.writeAsBytes([0x25, 0x50, 0x44, 0x46, 0x34]);
+
+      // Verify it's recognized as cached
+      expect(await repository.isCached('paper-test-4'), isTrue);
+
+      // Calling download should copy to docs and return the docs path
+      final path = await repository.download('paper-test-4', 'http://invalid.test/file.pdf');
+      expect(path, contains(docsDir.path));
+      expect(await File(path).exists(), isTrue);
+    });
   });
 }
