@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di.dart';
 import '../../../core/error/failure.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../history/presentation/history_notifier.dart';
@@ -117,6 +118,38 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
     return Scaffold(
       appBar: AthenaTopBar(
         title: widget.title ?? 'PDF',
+        actions: [
+          if (_isOfflineCached)
+            AthenaCircularIconButton(
+              icon: Icons.offline_pin_rounded,
+              iconColor: AppTheme.coral,
+              tooltip: 'Saved offline on device',
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('This paper is saved to persistent device storage for offline reading.'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+          if (_localPath != null && widget.url.isNotEmpty)
+            AthenaCircularIconButton(
+              icon: Icons.refresh_rounded,
+              tooltip: 'Re-download PDF',
+              onPressed: () {
+                setState(() {
+                  _localPath = null;
+                  _error = null;
+                  _received = 0;
+                  _total = null;
+                  _retries = 0;
+                  _isOfflineCached = false;
+                });
+                _fetch(forceRefresh: true);
+              },
+            ),
+        ],
       ),
       body: _error != null
           ? ErrorView(
