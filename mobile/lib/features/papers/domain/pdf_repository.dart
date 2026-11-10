@@ -1,7 +1,7 @@
 import 'paper.dart';
 
 /// PDF access port: resolves full-text URLs and caches downloads locally
-/// (data layer owns dio/file handling).
+/// in persistent application storage with offline fallback (data layer owns dio/file handling).
 abstract interface class PdfRepository {
   /// Returns a cached local path for the paper's PDF, downloading on first
   /// use. Progress reports (receivedBytes, totalBytes-or-null).
