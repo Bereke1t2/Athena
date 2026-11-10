@@ -13,6 +13,9 @@ abstract interface class PdfRepository {
 
   /// Checks whether a local cached PDF exists and is non-empty for [paperId].
   Future<bool> isCached(String paperId);
+
+  /// Returns the local file path if cached, or null.
+  Future<String?> getCachedPath(String paperId);
 }
 
 /// Checks whether a URL points directly to a PDF resource.
