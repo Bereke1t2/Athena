@@ -442,7 +442,7 @@ class AiFormattedText extends StatelessWidget {
     final spans = <InlineSpan>[];
     // Regex pattern for bold, italics, inline code, chunk citations, and inline LaTeX math
     final regex = RegExp(
-      r'(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[chunk\s+(\d+)\]|\[(\d+)\]|(?<!\\)\$([^\$\n]+?)(?<!\\)\$|\\\((.+?)\\\))',
+      r'(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[chunk\s+(\d+)\]|\[(\d+)\]|(?<!\\)\$(?!\s)([^\$\n]+?)(?<![\s\\])\$|\\\((.+?)\\\))',
     );
     var lastIndex = 0;
 
