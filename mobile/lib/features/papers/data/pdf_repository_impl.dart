@@ -104,7 +104,9 @@ class PdfRepositoryImpl implements PdfRepository {
 
   @override
   Future<void> deleteCache(String paperId) async {
-    final file = await _localFile(paperId);
-    if (await file.exists()) await file.delete();
+    final docFile = await _documentsFile(paperId);
+    if (await docFile.exists()) await docFile.delete();
+    final tempFile = await _temporaryFile(paperId);
+    if (await tempFile.exists()) await tempFile.delete();
   }
 }
