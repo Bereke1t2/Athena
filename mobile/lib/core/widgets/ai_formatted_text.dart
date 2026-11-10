@@ -348,7 +348,7 @@ class AiFormattedText extends StatelessWidget {
       }
 
       // Handle single-line display math: $$...$$
-      if (trimmed.startsWith('$$') && trimmed.endsWith('$$') && trimmed.length > 2) {
+      if (trimmed.startsWith(r'$$') && trimmed.endsWith(r'$$') && trimmed.length > 2) {
         flushBuffer();
         final math = trimmed.substring(2, trimmed.length - 2).trim();
         if (math.isNotEmpty) {
