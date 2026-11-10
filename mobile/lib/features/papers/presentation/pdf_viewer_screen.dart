@@ -65,24 +65,48 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
     }
   }
 
-  Future<void> _fetch() async {
+  Future<void> _fetch({bool forceRefresh = false}) async {
+    final repo = ref.read(pdfRepositoryProvider);
+    if (forceRefresh) {
+      await repo.deleteCache(widget.paperId);
+    }
+
     try {
-      final path = await ref.read(pdfRepositoryProvider).download(
-            widget.paperId,
-            widget.url,
-            onProgress: (r, t) {
-              if (!mounted) return;
-              setState(() {
-                _received = r;
-                _total = t;
-              });
-            },
-          );
+      final path = await repo.download(
+        widget.paperId,
+        widget.url,
+        onProgress: (r, t) {
+          if (!mounted) return;
+          setState(() {
+            _received = r;
+            _total = t;
+          });
+        },
+      );
       if (!mounted) return;
-      setState(() => _localPath = path);
+      setState(() {
+        _localPath = path;
+        _isOfflineCached = true;
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e);
+      // Fall back to offline cached file if available during a network interruption
+      final fallbackPath = await repo.getCachedPath(widget.paperId);
+      if (!mounted) return;
+      if (fallbackPath != null && fallbackPath.isNotEmpty) {
+        setState(() {
+          _localPath = fallbackPath;
+          _isOfflineCached = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network unavailable: reading from offline disk cache'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        setState(() => _error = e);
+      }
     }
   }
 
