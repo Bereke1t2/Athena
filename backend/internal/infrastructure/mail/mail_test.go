@@ -89,3 +89,68 @@ func TestSMTPSenderBuildMIME(t *testing.T) {
 	assert.Contains(t, str, "<h1>Hello HTML world</h1>")
 }
 
+func TestRenderDigestEmail(t *testing.T) {
+	user := domainuser.User{
+		ID:          uuid.New(),
+		Email:       "ada@athena.dev",
+		DisplayName: "Ada Lovelace",
+	}
+
+	paperID := uuid.New()
+	digest := domaindigest.UserDigest{
+		ID:          uuid.New(),
+		UserID:      user.ID,
+		GeneratedAt: time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC),
+		Frequency:   domaindigest.FrequencyWeekly,
+		AISummary:   "This week witnessed major advances in diffusion models for protein design.\n\nResearchers demonstrated zero-shot generalization on novel scaffolds.",
+		TopTakeaways: []string{
+			"Structure prediction achieved sub-angstrom accuracy across 42 targets.",
+			"In-context learning emerged in small parameter models with curriculum pruning.",
+		},
+		Sections: []domaindigest.DigestSection{
+			{
+				Title:       "Machine Learning in Biology",
+				Description: "Frontier advances bridging deep learning and structural biology.",
+				Papers: []research.PaperSummary{
+					{
+						ID:           paperID,
+						Title:        "De Novo Protein Design via Latent Diffusion",
+						Year:         2026,
+						VenueName:    "Nature Machine Intelligence",
+						CitedByCount: 14,
+						IsOpenAccess: true,
+					},
+				},
+			},
+		},
+		Pulses: []domaindigest.TopicPulse{
+			{
+				TopicName:  "Computational Biology",
+				PaperCount: 18,
+				KeyThemes:  []string{"Diffusion", "Folding"},
+			},
+		},
+	}
+
+	subject, text, htmlBody, err := RenderDigestEmail(user, digest, "https://athena.dev")
+	require.NoError(t, err)
+
+	assert.Contains(t, subject, "Athena Weekly Briefing")
+	assert.Contains(t, subject, "Nov 11, 2026")
+
+	// Verify plaintext contents
+	assert.Contains(t, text, "Ada Lovelace")
+	assert.Contains(t, text, "EXECUTIVE AI SYNTHESIS")
+	assert.Contains(t, text, "De Novo Protein Design via Latent Diffusion")
+	assert.Contains(t, text, "Structure prediction achieved sub-angstrom accuracy")
+	assert.Contains(t, text, "https://athena.dev/papers/"+paperID.String())
+
+	// Verify HTML contents
+	assert.Contains(t, htmlBody, "Ada Lovelace")
+	assert.Contains(t, htmlBody, "Executive AI Weekly Synthesis")
+	assert.Contains(t, htmlBody, "De Novo Protein Design via Latent Diffusion")
+	assert.Contains(t, htmlBody, "OPEN ACCESS")
+	assert.Contains(t, htmlBody, "https://athena.dev/papers/"+paperID.String())
+	assert.Contains(t, htmlBody, "Delivered to ada@athena.dev")
+}
+
