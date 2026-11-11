@@ -5,7 +5,6 @@ package main
 
 import (
 	"context"
-	europepmcadapter "athena/backend/internal/infrastructure/providers/europepmc"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -26,7 +25,9 @@ import (
 	stubai "athena/backend/internal/infrastructure/ai/stub"
 	"athena/backend/internal/infrastructure/cache"
 	"athena/backend/internal/infrastructure/database"
+	"athena/backend/internal/infrastructure/mail"
 	arxivadapter "athena/backend/internal/infrastructure/providers/arxiv"
+	europepmcadapter "athena/backend/internal/infrastructure/providers/europepmc"
 	openalexadapter "athena/backend/internal/infrastructure/providers/openalex"
 	s2adapter "athena/backend/internal/infrastructure/providers/semanticscholar"
 	"athena/backend/internal/infrastructure/push"
@@ -123,8 +124,17 @@ func main() {
 		}
 	}
 
+	mailer := mail.New(mail.Config{
+		Provider:     cfg.MailProvider,
+		SMTPHost:     cfg.SMTPHost,
+		SMTPPort:     cfg.SMTPPort,
+		SMTPUsername: cfg.SMTPUsername,
+		SMTPPassword: cfg.SMTPPassword,
+		From:         cfg.SMTPFrom,
+	}, log)
+	userStore := database.NewUserStore(pool)
 	digestSvc := appdigest.NewService(store, database.NewFollowStore(pool), database.NewDigestStore(pool), llm, log)
-	workers.AddDigest(riverWorkers, digestSvc, pool, log)
+	workers.AddDigestWithMailer(riverWorkers, digestSvc, pool, userStore, mailer, cfg.AppBaseURL, log)
 
 	// Phase 4: full-text RAG indexing when an LLM/embedding stack is set.
 	var ragService *appai.RAGService
@@ -211,6 +221,11 @@ func buildProviders(cfg *config.Config) ingestion.Providers {
 			APIKey:  cfg.SemanticScholarAPIKey,
 			MaxRPS:  cfg.S2MaxRPS,
 			BaseURL: cfg.S2BaseURL,
+		}),
+		europepmcadapter.Slug: europepmcadapter.New(europepmcadapter.Options{
+			Email:   cfg.EuropePMCEmail,
+			MaxRPS:  cfg.EuropePMCMaxRPS,
+			BaseURL: cfg.EuropePMCBaseURL,
 		}),
 	}
 	return providers
