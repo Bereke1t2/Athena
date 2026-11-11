@@ -1,10 +1,13 @@
 package europepmc
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -391,4 +394,44 @@ func (p *Provider) normalize(dto *resultDTO) (research.Paper, error) {
 
 	research.DeriveIdentity(&paper)
 	return paper, nil
+}
+
+// Search performs a live query against Europe PMC for federated discovery.
+func (p *Provider) Search(ctx context.Context, query string, limit int) ([]research.Paper, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, fmt.Errorf("%w: europepmc search needs a query", providers.ErrBadWindow)
+	}
+	if limit <= 0 {
+		limit = pageSize
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	q := url.Values{}
+	q.Set("query", query)
+	q.Set("format", "json")
+	q.Set("pageSize", strconv.Itoa(limit))
+	q.Set("resultType", "core")
+
+	raw, err := p.fetch.Get(ctx, Slug, p.baseURL+"/search?"+q.Encode())
+	if err != nil {
+		return nil, err
+	}
+
+	var resp responseDTO
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return nil, fmt.Errorf("%w: europepmc search: %v", providers.ErrSchemaDrift, err)
+	}
+
+	papers := make([]research.Paper, 0, len(resp.ResultList.Result))
+	for i := range resp.ResultList.Result {
+		paper, perr := p.normalize(&resp.ResultList.Result[i])
+		if perr != nil {
+			continue // skip malformed records
+		}
+		papers = append(papers, paper)
+	}
+	return papers, nil
 }
