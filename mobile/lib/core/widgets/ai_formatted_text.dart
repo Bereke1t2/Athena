@@ -348,7 +348,7 @@ class AiFormattedText extends StatelessWidget {
       }
 
       // Handle single-line display math: $$...$$
-      if (trimmed.startsWith('$$') && trimmed.endsWith('$$') && trimmed.length > 2) {
+      if (trimmed.startsWith(r'$$') && trimmed.endsWith(r'$$') && trimmed.length > 2) {
         flushBuffer();
         final math = trimmed.substring(2, trimmed.length - 2).trim();
         if (math.isNotEmpty) {
@@ -358,7 +358,7 @@ class AiFormattedText extends StatelessWidget {
       }
 
       // Handle multi-line display math opening: $$ or \[
-      if (trimmed == r'\[' || (trimmed.startsWith('$$') && !trimmed.endsWith('$$'))) {
+      if (trimmed == r'\[' || (trimmed.startsWith(r'$$') && !trimmed.endsWith(r'$$'))) {
         if (inDisplayMath) {
           blocks.add(_AiBlock(_BlockType.displayMath, mathBlockBuffer.toString().trim()));
           mathBlockBuffer.clear();
@@ -366,7 +366,7 @@ class AiFormattedText extends StatelessWidget {
         } else {
           flushBuffer();
           inDisplayMath = true;
-          final content = trimmed.startsWith('$$') ? trimmed.substring(2).trim() : '';
+          final content = trimmed.startsWith(r'$$') ? trimmed.substring(2).trim() : '';
           mathBlockBuffer.clear();
           if (content.isNotEmpty) mathBlockBuffer.write(content);
         }
@@ -374,8 +374,8 @@ class AiFormattedText extends StatelessWidget {
       }
 
       if (inDisplayMath) {
-        if (trimmed == r'\]' || trimmed.endsWith('$$')) {
-          final content = trimmed.endsWith('$$')
+        if (trimmed == r'\]' || trimmed.endsWith(r'$$')) {
+          final content = trimmed.endsWith(r'$$')
               ? trimmed.substring(0, trimmed.length - 2).trim()
               : (trimmed == r'\]' ? '' : trimmed);
           if (content.isNotEmpty) {
