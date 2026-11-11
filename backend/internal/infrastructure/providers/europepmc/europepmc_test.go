@@ -2,6 +2,7 @@ package europepmc
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -110,5 +111,24 @@ func TestSearch_Mapping(t *testing.T) {
 	}
 	if paper.Abstract != "The recent outbreak of SARS-CoV-2..." {
 		t.Errorf("unexpected abstract cleanup: %q", paper.Abstract)
+	}
+}
+
+func TestSearch_ErrorsAndSchemaDrift(t *testing.T) {
+	p := New(Options{BaseURL: "http://example.com"})
+	if _, err := p.Search(context.Background(), "   ", 10); !errors.Is(err, providers.ErrBadWindow) {
+		t.Fatalf("expected ErrBadWindow on empty query, got %v", err)
+	}
+
+	badJSONServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"resultList": "not-an-object"}`))
+	}))
+	defer badJSONServer.Close()
+
+	badP := New(Options{BaseURL: badJSONServer.URL})
+	if _, err := badP.Search(context.Background(), "crispr", 10); !errors.Is(err, providers.ErrSchemaDrift) {
+		t.Fatalf("expected ErrSchemaDrift on bad payload, got %v", err)
 	}
 }
