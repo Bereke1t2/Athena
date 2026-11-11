@@ -8,185 +8,225 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"athena/backend/internal/domain/research"
 	"athena/backend/internal/infrastructure/providers"
 )
 
-func TestSearch_Mapping(t *testing.T) {
-	fixture := `{
-		"hitCount": 1,
-		"resultList": {
-			"result": [
-				{
-					"id": "32109876",
-					"source": "MED",
-					"pmid": "32109876",
-					"pmcid": "PMC7654321",
-					"doi": "10.1016/j.cell.2020.02.001",
-					"title": "Cryo-EM structure of the SARS-CoV-2 spike in the prefusion conformation",
-					"authorString": "Wrapp D, Wang N, Corbett KS.",
-					"authorList": {
-						"author": [
-							{
-								"fullName": "Daniel Wrapp",
-								"firstName": "Daniel",
-								"lastName": "Wrapp",
-								"authorId": {"@type": "ORCID", "#text": "0000-0002-8610-8025"}
-							},
-							{
-								"fullName": "Nianshuang Wang",
-								"firstName": "Nianshuang",
-								"lastName": "Wang"
-							}
-						]
-					},
-					"journalInfo": {
-						"journal": {"title": "Science"},
-						"yearOfPublication": 2020,
-						"dateOfPublication": "2020 Mar 13"
-					},
-					"firstPublicationDate": "2020-02-19",
-					"abstractText": "&lt;p&gt;The recent outbreak of SARS-CoV-2...&lt;/p&gt;",
-					"isOpenAccess": "Y",
-					"inPMC": "Y",
-					"hasPDF": "Y",
-					"citedByCount": 6500,
-					"fullTextUrlList": {
-						"fullTextUrl": [
-							{"documentStyle": "html", "url": "https://doi.org/10.1016/j.cell.2020.02.001"},
-							{"documentStyle": "pdf", "url": "https://europepmc.org/articles/pmc7654321?pdf=render"}
-						]
-					},
-					"keywordList": {"keyword": ["coronavirus", "spike glycoprotein"]},
-					"meshHeadingList": {"meshHeading": [{"descriptorName": "COVID-19"}]},
-					"pubTypeList": {"pubType": ["Journal Article", "Research Support"]}
-				}
-			]
-		}
-	}`
+const sampleSearchResponseJSON = `{
+  "version": "6.9",
+  "hitCount": 1,
+  "nextCursorMark": "AoE/testcursor123",
+  "resultList": {
+    "result": [
+      {
+        "id": "38271625",
+        "source": "MED",
+        "pmid": "38271625",
+        "pmcid": "PMC10800001",
+        "doi": "10.1038/s41586-024-07000-0",
+        "title": "<i>Structure</i> and mechanism of the human &amp; primate receptor",
+        "authorString": "Doe J, Smith A.",
+        "authorList": {
+          "author": [
+            {
+              "fullName": "John Doe",
+              "firstName": "John",
+              "lastName": "Doe",
+              "authorId": {
+                "@type": "ORCID",
+                "#text": "0000-0002-1825-0097"
+              }
+            },
+            {
+              "fullName": "Alice Smith",
+              "firstName": "Alice",
+              "lastName": "Smith"
+            }
+          ]
+        },
+        "journalInfo": {
+          "journal": {
+            "title": "Nature Medicine"
+          },
+          "yearOfPublication": 2024,
+          "dateOfPublication": "2024 Jan 15"
+        },
+        "pubYear": "2024",
+        "firstPublicationDate": "2024-01-15",
+        "abstractText": "<p><b>Background:</b> Structural insights into <i>membrane</i> targets.</p>",
+        "isOpenAccess": "Y",
+        "inEPMC": "Y",
+        "inPMC": "Y",
+        "hasPDF": "Y",
+        "citedByCount": 38,
+        "fullTextUrlList": {
+          "fullTextUrl": [
+            {
+              "availability": "Subscription required",
+              "availabilityCode": "S",
+              "documentStyle": "html",
+              "site": "DOI",
+              "url": "https://doi.org/10.1038/s41586-024-07000-0"
+            },
+            {
+              "availability": "Open access",
+              "availabilityCode": "OA",
+              "documentStyle": "pdf",
+              "site": "Europe_PMC",
+              "url": "https://europepmc.org/articles/PMC10800001?pdf=render"
+            }
+          ]
+        },
+        "keywordList": {
+          "keyword": ["Structural Biology", "Membrane Protein"]
+        },
+        "meshHeadingList": {
+          "meshHeading": [
+            {
+              "descriptorName": "Cryoelectron Microscopy"
+            }
+          ]
+        },
+        "pubTypeList": {
+          "pubType": ["journal article", "Research Support, Non-U.S. Gov't"]
+        }
+      }
+    ]
+  }
+}`
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestSearchMapsNormalizedPapers(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/search", r.URL.Path)
+		assert.Equal(t, "crispr", r.URL.Query().Get("query"))
+		assert.Equal(t, "json", r.URL.Query().Get("format"))
+		assert.Equal(t, "core", r.URL.Query().Get("resultType"))
+		assert.Equal(t, "25", r.URL.Query().Get("pageSize"))
+
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(fixture))
+		_, _ = w.Write([]byte(sampleSearchResponseJSON))
 	}))
-	defer srv.Close()
+	defer ts.Close()
 
-	p := New(Options{BaseURL: srv.URL, Email: "test@resarc.app"})
-	papers, err := p.Search(context.Background(), "covid-19 spike", 10)
-	if err != nil {
-		t.Fatalf("Search failed: %v", err)
-	}
-	if len(papers) != 1 {
-		t.Fatalf("expected 1 paper, got %d", len(papers))
-	}
+	p := New(Options{
+		BaseURL: ts.URL,
+		MaxRPS:  100,
+	})
+
+	papers, err := p.Search(context.Background(), "crispr", 25)
+	require.NoError(t, err)
+	require.Len(t, papers, 1)
 
 	paper := papers[0]
-	if paper.Title != "Cryo-EM structure of the SARS-CoV-2 spike in the prefusion conformation" {
-		t.Errorf("unexpected title: %q", paper.Title)
-	}
-	if paper.PubMedID() != "32109876" {
-		t.Errorf("expected PubMedID 32109876, got %q", paper.PubMedID())
-	}
-	if paper.DOI() != "10.1016/j.cell.2020.02.001" {
-		t.Errorf("unexpected DOI: %q", paper.DOI())
-	}
-	if paper.OA.Status != research.OAStatusGold {
-		t.Errorf("expected OAStatusGold, got %s", paper.OA.Status)
-	}
-	if paper.OA.URL != "https://europepmc.org/articles/pmc7654321?pdf=render" {
-		t.Errorf("expected PDF URL, got %q", paper.OA.URL)
-	}
-	if paper.CitedByCount != 6500 {
-		t.Errorf("expected 6500 citations, got %d", paper.CitedByCount)
-	}
-	if paper.VenueName != "Science" {
-		t.Errorf("expected Science venue, got %q", paper.VenueName)
-	}
-	if len(paper.Authors) != 2 {
-		t.Fatalf("expected 2 authors, got %d", len(paper.Authors))
-	}
-	if paper.Authors[0].ProviderIDs[research.IDTypeOther] != "orcid:0000-0002-8610-8025" {
-		t.Errorf("expected ORCID id, got %v", paper.Authors[0].ProviderIDs)
-	}
-	if paper.Abstract != "The recent outbreak of SARS-CoV-2..." {
-		t.Errorf("unexpected abstract cleanup: %q", paper.Abstract)
-	}
-}
+	assert.Equal(t, "Structure and mechanism of the human & primate receptor", paper.Title)
+	assert.Equal(t, "Background: Structural insights into membrane targets.", paper.Abstract)
+	assert.Equal(t, "Nature Medicine", paper.VenueName)
+	assert.Equal(t, "journal", paper.VenueType)
+	assert.Equal(t, 2024, paper.Year)
+	require.NotNil(t, paper.PublishedOn)
+	assert.Equal(t, "2024-01-15", paper.PublishedOn.Format("2006-01-02"))
+	assert.Equal(t, 38, paper.CitedByCount)
+	assert.Equal(t, research.PubTypeArticle, paper.PubType)
 
-func TestSearch_ErrorsAndSchemaDrift(t *testing.T) {
-	p := New(Options{BaseURL: "http://example.com"})
-	if _, err := p.Search(context.Background(), "   ", 10); !errors.Is(err, providers.ErrBadWindow) {
-		t.Fatalf("expected ErrBadWindow on empty query, got %v", err)
-	}
-
-	badJSONServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"resultList": "not-an-object"}`))
-	}))
-	defer badJSONServer.Close()
-
-	badP := New(Options{BaseURL: badJSONServer.URL})
-	if _, err := badP.Search(context.Background(), "crispr", 10); !errors.Is(err, providers.ErrSchemaDrift) {
-		t.Fatalf("expected ErrSchemaDrift on bad payload, got %v", err)
-	}
-}
-
-func TestFetchWindow_SuccessAndCursor(t *testing.T) {
-	fixture := `{
-		"hitCount": 1,
-		"nextCursorMark": "AoJ/...",
-		"resultList": {
-			"result": [
-				{
-					"id": "12345",
-					"pmid": "12345",
-					"title": "A Genomic Study",
-					"firstPublicationDate": "2026-02-01"
-				}
-			]
-		}
-	}`
-
-	var lastQuery string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		lastQuery = r.URL.RawQuery
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(fixture))
-	}))
-	defer srv.Close()
-
-	p := New(Options{BaseURL: srv.URL})
-	page, err := p.FetchWindow(context.Background(), research.Window{
-		From:   time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
-		To:     time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC),
-		Cursor: "*",
+	// Identifiers
+	assert.Equal(t, "10.1038/s41586-024-07000-0", paper.DOI())
+	assert.Equal(t, "38271625", paper.PubMedID())
+	assert.Contains(t, paper.Identifiers, research.Identifier{
+		Type:  research.IDTypeOther,
+		Value: "pmc:10800001",
 	})
-	if err != nil {
-		t.Fatalf("FetchWindow failed: %v", err)
-	}
-	if len(page.Papers) != 1 {
-		t.Fatalf("expected 1 paper, got %d", len(page.Papers))
-	}
-	if page.NextCursor != "AoJ/..." {
-		t.Errorf("expected cursor 'AoJ/...', got %q", page.NextCursor)
-	}
-	if !contains(lastQuery, "cursorMark=%2A") && !contains(lastQuery, "cursorMark=*") {
-		t.Errorf("expected cursorMark query, got %s", lastQuery)
-	}
+
+	// Authors
+	require.Len(t, paper.Authors, 2)
+	assert.Equal(t, "John Doe", paper.Authors[0].DisplayName)
+	assert.Equal(t, 1, paper.Authors[0].Position)
+	assert.Equal(t, "orcid:0000-0002-1825-0097", paper.Authors[0].ProviderIDs[research.IDTypeOther])
+	assert.Equal(t, "Alice Smith", paper.Authors[1].DisplayName)
+	assert.Equal(t, 2, paper.Authors[1].Position)
+
+	// Open Access & PDF
+	assert.Equal(t, research.OAStatusGold, paper.OA.Status)
+	assert.Equal(t, "https://europepmc.org/articles/PMC10800001?pdf=render", paper.OA.URL)
+	require.NotEmpty(t, paper.Versions)
+	assert.Equal(t, "https://europepmc.org/articles/PMC10800001?pdf=render", paper.Versions[0].URL)
+
+	// Topics
+	require.Len(t, paper.Topics, 3)
+	assert.Equal(t, "Structural Biology", paper.Topics[0].Name)
+	assert.True(t, paper.Topics[0].IsPrimary)
+	assert.Equal(t, "Membrane Protein", paper.Topics[1].Name)
+	assert.Equal(t, "Cryoelectron Microscopy", paper.Topics[2].Name)
+
+	// Provenance
+	assert.Equal(t, Slug, paper.Provenance.ProviderSlug)
+	assert.Equal(t, "38271625", paper.Provenance.NativeID)
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || (len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || searchSubstr(s, substr))))
+func TestSearchRequiresQuery(t *testing.T) {
+	p := New(Options{})
+	_, err := p.Search(context.Background(), "   ", 10)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, providers.ErrBadWindow))
 }
 
-func searchSubstr(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
+func TestSearchSchemaDrift(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{not valid json`))
+	}))
+	defer ts.Close()
+
+	p := New(Options{BaseURL: ts.URL})
+	_, err := p.Search(context.Background(), "cancer", 10)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, providers.ErrSchemaDrift))
+}
+
+func TestFetchWindowMapsPageAndCursor(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/search", r.URL.Path)
+		assert.Contains(t, r.URL.Query().Get("query"), "FIRST_PDATE:[2026-01-01 TO 2026-01-07]")
+		assert.Equal(t, "*", r.URL.Query().Get("cursorMark"))
+		assert.Equal(t, "P_PDATE_D asc", r.URL.Query().Get("sort"))
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(sampleSearchResponseJSON))
+	}))
+	defer ts.Close()
+
+	p := New(Options{BaseURL: ts.URL})
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 1, 7, 0, 0, 0, 0, time.UTC)
+
+	page, err := p.FetchWindow(context.Background(), research.Window{
+		From: from,
+		To:   to,
+	})
+	require.NoError(t, err)
+	assert.Len(t, page.Papers, 1)
+	assert.Equal(t, "AoE/testcursor123", page.NextCursor)
+}
+
+func TestFetchWindowValidatesWindow(t *testing.T) {
+	p := New(Options{})
+	_, err := p.FetchWindow(context.Background(), research.Window{})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, providers.ErrBadWindow))
+
+	now := time.Now()
+	_, err = p.FetchWindow(context.Background(), research.Window{
+		From: now,
+		To:   now.Add(-time.Hour),
+	})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, providers.ErrBadWindow))
+}
+
+func TestStripHTMLAndEntities(t *testing.T) {
+	raw := `<p>The <i>in vivo</i> effect of &lt;drug A&gt; &amp; &apos;B&apos;.</p>`
+	clean := stripHTML(raw)
+	assert.Equal(t, "The in vivo effect of <drug A> & 'B'.", clean)
 }
