@@ -4,6 +4,8 @@ package mail
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"strings"
 )
 
 var (
@@ -23,4 +25,37 @@ type Message struct {
 // Sender delivers outbound emails.
 type Sender interface {
 	Send(ctx context.Context, msg Message) error
+}
+
+// ---- NoopSender -------------------------------------------------------------
+
+type NoopSender struct{}
+
+func (s *NoopSender) Send(_ context.Context, _ Message) error {
+	return nil
+}
+
+// ---- LoggingSender ----------------------------------------------------------
+
+type LoggingSender struct {
+	Logger *slog.Logger
+	From   string
+}
+
+func (s *LoggingSender) Send(_ context.Context, msg Message) error {
+	if strings.TrimSpace(msg.To) == "" {
+		return ErrInvalidRecipient
+	}
+	logger := s.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	logger.Info("email dispatched (logging mode)",
+		"from", s.From,
+		"to", msg.To,
+		"subject", msg.Subject,
+		"has_text", msg.TextBody != "",
+		"has_html", msg.HTMLBody != "",
+	)
+	return nil
 }
