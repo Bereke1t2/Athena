@@ -29,6 +29,7 @@ import (
 	v1 "athena/backend/internal/delivery/http/v1"
 	"athena/backend/internal/infrastructure/cache"
 	"athena/backend/internal/infrastructure/database"
+	"athena/backend/internal/infrastructure/mail"
 	"athena/backend/internal/infrastructure/providers/arxiv"
 	"athena/backend/internal/infrastructure/providers/crossref"
 	"athena/backend/internal/infrastructure/providers/europepmc"
@@ -142,7 +143,16 @@ func run() error {
 	// Phase 5 auth: password accounts with opaque bearer sessions. The user
 	// store implements both the account and session ports.
 	userStore := database.NewUserStore(pool)
-	authSvc := appauth.NewService(userStore, userStore, authinfra.NewHasher())
+	mailer := mail.New(mail.Config{
+		Provider:     cfg.MailProvider,
+		SMTPHost:     cfg.SMTPHost,
+		SMTPPort:     cfg.SMTPPort,
+		SMTPUsername: cfg.SMTPUsername,
+		SMTPPassword: cfg.SMTPPassword,
+		From:         cfg.SMTPFrom,
+	}, log)
+	authSvc := appauth.NewService(userStore, userStore, authinfra.NewHasher()).
+		WithMailer(mail.NewPasswordResetAdapter(mailer), cfg.AppBaseURL)
 	authHandlers := v1.NewAuthHandlers(authSvc, log)
 
 	// Phase 5 bookmarks: server-side saved papers (auth-guarded routes).
