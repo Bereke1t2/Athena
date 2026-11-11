@@ -109,35 +109,34 @@ func (w *WeeklyDigestWorker) processUser(ctx context.Context, userID uuid.UUID, 
 			"paper_count": paperCount,
 		},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	if w.Mailer != nil && w.UserStore != nil {
+		u, uerr := w.UserStore.ByID(ctx, userID)
+		if uerr == nil && strings.TrimSpace(u.Email) != "" {
+			subj, textBody, htmlBody, rerr := mail.RenderDigestEmail(u, digest, w.AppBaseURL)
+			if rerr == nil {
+				if merr := w.Mailer.Send(ctx, mail.Message{
+					To:       u.Email,
+					Subject:  subj,
+					TextBody: textBody,
+					HTMLBody: htmlBody,
+				}); merr != nil {
+					w.Logger.Warn("failed to send weekly digest email", "user_id", userID, "email", u.Email, "error", merr)
+				} else {
+					w.Logger.Info("sent weekly digest email", "user_id", userID, "email", u.Email)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // AddDigest registers the weekly digest worker with River.
 func AddDigest(riverWorkers *river.Workers, digestSvc *appdigest.Service, pool *pgxpool.Pool, logger *slog.Logger) {
-	if pool == nil || digestSvc == nil {
-		return
-	}
-	river.AddWorker(riverWorkers, &WeeklyDigestWorker{
-		DigestService: digestSvc,
-		Pool:          pool,
-		Logger:        logger,
-	})
+	AddDigestWithMailer(riverWorkers, digestSvc, pool, nil, nil, "", logger)
 }
 
-// PeriodicWeeklyDigestConstructor returns the job arguments and insert options for weekly digests.
-func PeriodicWeeklyDigestConstructor() (river.JobArgs, *river.InsertOpts) {
-	return WeeklyDigestArgs{}, &river.InsertOpts{
-		Queue: "notifications",
-	}
-}
-
-// PeriodicWeeklyDigest schedules automated weekly research digest generation.
-func PeriodicWeeklyDigest(every time.Duration) *river.PeriodicJob {
-	return river.NewPeriodicJob(
-		river.PeriodicInterval(every),
-		func() (river.JobArgs, *river.InsertOpts) {
-			return PeriodicWeeklyDigestConstructor()
-		},
-		&river.PeriodicJobOpts{RunOnStart: false},
-	)
-}
