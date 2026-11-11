@@ -132,3 +132,61 @@ func TestSearch_ErrorsAndSchemaDrift(t *testing.T) {
 		t.Fatalf("expected ErrSchemaDrift on bad payload, got %v", err)
 	}
 }
+
+func TestFetchWindow_SuccessAndCursor(t *testing.T) {
+	fixture := `{
+		"hitCount": 1,
+		"nextCursorMark": "AoJ/...",
+		"resultList": {
+			"result": [
+				{
+					"id": "12345",
+					"pmid": "12345",
+					"title": "A Genomic Study",
+					"firstPublicationDate": "2026-02-01"
+				}
+			]
+		}
+	}`
+
+	var lastQuery string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lastQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(fixture))
+	}))
+	defer srv.Close()
+
+	p := New(Options{BaseURL: srv.URL})
+	page, err := p.FetchWindow(context.Background(), research.Window{
+		From:   time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+		To:     time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC),
+		Cursor: "*",
+	})
+	if err != nil {
+		t.Fatalf("FetchWindow failed: %v", err)
+	}
+	if len(page.Papers) != 1 {
+		t.Fatalf("expected 1 paper, got %d", len(page.Papers))
+	}
+	if page.NextCursor != "AoJ/..." {
+		t.Errorf("expected cursor 'AoJ/...', got %q", page.NextCursor)
+	}
+	if !contains(lastQuery, "cursorMark=%2A") && !contains(lastQuery, "cursorMark=*") {
+		t.Errorf("expected cursorMark query, got %s", lastQuery)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || (len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || searchSubstr(s, substr))))
+}
+
+func searchSubstr(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
