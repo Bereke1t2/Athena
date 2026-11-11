@@ -2,6 +2,8 @@ package europepmc
 
 import (
 	"fmt"
+	"html"
+	"regexp"
 	"strings"
 	"time"
 
@@ -133,4 +135,18 @@ type responseDTO struct {
 	ResultList     struct {
 		Result []resultDTO `json:"result"`
 	} `json:"resultList"`
+}
+
+var htmlTagRe = regexp.MustCompile(`<[^>]*>`)
+
+func stripHTML(s string) string {
+	if s == "" {
+		return ""
+	}
+	stripped := htmlTagRe.ReplaceAllString(s, " ")
+	return collapseWS(html.UnescapeString(stripped))
+}
+
+func collapseWS(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
