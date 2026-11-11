@@ -140,3 +140,35 @@ func AddDigest(riverWorkers *river.Workers, digestSvc *appdigest.Service, pool *
 	AddDigestWithMailer(riverWorkers, digestSvc, pool, nil, nil, "", logger)
 }
 
+// AddDigestWithMailer registers the weekly digest worker with River including email dispatch.
+func AddDigestWithMailer(riverWorkers *river.Workers, digestSvc *appdigest.Service, pool *pgxpool.Pool, userStore domainuser.Store, mailer mail.Sender, appBaseURL string, logger *slog.Logger) {
+	if pool == nil || digestSvc == nil {
+		return
+	}
+	river.AddWorker(riverWorkers, &WeeklyDigestWorker{
+		DigestService: digestSvc,
+		Pool:          pool,
+		UserStore:     userStore,
+		Mailer:        mailer,
+		AppBaseURL:    appBaseURL,
+		Logger:        logger,
+	})
+}
+
+// PeriodicWeeklyDigestConstructor returns the job arguments and insert options for weekly digests.
+func PeriodicWeeklyDigestConstructor() (river.JobArgs, *river.InsertOpts) {
+	return WeeklyDigestArgs{}, &river.InsertOpts{
+		Queue: "notifications",
+	}
+}
+
+// PeriodicWeeklyDigest schedules automated weekly research digest generation.
+func PeriodicWeeklyDigest(every time.Duration) *river.PeriodicJob {
+	return river.NewPeriodicJob(
+		river.PeriodicInterval(every),
+		func() (river.JobArgs, *river.InsertOpts) {
+			return PeriodicWeeklyDigestConstructor()
+		},
+		&river.PeriodicJobOpts{RunOnStart: false},
+	)
+}
