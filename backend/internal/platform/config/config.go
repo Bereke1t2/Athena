@@ -33,9 +33,10 @@ type Config struct {
 	ArxivUserAgent        string
 
 	// Base-URL overrides (tests / outage simulation); empty = official APIs.
-	OpenAlexBaseURL string
-	ArxivBaseURL    string
-	S2BaseURL       string
+	OpenAlexBaseURL  string
+	ArxivBaseURL     string
+	S2BaseURL        string
+	EuropePMCBaseURL string
 
 	// MetricsAddr serves Prometheus /metrics from the worker process when set.
 	MetricsAddr string
@@ -43,6 +44,8 @@ type Config struct {
 	OpenAlexMaxRPS   float64
 	S2MaxRPS         float64
 	ArxivMinInterval time.Duration
+	EuropePMCMaxRPS  float64
+	EuropePMCEmail   string
 
 	// AI layer (ADR-0004). Empty LLMProvider disables the AI endpoints.
 	// "stub" selects a deterministic no-network provider for dev/tests.
@@ -104,12 +107,18 @@ func FromEnv() (Config, error) {
 		OpenAlexBaseURL:       strings.TrimSpace(os.Getenv("OPENALEX_BASE_URL")),
 		ArxivBaseURL:          strings.TrimSpace(os.Getenv("ARXIV_BASE_URL")),
 		S2BaseURL:             strings.TrimSpace(os.Getenv("SEMANTICSCHOLAR_BASE_URL")),
+		EuropePMCBaseURL:      strings.TrimSpace(os.Getenv("EUROPEPMC_BASE_URL")),
 		MetricsAddr:           strings.TrimSpace(os.Getenv("ATHENA_METRICS_ADDR")),
 		ArxivUserAgent: getEnv("ARXIV_USER_AGENT",
 			fmt.Sprintf("athena/0.1 (mailto:%s)", firstNonEmpty(strings.TrimSpace(os.Getenv("OPENALEX_MAILTO")), "contact@athena.dev"))),
 		OpenAlexMaxRPS:   getFloat("OPENALEX_MAX_RPS", 8),
 		S2MaxRPS:         getFloat("SEMANTICSCHOLAR_MAX_RPS", 0.8),
 		ArxivMinInterval: getDuration("ARXIV_MIN_INTERVAL", 3*time.Second),
+		EuropePMCMaxRPS:  getFloat("EUROPEPMC_MAX_RPS", 5),
+		EuropePMCEmail: firstNonEmpty(
+			strings.TrimSpace(os.Getenv("EUROPEPMC_EMAIL")),
+			strings.TrimSpace(os.Getenv("OPENALEX_MAILTO")),
+		),
 
 		LLMProvider:           strings.TrimSpace(os.Getenv("LLM_PROVIDER")),
 		LLMBaseURL:            strings.TrimSpace(os.Getenv("LLM_BASE_URL")),

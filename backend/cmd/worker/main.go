@@ -26,6 +26,7 @@ import (
 	"athena/backend/internal/infrastructure/cache"
 	"athena/backend/internal/infrastructure/database"
 	arxivadapter "athena/backend/internal/infrastructure/providers/arxiv"
+	europepmcadapter "athena/backend/internal/infrastructure/providers/europepmc"
 	openalexadapter "athena/backend/internal/infrastructure/providers/openalex"
 	s2adapter "athena/backend/internal/infrastructure/providers/semanticscholar"
 	"athena/backend/internal/infrastructure/push"
@@ -210,6 +211,11 @@ func buildProviders(cfg *config.Config) ingestion.Providers {
 			APIKey:  cfg.SemanticScholarAPIKey,
 			MaxRPS:  cfg.S2MaxRPS,
 			BaseURL: cfg.S2BaseURL,
+		}),
+		europepmcadapter.Slug: europepmcadapter.New(europepmcadapter.Options{
+			Email:   cfg.EuropePMCEmail,
+			MaxRPS:  cfg.EuropePMCMaxRPS,
+			BaseURL: cfg.EuropePMCBaseURL,
 		}),
 	}
 	return providers

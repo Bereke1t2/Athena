@@ -31,6 +31,7 @@ import (
 	"athena/backend/internal/infrastructure/database"
 	"athena/backend/internal/infrastructure/providers/arxiv"
 	"athena/backend/internal/infrastructure/providers/crossref"
+	"athena/backend/internal/infrastructure/providers/europepmc"
 	"athena/backend/internal/infrastructure/providers/openalex"
 	"athena/backend/internal/infrastructure/providers/semanticscholar"
 	"athena/backend/internal/infrastructure/push"
@@ -124,6 +125,11 @@ func run() error {
 		semanticscholar.New(semanticscholar.Options{APIKey: cfg.SemanticScholarAPIKey}),
 		openalex.New(openalex.Options{Mailto: cfg.OpenAlexMailto}),
 		crossref.New(crossref.Options{Mailto: cfg.OpenAlexMailto}),
+		europepmc.New(europepmc.Options{
+			Email:   cfg.EuropePMCEmail,
+			MaxRPS:  cfg.EuropePMCMaxRPS,
+			BaseURL: cfg.EuropePMCBaseURL,
+		}),
 	}
 	discoverSvc := discover.NewService(liveProviders, store, searchCache, log)
 

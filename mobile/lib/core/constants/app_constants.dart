@@ -14,7 +14,7 @@ class Timeouts {
   static const connect = Duration(seconds: 10);
   static const receive = Duration(seconds: 20);
 
-  /// Federated live search fans out to four providers server-side and can
+  /// Federated live search fans out to five providers server-side and can
   /// legitimately take 30s+; the default receive timeout always fires first.
   static const federatedSearch = Duration(seconds: 60);
 }

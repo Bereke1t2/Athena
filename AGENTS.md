@@ -46,7 +46,26 @@ Last updated: 2026-11-08 (River queue configuration alignment, DiskMediaStore pe
 
 ## Unfinished / verify next session
 
-1. **Persistent Global Mini-Audio Player & Permanent Offline PDF Cache (2026-11-10)**:
+1. **Europe PMC & PubMed Research Provider Integration (2026-11-11)**:
+   - **Scope**: Implemented full Europe PMC provider adapter (`europepmc`) unlocking worldwide biomedical and life sciences research literature (PubMed, PMC, preprints), expanding live federated search fan-out to 5 providers, adding cross-provider PubMed ID (`pmid`) deduplication, and enabling open-access direct PDF resolution.
+   - **Core Deliverables**:
+     - *Europe PMC Adapter* ([`europepmc.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/providers/europepmc/europepmc.go), [`doc.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/providers/europepmc/doc.go)):
+       - Implemented both `discover.ProviderSearcher` and `research.ResearchProvider` contracts (`Search` and `FetchWindow`).
+       - Added robust JATS/HTML tag stripping and HTML entity unescaping for titles and abstracts.
+       - Mapped PubMed IDs (`pmid` -> `research.IDTypePubMed`), PMC IDs (`pmcid` -> `research.IDTypeOther`), and DOIs.
+       - Structured author parsing with ORCID identification (`orcid:...`).
+       - Resolved gold/green open-access status and preferred direct PDF delivery URLs from `fullTextUrlList`.
+     - *Cross-Provider PubMed ID Deduplication* ([`paper.go`](file:///home/bereket/startup/Athena/backend/internal/domain/research/paper.go), [`discover/service.go`](file:///home/bereket/startup/Athena/backend/internal/application/discover/service.go)): Added `PubMedID()` accessor to `research.Paper` and updated `identityKey` to recognize `pmid:` alongside `doi:`, `arxiv:`, and content fingerprints.
+     - *Database Migration & Composition Roots* ([`000020_seed_europepmc_source.up.sql`](file:///home/bereket/startup/Athena/backend/migrations/000020_seed_europepmc_source.up.sql), [`main.go`](file:///home/bereket/startup/Athena/backend/cmd/api/main.go), [`worker/main.go`](file:///home/bereket/startup/Athena/backend/cmd/worker/main.go), [`config.go`](file:///home/bereket/startup/Athena/backend/internal/platform/config/config.go)):
+       - Seeded `europepmc` into `sources` table.
+       - Added `EuropePMCBaseURL`, `EuropePMCMaxRPS`, and `EuropePMCEmail` to `Config` with fallback to `OPENALEX_MAILTO`.
+       - Registered in live federated search and worker ingestion providers.
+     - *Mobile Telemetry Integration* ([`search_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/search/presentation/search_screen.dart), [`app_constants.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/constants/app_constants.dart)):
+       - Added `'europepmc': 'Europe PMC'` telemetry chip label.
+       - Added widget test verifying live telemetry chip in [`search_flow_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/search/search_flow_test.dart).
+   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); Flutter search tests passed 100%.
+
+2. **Persistent Global Mini-Audio Player & Permanent Offline PDF Cache (2026-11-10)**:
    - **Scope**: Implemented persistent docked mini-player above primary tab navigation for uninterrupted audio narration across app exploration, and upgraded PDF storage to persistent application documents directory with offline reading fallback.
    - **Core Deliverables**:
      - *Persistent Mini-Player Component* ([`mini_audio_player.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/widgets/mini_audio_player.dart), [`app_router.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/router/app_router.dart)): Built `MiniAudioPlayer` docked above bottom navigation in `_HomeShell`. Displays thin linear progress indicator, artwork gradient thumbnail, track title, author/venue, chapter indicators, forward 10s skip, play/pause toggle, dismiss action, and 1-tap navigation to `/player`.

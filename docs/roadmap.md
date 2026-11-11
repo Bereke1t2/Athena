@@ -173,6 +173,12 @@ Acceptance:
 
 ## Future / vision
 
-Providers: Crossref, PubMed, Europe PMC · alternative engines if ADR-0005
+- [x] Europe PMC & PubMed Research Aggregator: Open-access biomedical and life
+      sciences integration (ADR-0002). Live federated search fan-out across 5
+      providers (`arxiv`, `semanticscholar`, `openalex`, `crossref`, `europepmc`),
+      temporal window sync (`FIRST_PDATE`), PubMed ID deduplication, and direct
+      open-access full-text PDF resolution.
+
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · alternative engines if ADR-0005
 triggers fire · email digests · web client · multi-language UIs ·
 institutional features.

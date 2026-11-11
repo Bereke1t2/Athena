@@ -257,6 +257,9 @@ func identityKey(p research.Paper) string {
 	if ax := p.ArxivID(); ax != "" {
 		return "arxiv:" + strings.ToLower(ax)
 	}
+	if pmid := p.PubMedID(); pmid != "" {
+		return "pmid:" + strings.ToLower(pmid)
+	}
 	if p.Fingerprint != "" {
 		return "fp:" + p.Fingerprint
 	}
