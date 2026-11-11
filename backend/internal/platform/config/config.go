@@ -33,8 +33,8 @@ type Config struct {
 	ArxivUserAgent        string
 
 	// Base-URL overrides (tests / outage simulation); empty = official APIs.
-	OpenAlexBaseURL string
-	ArxivBaseURL    string
+	OpenAlexBaseURL  string
+	ArxivBaseURL     string
 	S2BaseURL        string
 	EuropePMCBaseURL string
 
@@ -158,6 +158,14 @@ func FromEnv() (Config, error) {
 		TTSAPIKey:       firstNonEmpty(strings.TrimSpace(os.Getenv("TTS_API_KEY")), strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))),
 		TTSModel:        getEnv("TTS_MODEL", "tts-1"),
 		AudioStorageDir: strings.TrimSpace(os.Getenv("ATHENA_AUDIO_DIR")),
+
+		MailProvider: getEnv("ATHENA_MAIL_PROVIDER", "noop"),
+		SMTPHost:     strings.TrimSpace(os.Getenv("ATHENA_SMTP_HOST")),
+		SMTPPort:     getInt("ATHENA_SMTP_PORT", 587),
+		SMTPUsername: strings.TrimSpace(os.Getenv("ATHENA_SMTP_USERNAME")),
+		SMTPPassword: strings.TrimSpace(os.Getenv("ATHENA_SMTP_PASSWORD")),
+		SMTPFrom:     getEnv("ATHENA_SMTP_FROM", "Athena Research <briefings@athena.dev>"),
+		AppBaseURL:   getEnv("ATHENA_APP_BASE_URL", "https://athena.dev"),
 	}
 	if cfg.LogFormat == "" {
 		if cfg.AppEnv == "production" {
