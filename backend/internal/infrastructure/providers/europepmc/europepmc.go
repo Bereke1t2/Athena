@@ -61,3 +61,76 @@ func politeUA(email string) string {
 }
 
 func (p *Provider) Slug() string { return Slug }
+
+// ---- wire format (Europe PMC REST JSON) -----------------------------------
+
+type authorDTO struct {
+	FullName  string `json:"fullName"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Initials  string `json:"initials"`
+	AuthorID  *struct {
+		Type string `json:"@type"`
+		Text string `json:"#text"`
+	} `json:"authorId"`
+}
+
+type fullTextURLDTO struct {
+	Availability     string `json:"availability"`
+	AvailabilityCode string `json:"availabilityCode"`
+	DocumentStyle    string `json:"documentStyle"`
+	Site             string `json:"site"`
+	URL              string `json:"url"`
+}
+
+type meshHeadingDTO struct {
+	DescriptorName string `json:"descriptorName"`
+}
+
+type resultDTO struct {
+	ID           string `json:"id"`
+	Source       string `json:"source"`
+	PMID         string `json:"pmid"`
+	PMCID        string `json:"pmcid"`
+	DOI          string `json:"doi"`
+	Title        string `json:"title"`
+	AuthorString string `json:"authorString"`
+	AuthorList   *struct {
+		Author []authorDTO `json:"author"`
+	} `json:"authorList"`
+	JournalInfo *struct {
+		Journal *struct {
+			Title string `json:"title"`
+		} `json:"journal"`
+		YearOfPublication int    `json:"yearOfPublication"`
+		DateOfPublication string `json:"dateOfPublication"`
+	} `json:"journalInfo"`
+	PubYear              string `json:"pubYear"`
+	FirstPublicationDate string `json:"firstPublicationDate"`
+	AbstractText         string `json:"abstractText"`
+	IsOpenAccess         string `json:"isOpenAccess"`
+	InEPMC               string `json:"inEPMC"`
+	InPMC                string `json:"inPMC"`
+	HasPDF               string `json:"hasPDF"`
+	CitedByCount         int    `json:"citedByCount"`
+	FullTextURLList      *struct {
+		FullTextURL []fullTextURLDTO `json:"fullTextUrl"`
+	} `json:"fullTextUrlList"`
+	KeywordList *struct {
+		Keyword []string `json:"keyword"`
+	} `json:"keywordList"`
+	MeshHeadingList *struct {
+		MeshHeading []meshHeadingDTO `json:"meshHeading"`
+	} `json:"meshHeadingList"`
+	PubTypeList *struct {
+		PubType []string `json:"pubType"`
+	} `json:"pubTypeList"`
+}
+
+type responseDTO struct {
+	HitCount       int    `json:"hitCount"`
+	NextCursorMark string `json:"nextCursorMark"`
+	ResultList     struct {
+		Result []resultDTO `json:"result"`
+	} `json:"resultList"`
+}
