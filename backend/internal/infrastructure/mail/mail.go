@@ -37,6 +37,46 @@ type Sender interface {
 	Send(ctx context.Context, msg Message) error
 }
 
+// Config configures mail delivery.
+type Config struct {
+	Provider     string // "noop", "logging", "mock", "smtp"
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPPassword string
+	From         string
+}
+
+// New constructs an email Sender matching the provided configuration.
+func New(cfg Config, logger *slog.Logger) Sender {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	from := cfg.From
+	if from == "" {
+		from = "Athena Research <briefings@athena.dev>"
+	}
+
+	switch strings.ToLower(strings.TrimSpace(cfg.Provider)) {
+	case "mock":
+		return NewMockSender()
+	case "logging":
+		return &LoggingSender{Logger: logger, From: from}
+	case "smtp":
+		return &SMTPSender{
+			Host:     cfg.SMTPHost,
+			Port:     cfg.SMTPPort,
+			Username: cfg.SMTPUsername,
+			Password: cfg.SMTPPassword,
+			From:     from,
+			Logger:   logger,
+		}
+	default:
+		return &NoopSender{}
+	}
+}
+
 // ---- NoopSender -------------------------------------------------------------
 
 type NoopSender struct{}
