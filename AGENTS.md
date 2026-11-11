@@ -35,9 +35,31 @@ Last updated: 2026-11-08 (River queue configuration alignment, DiskMediaStore pe
 - Domain layer stays framework-free; DTOs never leak above data layer.
 - Feed notifier test fakes implement the `topics` param signature.
 
+## Autonomous execution & decision protocol
+
+- **Autonomous by default**: When working in auto/autonomous mode, do NOT pause or ask intermediate questions ("Should I proceed?", "Do you want me to fix this?", asking confirmation for tests/builds/fixes). Take action, fix issues, run verifications, and report results when done.
+- **Decision threshold**: Inquire ONLY when a genuine human decision is required:
+  - Irreversible architectural, product, or design fork with multiple valid directions.
+  - Ambiguous or contradictory requirements not answerable from existing codebase/docs.
+  - Destructive data operations or security boundaries.
+- When asking, state the context and options concisely with the recommended option first.
+
 ## Unfinished / verify next session
 
-1. **Mobile Native Hardware Audio Streaming Engine (2026-11-08)**:
+1. **Persistent Global Mini-Audio Player & Permanent Offline PDF Cache (2026-11-10)**:
+   - **Scope**: Implemented persistent docked mini-player above primary tab navigation for uninterrupted audio narration across app exploration, and upgraded PDF storage to persistent application documents directory with offline reading fallback.
+   - **Core Deliverables**:
+     - *Persistent Mini-Player Component* ([`mini_audio_player.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/widgets/mini_audio_player.dart), [`app_router.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/router/app_router.dart)): Built `MiniAudioPlayer` docked above bottom navigation in `_HomeShell`. Displays thin linear progress indicator, artwork gradient thumbnail, track title, author/venue, chapter indicators, forward 10s skip, play/pause toggle, dismiss action, and 1-tap navigation to `/player`.
+     - *Permanent Offline PDF Storage* ([`pdf_repository.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/domain/pdf_repository.dart), [`pdf_repository_impl.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/data/pdf_repository_impl.dart), [`pdf_viewer_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/pdf_viewer_screen.dart)):
+       - Added `isCached(paperId)` and `getCachedPath(paperId)` to `PdfRepository`.
+       - Migrated storage target from volatile `getTemporaryDirectory()` to permanent `getApplicationDocumentsDirectory()`, with automatic promotion of legacy cached files.
+       - Upgraded `PdfViewerScreen` with instant cached rendering, network failure fallback to offline cache, offline badge indicator in `AthenaTopBar` (`Icons.offline_pin_rounded`), and force re-download action.
+     - *Comprehensive Unit & Widget Tests*:
+       - Added [`mini_audio_player_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/papers/mini_audio_player_test.dart) (6 tests: idle state, metadata display, play/pause, skip 10s, dismiss, route push).
+       - Added [`pdf_repository_impl_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/papers/data/pdf_repository_impl_test.dart) (5 tests: caching state, instant return, cache deletion, temp promotion).
+   - **Verification**: Flutter tests 103 passed, 1 skipped (100% green); static analysis clean (`dart analyze`, 0 issues); Go backend tests 100% green (`go test -count=1 ./...`).
+
+2. **Mobile Native Hardware Audio Streaming Engine (2026-11-08)**:
    - **Scope**: Replaced software `Timer.periodic` playback simulation in `AudioPlayerNotifier` with true hardware audio streaming from the Go backend's RFC-7233 byte-range endpoint (`GET /api/v1/research/papers/{id}/audio/stream`).
    - **Core Deliverables**:
      - *Clean Architecture Service Abstraction* ([`audio_player_service.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/data/audio_player_service.dart)): Implemented `AudioPlayerService` interface and `JustAudioPlayerService` backed by `just_audio 0.10.6`, exposing reactive streams for position, duration, playing state, and processing state.

@@ -20,13 +20,24 @@ class PdfRepositoryImpl implements PdfRepository {
   @override
   Future<String> download(String paperId, String url,
       {void Function(int received, int? total)? onProgress}) async {
-    final file = await _localFile(paperId);
-    if (await file.exists() && await file.length() > 0) return file.path;
+    final docFile = await _documentsFile(paperId);
+    if (await docFile.exists() && await docFile.length() > 0) return docFile.path;
 
+    final tempFile = await _temporaryFile(paperId);
+    if (await tempFile.exists() && await tempFile.length() > 0) {
+      try {
+        await tempFile.copy(docFile.path);
+        return docFile.path;
+      } catch (_) {
+        return tempFile.path;
+      }
+    }
+
+    // 3. Download directly to persistent storage.
     try {
       final res = await _dio.download(
         url,
-        file.path,
+        docFile.path,
         options: Options(
           receiveTimeout: _downloadTimeout,
           followRedirects: true,
@@ -41,11 +52,11 @@ class PdfRepositoryImpl implements PdfRepository {
       // Verify it's actually a PDF — reject HTML error pages / landing pages.
       final contentType = res.headers.value('content-type') ?? '';
       if (contentType.contains('text/html')) {
-        await file.delete();
+        await docFile.delete();
         throw const Failure.unknown(cause: 'The link points to a web page, not a PDF file.');
       }
 
-      final raf = await file.open();
+      final raf = await docFile.open();
       final header = await raf.read(4);
       await raf.close();
       if (header.length < 4 || String.fromCharCodes(header) != '%PDF') {
@@ -53,14 +64,21 @@ class PdfRepositoryImpl implements PdfRepository {
       }
     } catch (e) {
       // Don't leave partial files behind.
-      if (await file.exists()) await file.delete();
+      if (await docFile.exists()) await docFile.delete();
       if (e is Failure) rethrow;
       throw failureFromDio(e);
     }
-    return file.path;
+    return docFile.path;
   }
 
-  Future<File> _localFile(String paperId) async {
+  Future<File> _documentsFile(String paperId) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final pdfs = Directory('${dir.path}/pdfs');
+    if (!await pdfs.exists()) await pdfs.create(recursive: true);
+    return File('${pdfs.path}/$paperId.pdf');
+  }
+
+  Future<File> _temporaryFile(String paperId) async {
     final dir = await getTemporaryDirectory();
     final pdfs = Directory('${dir.path}/pdfs');
     if (!await pdfs.exists()) await pdfs.create(recursive: true);
@@ -68,8 +86,27 @@ class PdfRepositoryImpl implements PdfRepository {
   }
 
   @override
+  Future<bool> isCached(String paperId) async {
+    final docFile = await _documentsFile(paperId);
+    if (await docFile.exists() && await docFile.length() > 0) return true;
+    final tempFile = await _temporaryFile(paperId);
+    return await tempFile.exists() && await tempFile.length() > 0;
+  }
+
+  @override
+  Future<String?> getCachedPath(String paperId) async {
+    final docFile = await _documentsFile(paperId);
+    if (await docFile.exists() && await docFile.length() > 0) return docFile.path;
+    final tempFile = await _temporaryFile(paperId);
+    if (await tempFile.exists() && await tempFile.length() > 0) return tempFile.path;
+    return null;
+  }
+
+  @override
   Future<void> deleteCache(String paperId) async {
-    final file = await _localFile(paperId);
-    if (await file.exists()) await file.delete();
+    final docFile = await _documentsFile(paperId);
+    if (await docFile.exists()) await docFile.delete();
+    final tempFile = await _temporaryFile(paperId);
+    if (await tempFile.exists()) await tempFile.delete();
   }
 }

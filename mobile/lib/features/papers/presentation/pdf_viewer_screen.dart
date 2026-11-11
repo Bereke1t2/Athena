@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di.dart';
 import '../../../core/error/failure.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../history/presentation/history_notifier.dart';
@@ -34,36 +35,79 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
   int _received = 0;
   int? _total;
   int _retries = 0;
+  bool _isOfflineCached = false;
   static const _maxRetries = 2;
 
   @override
   void initState() {
     super.initState();
+    _checkCachedAndFetch();
+  }
+
+  Future<void> _checkCachedAndFetch() async {
+    final repo = ref.read(pdfRepositoryProvider);
+    final cached = await repo.getCachedPath(widget.paperId);
+    if (!mounted) return;
+
+    if (cached != null && cached.isNotEmpty) {
+      setState(() {
+        _localPath = cached;
+        _isOfflineCached = true;
+      });
+      return;
+    }
+
     if (widget.url.isEmpty) {
-      _error = const Failure.unknown(cause: 'No PDF URL available for this paper');
+      setState(() {
+        _error = const Failure.unknown(cause: 'No PDF URL available for this paper');
+      });
     } else {
-      _fetch();
+      unawaited(_fetch());
     }
   }
 
-  Future<void> _fetch() async {
+  Future<void> _fetch({bool forceRefresh = false}) async {
+    final repo = ref.read(pdfRepositoryProvider);
+    if (forceRefresh) {
+      await repo.deleteCache(widget.paperId);
+    }
+
     try {
-      final path = await ref.read(pdfRepositoryProvider).download(
-            widget.paperId,
-            widget.url,
-            onProgress: (r, t) {
-              if (!mounted) return;
-              setState(() {
-                _received = r;
-                _total = t;
-              });
-            },
-          );
+      final path = await repo.download(
+        widget.paperId,
+        widget.url,
+        onProgress: (r, t) {
+          if (!mounted) return;
+          setState(() {
+            _received = r;
+            _total = t;
+          });
+        },
+      );
       if (!mounted) return;
-      setState(() => _localPath = path);
+      setState(() {
+        _localPath = path;
+        _isOfflineCached = true;
+      });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e);
+      // Fall back to offline cached file if available during a network interruption
+      final fallbackPath = await repo.getCachedPath(widget.paperId);
+      if (!mounted) return;
+      if (fallbackPath != null && fallbackPath.isNotEmpty) {
+        setState(() {
+          _localPath = fallbackPath;
+          _isOfflineCached = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network unavailable: reading from offline disk cache'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else {
+        setState(() => _error = e);
+      }
     }
   }
 
@@ -74,6 +118,38 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
     return Scaffold(
       appBar: AthenaTopBar(
         title: widget.title ?? 'PDF',
+        actions: [
+          if (_isOfflineCached)
+            AthenaCircularIconButton(
+              icon: Icons.offline_pin_rounded,
+              iconColor: AppTheme.coral,
+              tooltip: 'Saved offline on device',
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('This paper is saved to persistent device storage for offline reading.'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+          if (_localPath != null && widget.url.isNotEmpty)
+            AthenaCircularIconButton(
+              icon: Icons.refresh_rounded,
+              tooltip: 'Re-download PDF',
+              onPressed: () {
+                setState(() {
+                  _localPath = null;
+                  _error = null;
+                  _received = 0;
+                  _total = null;
+                  _retries = 0;
+                  _isOfflineCached = false;
+                });
+                _fetch(forceRefresh: true);
+              },
+            ),
+        ],
       ),
       body: _error != null
           ? ErrorView(

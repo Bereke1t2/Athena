@@ -358,7 +358,7 @@ class AiFormattedText extends StatelessWidget {
       }
 
       // Handle multi-line display math opening: $$ or \[
-      if (trimmed == r'\[' || (trimmed.startsWith(r'$$') && !trimmed.endsWith(r'$$'))) {
+      if (trimmed == r'\[' || trimmed == r'$$' || (trimmed.startsWith(r'$$') && !trimmed.endsWith(r'$$'))) {
         if (inDisplayMath) {
           blocks.add(_AiBlock(_BlockType.displayMath, mathBlockBuffer.toString().trim()));
           mathBlockBuffer.clear();
@@ -442,7 +442,7 @@ class AiFormattedText extends StatelessWidget {
     final spans = <InlineSpan>[];
     // Regex pattern for bold, italics, inline code, chunk citations, and inline LaTeX math
     final regex = RegExp(
-      r'(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[chunk\s+(\d+)\]|\[(\d+)\]|(?<!\\)\$([^\$\n]+?)(?<!\\)\$|\\\((.+?)\\\))',
+      r'(\*\*\*([^*]+)\*\*\*|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|\[chunk\s+(\d+)\]|\[(\d+)\]|(?<!\\)\$(?!\s)([^\$\n]+?)(?<![\s\\])\$|\\\((.+?)\\\))',
     );
     var lastIndex = 0;
 

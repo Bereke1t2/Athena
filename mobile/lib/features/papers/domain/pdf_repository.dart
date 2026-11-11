@@ -1,7 +1,7 @@
 import 'paper.dart';
 
 /// PDF access port: resolves full-text URLs and caches downloads locally
-/// (data layer owns dio/file handling).
+/// in persistent application storage with offline fallback (data layer owns dio/file handling).
 abstract interface class PdfRepository {
   /// Returns a cached local path for the paper's PDF, downloading on first
   /// use. Progress reports (receivedBytes, totalBytes-or-null).
@@ -10,6 +10,12 @@ abstract interface class PdfRepository {
 
   /// Delete cached PDF for [paperId] so next [download] re-fetches.
   Future<void> deleteCache(String paperId);
+
+  /// Checks whether a local cached PDF exists and is non-empty for [paperId].
+  Future<bool> isCached(String paperId);
+
+  /// Returns the local file path if cached, or null.
+  Future<String?> getCachedPath(String paperId);
 }
 
 /// Checks whether a URL points directly to a PDF resource.
