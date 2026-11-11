@@ -154,3 +154,21 @@ func TestRenderDigestEmail(t *testing.T) {
 	assert.Contains(t, htmlBody, "Delivered to ada@athena.dev")
 }
 
+func TestRenderPasswordResetEmail(t *testing.T) {
+	user := domainuser.User{
+		ID:          uuid.New(),
+		Email:       "alan@athena.dev",
+		DisplayName: "Alan Turing",
+	}
+
+	resetURL := "https://athena.dev/reset-password?token=secret12345"
+	subject, text, htmlBody, err := RenderPasswordResetEmail(user, resetURL)
+	require.NoError(t, err)
+
+	assert.Contains(t, subject, "Reset Your Password")
+	assert.Contains(t, text, "Alan Turing")
+	assert.Contains(t, text, resetURL)
+	assert.Contains(t, htmlBody, "Alan Turing")
+	assert.Contains(t, htmlBody, resetURL)
+	assert.Contains(t, htmlBody, "Reset My Password")
+}
