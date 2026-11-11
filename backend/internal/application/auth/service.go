@@ -37,11 +37,19 @@ type PasswordHasher interface {
 }
 
 // Service wires the user and session stores with a hasher.
+// PasswordResetMailer sends password recovery emails.
+type PasswordResetMailer interface {
+	SendPasswordReset(ctx context.Context, u domainuser.User, resetURL string) error
+}
+
+// Service wires the user and session stores with a hasher.
 type Service struct {
 	users      domainuser.Store
 	sessions   domainuser.SessionStore
 	hasher     PasswordHasher
 	sessionTTL time.Duration
+	mailer     PasswordResetMailer
+	baseURL    string
 }
 
 func NewService(users domainuser.Store, sessions domainuser.SessionStore, hasher PasswordHasher) *Service {
