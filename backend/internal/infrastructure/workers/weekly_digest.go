@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,7 +14,9 @@ import (
 	appdigest "athena/backend/internal/application/digest"
 	domaindigest "athena/backend/internal/domain/digest"
 	domainnotif "athena/backend/internal/domain/notification"
+	domainuser "athena/backend/internal/domain/user"
 	"athena/backend/internal/infrastructure/database"
+	"athena/backend/internal/infrastructure/mail"
 )
 
 // WeeklyDigestKind is the River job type for periodic digest generation.
@@ -29,6 +32,9 @@ type WeeklyDigestWorker struct {
 	river.WorkerDefaults[WeeklyDigestArgs]
 
 	DigestService *appdigest.Service
+	UserStore     domainuser.Store
+	Mailer        mail.Sender
+	AppBaseURL    string
 	Pool          *pgxpool.Pool
 	Logger        *slog.Logger
 }
