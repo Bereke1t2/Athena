@@ -10,6 +10,31 @@ import (
 	domainuser "athena/backend/internal/domain/user"
 )
 
+// PasswordResetAdapter adapts a mail.Sender for transactional password reset dispatch.
+type PasswordResetAdapter struct {
+	Sender Sender
+}
+
+func NewPasswordResetAdapter(sender Sender) *PasswordResetAdapter {
+	return &PasswordResetAdapter{Sender: sender}
+}
+
+func (a *PasswordResetAdapter) SendPasswordReset(ctx context.Context, u domainuser.User, resetURL string) error {
+	if a.Sender == nil {
+		return nil
+	}
+	subject, textBody, htmlBody, err := RenderPasswordResetEmail(u, resetURL)
+	if err != nil {
+		return err
+	}
+	return a.Sender.Send(ctx, Message{
+		To:       u.Email,
+		Subject:  subject,
+		TextBody: textBody,
+		HTMLBody: htmlBody,
+	})
+}
+
 // RenderPasswordResetEmail creates plaintext and HTML emails for password recovery.
 func RenderPasswordResetEmail(u domainuser.User, resetURL string) (subject, textBody, htmlBody string, err error) {
 	name := strings.TrimSpace(u.DisplayName)
