@@ -165,6 +165,34 @@ class AudioTrack {
       gradientThemeIndex: id.hashCode.abs() % 4,
     );
   }
+
+  AudioTrack copyWith({
+    String? id,
+    String? paperId,
+    String? title,
+    String? authorVenue,
+    Duration? totalDuration,
+    List<AudioChapter>? chapters,
+    List<String>? takeaways,
+    AudioQuote? pullQuote,
+    List<String>? tags,
+    String? audioUrl,
+    int? gradientThemeIndex,
+  }) {
+    return AudioTrack(
+      id: id ?? this.id,
+      paperId: paperId ?? this.paperId,
+      title: title ?? this.title,
+      authorVenue: authorVenue ?? this.authorVenue,
+      totalDuration: totalDuration ?? this.totalDuration,
+      chapters: chapters ?? this.chapters,
+      takeaways: takeaways ?? this.takeaways,
+      pullQuote: pullQuote ?? this.pullQuote,
+      tags: tags ?? this.tags,
+      audioUrl: audioUrl ?? this.audioUrl,
+      gradientThemeIndex: gradientThemeIndex ?? this.gradientThemeIndex,
+    );
+  }
 }
 
 class AudioPlaybackState {
@@ -196,8 +224,10 @@ class AudioPlaybackState {
   int get currentChapterIndex {
     final track = currentTrack;
     if (track == null || track.chapters.isEmpty) return 1;
-    for (final ch in track.chapters) {
-      if (currentPosition >= ch.startOffset && currentPosition <= ch.endOffset) {
+    for (var i = 0; i < track.chapters.length; i++) {
+      final ch = track.chapters[i];
+      final isLast = i == track.chapters.length - 1;
+      if (currentPosition >= ch.startOffset && (currentPosition < ch.endOffset || isLast)) {
         return ch.index;
       }
     }

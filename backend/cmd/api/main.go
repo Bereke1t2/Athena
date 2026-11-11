@@ -40,6 +40,7 @@ import (
 	appchat "athena/backend/internal/application/chat"
 	discover "athena/backend/internal/application/discover"
 	domainai "athena/backend/internal/domain/ai"
+	domainaudio "athena/backend/internal/domain/audio"
 	"athena/backend/internal/infrastructure/ai/openaicompat"
 	stubai "athena/backend/internal/infrastructure/ai/stub"
 	"athena/backend/internal/infrastructure/ai/tts"
@@ -214,7 +215,16 @@ func run() error {
 			APIKey:   cfg.TTSAPIKey,
 			Model:    cfg.TTSModel,
 		}, log)
-		aiHandlers.Audio = appai.NewAudioService(llm, paperStore, log).WithTTS(ttsClient, tts.NewMemoryMediaStore())
+		var mediaStore domainaudio.MediaStore = tts.NewMemoryMediaStore()
+		if cfg.AudioStorageDir != "" {
+			if diskStore, err := tts.NewDiskMediaStore(cfg.AudioStorageDir); err != nil {
+				log.Warn("failed to initialize disk audio store, falling back to in-memory", "error", err, "dir", cfg.AudioStorageDir)
+			} else {
+				mediaStore = diskStore
+				log.Info("disk audio media store enabled", "dir", cfg.AudioStorageDir)
+			}
+		}
+		aiHandlers.Audio = appai.NewAudioService(llm, paperStore, log).WithTTS(ttsClient, mediaStore)
 		if cfg.LLMProvider != "stub" && cfg.LLMAPIKey == "" {
 			log.Warn("LLM_API_KEY is empty; AI requests are sent unauthenticated and will likely fail")
 		}

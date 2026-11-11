@@ -93,7 +93,14 @@ func (w *SyncProviderWindowWorker) Work(ctx context.Context, job *river.Job[Sync
 	}
 	cont := args
 	cont.Cursor = stats.NextCursor
-	if _, err := client.Insert(ctx, cont, nil); err != nil {
+	queue := "ingestion"
+	if job.Queue != "" {
+		queue = job.Queue
+	}
+	if _, err := client.Insert(ctx, cont, &river.InsertOpts{
+		Queue:       queue,
+		MaxAttempts: MaxJobAttempts,
+	}); err != nil {
 		return fmt.Errorf("enqueue continuation: %w", err)
 	}
 	return nil
@@ -107,6 +114,21 @@ func AddAll(riverWorkers *river.Workers, service *ingestion.Service, logger *slo
 	})
 }
 
+// PeriodicSyncWindowConstructor returns the job arguments and insert options for provider syncs.
+func PeriodicSyncWindowConstructor(providerSlug string) (river.JobArgs, *river.InsertOpts) {
+	to := time.Now().UTC()
+	from := to.Add(-25 * time.Hour)
+	return SyncProviderWindowArgs{
+		ProviderSlug: providerSlug,
+		From:         from,
+		To:           to,
+		MaxPages:     50,
+	}, &river.InsertOpts{
+		Queue:       "ingestion",
+		MaxAttempts: MaxJobAttempts,
+	}
+}
+
 // PeriodicSyncWindow returns a periodic job that enqueues incremental syncs
 // for providers supporting full-window enumeration (OpenAlex, arXiv).
 // Semantic Scholar is query-driven and only runs on explicit admin triggers.
@@ -114,16 +136,7 @@ func PeriodicSyncWindow(providerSlug string, every time.Duration) *river.Periodi
 	return river.NewPeriodicJob(
 		river.PeriodicInterval(every),
 		func() (river.JobArgs, *river.InsertOpts) {
-			// Overlap the previous window by one hour so nothing published
-			// mid-sync slips through.
-			to := time.Now().UTC()
-			from := to.Add(-25 * time.Hour)
-			return SyncProviderWindowArgs{
-				ProviderSlug: providerSlug,
-				From:         from,
-				To:           to,
-				MaxPages:     50,
-			}, nil
+			return PeriodicSyncWindowConstructor(providerSlug)
 		},
 		&river.PeriodicJobOpts{RunOnStart: false},
 	)

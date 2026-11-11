@@ -148,9 +148,10 @@ func main() {
 
 	clientOpts := &river.Config{
 		Queues: map[string]river.QueueConfig{
-			"ingestion":     {MaxWorkers: cfg.WorkerConcurrency},
-			"ai":            {MaxWorkers: 1},
-			"notifications": {MaxWorkers: 2},
+			river.QueueDefault: {MaxWorkers: cfg.WorkerConcurrency},
+			"ingestion":        {MaxWorkers: cfg.WorkerConcurrency},
+			"ai":               {MaxWorkers: 1},
+			"notifications":    {MaxWorkers: 2},
 		},
 		Workers: riverWorkers,
 		// Backfill attempts legitimately run for many minutes (River's

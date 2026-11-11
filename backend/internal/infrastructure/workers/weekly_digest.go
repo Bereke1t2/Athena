@@ -118,12 +118,19 @@ func AddDigest(riverWorkers *river.Workers, digestSvc *appdigest.Service, pool *
 	})
 }
 
+// PeriodicWeeklyDigestConstructor returns the job arguments and insert options for weekly digests.
+func PeriodicWeeklyDigestConstructor() (river.JobArgs, *river.InsertOpts) {
+	return WeeklyDigestArgs{}, &river.InsertOpts{
+		Queue: "notifications",
+	}
+}
+
 // PeriodicWeeklyDigest schedules automated weekly research digest generation.
 func PeriodicWeeklyDigest(every time.Duration) *river.PeriodicJob {
 	return river.NewPeriodicJob(
 		river.PeriodicInterval(every),
 		func() (river.JobArgs, *river.InsertOpts) {
-			return WeeklyDigestArgs{}, nil
+			return PeriodicWeeklyDigestConstructor()
 		},
 		&river.PeriodicJobOpts{RunOnStart: false},
 	)

@@ -70,10 +70,11 @@ type Config struct {
 	APNSBaseURL       string
 
 	// Text-to-Speech (TTS)
-	TTSProvider string // mock | openai | noop
-	TTSBaseURL  string
-	TTSAPIKey   string
-	TTSModel    string
+	TTSProvider     string // mock | openai | noop
+	TTSBaseURL      string
+	TTSAPIKey       string
+	TTSModel        string
+	AudioStorageDir string // Optional directory for persistent audio storage; empty uses in-memory
 }
 
 // AIEnabled reports whether summary/chat endpoints should be wired.
@@ -134,10 +135,11 @@ func FromEnv() (Config, error) {
 		APNSProduction:    getBool("APNS_PRODUCTION", false),
 		APNSBaseURL:       strings.TrimSpace(os.Getenv("APNS_BASE_URL")),
 
-		TTSProvider: getEnv("TTS_PROVIDER", "mock"),
-		TTSBaseURL:  strings.TrimSpace(os.Getenv("TTS_BASE_URL")),
-		TTSAPIKey:   firstNonEmpty(strings.TrimSpace(os.Getenv("TTS_API_KEY")), strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))),
-		TTSModel:    getEnv("TTS_MODEL", "tts-1"),
+		TTSProvider:     getEnv("TTS_PROVIDER", "mock"),
+		TTSBaseURL:      strings.TrimSpace(os.Getenv("TTS_BASE_URL")),
+		TTSAPIKey:       firstNonEmpty(strings.TrimSpace(os.Getenv("TTS_API_KEY")), strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))),
+		TTSModel:        getEnv("TTS_MODEL", "tts-1"),
+		AudioStorageDir: strings.TrimSpace(os.Getenv("ATHENA_AUDIO_DIR")),
 	}
 	if cfg.LogFormat == "" {
 		if cfg.AppEnv == "production" {
