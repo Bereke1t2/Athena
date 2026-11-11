@@ -404,3 +404,48 @@ func TestPasswordResetFlow(t *testing.T) {
 		t.Fatalf("login with new password failed: %v", err)
 	}
 }
+
+type fakePasswordResetMailer struct {
+	sentUser     domainuser.User
+	sentResetURL string
+}
+
+func (f *fakePasswordResetMailer) SendPasswordReset(_ context.Context, u domainuser.User, resetURL string) error {
+	f.sentUser = u
+	f.sentResetURL = resetURL
+	return nil
+}
+
+func TestRequestPasswordResetWithMailer(t *testing.T) {
+	ctx := context.Background()
+	users := newMemUsers()
+	sessions := newMemSessions()
+	svc := NewService(users, sessions, fastHasher{})
+
+	mailer := &fakePasswordResetMailer{}
+	svc.WithMailer(mailer, "https://app.athena.dev")
+
+	_, err := svc.Register(ctx, "mailer@x.io", "password123", "MailerUser")
+	if err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+
+	token, err := svc.RequestPasswordReset(ctx, "mailer@x.io")
+	if err != nil {
+		t.Fatalf("request reset failed: %v", err)
+	}
+	if token == "" {
+		t.Fatal("expected non-empty reset token")
+	}
+
+	if mailer.sentUser.Email != "mailer@x.io" {
+		t.Errorf("expected email mailer@x.io, got %q", mailer.sentUser.Email)
+	}
+	if mailer.sentUser.DisplayName != "MailerUser" {
+		t.Errorf("expected display name MailerUser, got %q", mailer.sentUser.DisplayName)
+	}
+	expectedURL := "https://app.athena.dev/reset-password?token=" + token
+	if mailer.sentResetURL != expectedURL {
+		t.Errorf("expected reset URL %q, got %q", expectedURL, mailer.sentResetURL)
+	}
+}

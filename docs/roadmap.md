@@ -173,6 +173,15 @@ Acceptance:
 
 ## Future / vision
 
-Providers: Crossref, PubMed, Europe PMC · alternative engines if ADR-0005
-triggers fire · email digests · web client · multi-language UIs ·
-institutional features.
+- [x] Europe PMC & PubMed Research Aggregator: Open-access biomedical and life
+      sciences integration (ADR-0002). Live federated search fan-out across 5
+      providers (`arxiv`, `semanticscholar`, `openalex`, `crossref`, `europepmc`),
+      temporal window sync (`FIRST_PDATE`), PubMed ID deduplication, and direct
+      open-access full-text PDF resolution.
+- [x] Email Digests & Transactional Mailer: Automated personalized weekly research
+      briefings dispatched via SMTP/logging/mock mailers. Resarc editorial HTML
+      email design with executive AI synthesis, top takeaways, curated paper links,
+      and password recovery emails.
+
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · alternative engines
+if ADR-0005 triggers fire · web client · multi-language UIs · institutional features.

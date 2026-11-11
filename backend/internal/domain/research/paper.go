@@ -148,6 +148,11 @@ func (p Paper) ArxivID() string {
 	return lookupIdentifier(p.Identifiers, IDTypeArxiv)
 }
 
+// PubMedID returns the canonical PubMed identifier when present.
+func (p Paper) PubMedID() string {
+	return lookupIdentifier(p.Identifiers, IDTypePubMed)
+}
+
 func lookupIdentifier(ids []Identifier, t IdentifierType) string {
 	for _, id := range ids {
 		if id.Type == t {

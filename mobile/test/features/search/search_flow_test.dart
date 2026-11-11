@@ -42,6 +42,12 @@ class _FakeSearchRepository implements SearchRepository {
       nextCursor: null,
       modeUsed: filters.isLive ? 'live' : 'corpus',
       totalEstimate: 1,
+      sources: filters.isLive
+          ? const [
+              SearchSourceStatus(slug: 'europepmc', ok: true, papers: 5),
+              SearchSourceStatus(slug: 'arxiv', ok: true, papers: 10),
+            ]
+          : const [],
     );
   }
 }
@@ -117,5 +123,29 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(fakeRepo.lastFilters?.isLive, true);
+  });
+
+  testWidgets('SearchScreen renders Europe PMC telemetry chip on live search', (tester) async {
+    final fakeRepo = _FakeSearchRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: const MaterialApp(
+          home: SearchScreen(initialQuery: 'crispr-cas9'),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Tap 'Live Web' chip to trigger live mode
+    await tester.tap(find.text('Live Web'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Europe PMC (5)'), findsOneWidget);
+    expect(find.text('arXiv (10)'), findsOneWidget);
   });
 }

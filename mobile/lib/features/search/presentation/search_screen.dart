@@ -15,6 +15,7 @@ const _sourceLabels = {
   'semanticscholar': 'Semantic Scholar',
   'openalex': 'OpenAlex',
   'crossref': 'Crossref',
+  'europepmc': 'Europe PMC',
 };
 
 class SearchScreen extends ConsumerStatefulWidget {
