@@ -144,63 +144,103 @@ type responseDTO struct {
 	} `json:"resultList"`
 }
 
+// Search performs a live query against Europe PMC for federated discovery.
+func (p *Provider) Search(ctx context.Context, query string, limit int) ([]research.Paper, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, fmt.Errorf("%w: europepmc search needs a query", providers.ErrBadWindow)
+	}
+	if limit <= 0 {
+		limit = pageSize
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	q := url.Values{}
+	q.Set("query", query)
+	q.Set("format", "json")
+	q.Set("pageSize", strconv.Itoa(limit))
+	q.Set("resultType", "core")
+
+	raw, err := p.fetch.Get(ctx, Slug, p.baseURL+"/search?"+q.Encode())
+	if err != nil {
+		return nil, err
+	}
+
+	var resp responseDTO
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return nil, fmt.Errorf("%w: europepmc search: %v", providers.ErrSchemaDrift, err)
+	}
+
+	papers := make([]research.Paper, 0, len(resp.ResultList.Result))
+	for i := range resp.ResultList.Result {
+		paper, perr := p.normalize(&resp.ResultList.Result[i])
+		if perr != nil {
+			continue // skip malformed records
+		}
+		papers = append(papers, paper)
+	}
+	return papers, nil
+}
+
+// FetchWindow synchronizes papers published within a given temporal window.
+func (p *Provider) FetchWindow(ctx context.Context, w research.Window) (research.Page, error) {
+	if w.From.IsZero() || w.To.IsZero() || w.To.Before(w.From) {
+		return research.Page{}, fmt.Errorf("%w: europepmc sync needs from<=to", providers.ErrBadWindow)
+	}
+
+	cursorMark := "*"
+	if w.Cursor != "" {
+		cursorMark = w.Cursor
+	}
+
+	dateFilter := fmt.Sprintf("FIRST_PDATE:[%s TO %s]",
+		w.From.Format("2006-01-02"), w.To.Format("2006-01-02"))
+	query := dateFilter
+	if strings.TrimSpace(w.Query) != "" {
+		query = fmt.Sprintf("(%s) AND %s", strings.TrimSpace(w.Query), dateFilter)
+	}
+
+	q := url.Values{}
+	q.Set("query", query)
+	q.Set("format", "json")
+	q.Set("pageSize", strconv.Itoa(pageSize))
+	q.Set("resultType", "core")
+	q.Set("cursorMark", cursorMark)
+	q.Set("sort", "P_PDATE_D asc")
+
+	raw, err := p.fetch.Get(ctx, Slug, p.baseURL+"/search?"+q.Encode())
+	if err != nil {
+		return research.Page{}, err
+	}
+
+	var resp responseDTO
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return research.Page{}, fmt.Errorf("%w: europepmc window: %v", providers.ErrSchemaDrift, err)
+	}
+
+	papers := make([]research.Paper, 0, len(resp.ResultList.Result))
+	for i := range resp.ResultList.Result {
+		paper, perr := p.normalize(&resp.ResultList.Result[i])
+		if perr != nil {
+			continue
+		}
+		papers = append(papers, paper)
+	}
+
+	nextCursor := ""
+	if resp.NextCursorMark != "" && resp.NextCursorMark != cursorMark && len(resp.ResultList.Result) > 0 {
+		nextCursor = resp.NextCursorMark
+	}
+
+	return research.Page{
+		Papers:     papers,
+		NextCursor: nextCursor,
+	}, nil
+}
+
 var htmlTagRe = regexp.MustCompile(`<[^>]*>`)
-
-func stripHTML(s string) string {
-	if s == "" {
-		return ""
-	}
-	stripped := htmlTagRe.ReplaceAllString(s, " ")
-	return collapseWS(html.UnescapeString(stripped))
-}
-
-func collapseWS(s string) string {
-	return strings.Join(strings.Fields(s), " ")
-}
-
-func parsePublicationDate(dto *resultDTO) *time.Time {
-	if dto.FirstPublicationDate != "" {
-		if t, err := time.Parse("2006-01-02", strings.TrimSpace(dto.FirstPublicationDate)); err == nil {
-			utc := t.UTC()
-			return &utc
-		}
-	}
-	if dto.PubYear != "" {
-		if y, err := strconv.Atoi(strings.TrimSpace(dto.PubYear)); err == nil && y > 1800 && y < 2100 {
-			t := time.Date(y, 1, 1, 0, 0, 0, 0, time.UTC)
-			return &t
-		}
-	}
-	if dto.JournalInfo != nil && dto.JournalInfo.YearOfPublication > 1800 {
-		t := time.Date(dto.JournalInfo.YearOfPublication, 1, 1, 0, 0, 0, 0, time.UTC)
-		return &t
-	}
-	return nil
-}
-
-func mapPubType(dto *resultDTO) research.PublicationType {
-	if strings.EqualFold(dto.Source, "PPR") {
-		return research.PubTypePreprint
-	}
-	if dto.PubTypeList != nil {
-		for _, pt := range dto.PubTypeList.PubType {
-			low := strings.ToLower(pt)
-			if strings.Contains(low, "review") {
-				return research.PubTypeReview
-			}
-			if strings.Contains(low, "conference") || strings.Contains(low, "proceedings") {
-				return research.PubTypeConferencePaper
-			}
-			if strings.Contains(low, "dataset") {
-				return research.PubTypeDataset
-			}
-			if strings.Contains(low, "preprint") {
-				return research.PubTypePreprint
-			}
-		}
-	}
-	return research.PubTypeArticle
-}
 
 // normalize maps an EBI Europe PMC result to Athena's canonical domain model.
 func (p *Provider) normalize(dto *resultDTO) (research.Paper, error) {
@@ -396,42 +436,58 @@ func (p *Provider) normalize(dto *resultDTO) (research.Paper, error) {
 	return paper, nil
 }
 
-// Search performs a live query against Europe PMC for federated discovery.
-func (p *Provider) Search(ctx context.Context, query string, limit int) ([]research.Paper, error) {
-	query = strings.TrimSpace(query)
-	if query == "" {
-		return nil, fmt.Errorf("%w: europepmc search needs a query", providers.ErrBadWindow)
-	}
-	if limit <= 0 {
-		limit = pageSize
-	}
-	if limit > 100 {
-		limit = 100
-	}
-
-	q := url.Values{}
-	q.Set("query", query)
-	q.Set("format", "json")
-	q.Set("pageSize", strconv.Itoa(limit))
-	q.Set("resultType", "core")
-
-	raw, err := p.fetch.Get(ctx, Slug, p.baseURL+"/search?"+q.Encode())
-	if err != nil {
-		return nil, err
-	}
-
-	var resp responseDTO
-	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, fmt.Errorf("%w: europepmc search: %v", providers.ErrSchemaDrift, err)
-	}
-
-	papers := make([]research.Paper, 0, len(resp.ResultList.Result))
-	for i := range resp.ResultList.Result {
-		paper, perr := p.normalize(&resp.ResultList.Result[i])
-		if perr != nil {
-			continue // skip malformed records
+func parsePublicationDate(dto *resultDTO) *time.Time {
+	if dto.FirstPublicationDate != "" {
+		if t, err := time.Parse("2006-01-02", strings.TrimSpace(dto.FirstPublicationDate)); err == nil {
+			utc := t.UTC()
+			return &utc
 		}
-		papers = append(papers, paper)
 	}
-	return papers, nil
+	if dto.PubYear != "" {
+		if y, err := strconv.Atoi(strings.TrimSpace(dto.PubYear)); err == nil && y > 1800 && y < 2100 {
+			t := time.Date(y, 1, 1, 0, 0, 0, 0, time.UTC)
+			return &t
+		}
+	}
+	if dto.JournalInfo != nil && dto.JournalInfo.YearOfPublication > 1800 {
+		t := time.Date(dto.JournalInfo.YearOfPublication, 1, 1, 0, 0, 0, 0, time.UTC)
+		return &t
+	}
+	return nil
+}
+
+func mapPubType(dto *resultDTO) research.PublicationType {
+	if strings.EqualFold(dto.Source, "PPR") {
+		return research.PubTypePreprint
+	}
+	if dto.PubTypeList != nil {
+		for _, pt := range dto.PubTypeList.PubType {
+			low := strings.ToLower(pt)
+			if strings.Contains(low, "review") {
+				return research.PubTypeReview
+			}
+			if strings.Contains(low, "conference") || strings.Contains(low, "proceedings") {
+				return research.PubTypeConferencePaper
+			}
+			if strings.Contains(low, "dataset") {
+				return research.PubTypeDataset
+			}
+			if strings.Contains(low, "preprint") {
+				return research.PubTypePreprint
+			}
+		}
+	}
+	return research.PubTypeArticle
+}
+
+func stripHTML(s string) string {
+	if s == "" {
+		return ""
+	}
+	stripped := htmlTagRe.ReplaceAllString(s, " ")
+	return collapseWS(html.UnescapeString(stripped))
+}
+
+func collapseWS(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
