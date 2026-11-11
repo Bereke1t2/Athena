@@ -19,6 +19,8 @@ func clearEnv(t *testing.T) {
 		"ARXIV_MIN_INTERVAL", "LLM_PROVIDER", "LLM_BASE_URL", "LLM_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY",
 		"LLM_MODEL", "EMBEDDING_PROVIDER", "EMBEDDING_MODEL", "EMBEDDING_DIM",
 		"EUROPEPMC_BASE_URL", "EUROPEPMC_MAX_RPS", "EUROPEPMC_EMAIL",
+		"ATHENA_MAIL_PROVIDER", "ATHENA_SMTP_HOST", "ATHENA_SMTP_PORT",
+		"ATHENA_SMTP_USERNAME", "ATHENA_SMTP_PASSWORD", "ATHENA_SMTP_FROM", "ATHENA_APP_BASE_URL",
 	}
 	for _, k := range keys {
 		t.Setenv(k, "")
@@ -149,4 +151,26 @@ func TestFromEnvEuropePMC(t *testing.T) {
 	assert.Equal(t, "https://custom.europepmc.org/rest", cfg.EuropePMCBaseURL)
 	assert.InDelta(t, 7.5, cfg.EuropePMCMaxRPS, 0.001)
 	assert.Equal(t, "researcher@athena.dev", cfg.EuropePMCEmail)
+}
+
+func TestFromEnvMailer(t *testing.T) {
+	setEnv(t, map[string]string{
+		"ATHENA_DATABASE_URL":  "postgres://x",
+		"ATHENA_MAIL_PROVIDER": "smtp",
+		"ATHENA_SMTP_HOST":     "smtp.resend.com",
+		"ATHENA_SMTP_PORT":     "465",
+		"ATHENA_SMTP_USERNAME": "resend",
+		"ATHENA_SMTP_PASSWORD": "re_secret_password",
+		"ATHENA_SMTP_FROM":     "Briefings <digest@athena.dev>",
+		"ATHENA_APP_BASE_URL":  "https://app.athena.dev",
+	})
+	cfg, err := FromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, "smtp", cfg.MailProvider)
+	assert.Equal(t, "smtp.resend.com", cfg.SMTPHost)
+	assert.Equal(t, 465, cfg.SMTPPort)
+	assert.Equal(t, "resend", cfg.SMTPUsername)
+	assert.Equal(t, "re_secret_password", cfg.SMTPPassword)
+	assert.Equal(t, "Briefings <digest@athena.dev>", cfg.SMTPFrom)
+	assert.Equal(t, "https://app.athena.dev", cfg.AppBaseURL)
 }
