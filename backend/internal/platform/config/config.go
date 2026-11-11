@@ -78,6 +78,15 @@ type Config struct {
 	TTSAPIKey       string
 	TTSModel        string
 	AudioStorageDir string // Optional directory for persistent audio storage; empty uses in-memory
+
+	// Transactional & Digest Mailer
+	MailProvider string // noop | logging | mock | smtp
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPPassword string
+	SMTPFrom     string
+	AppBaseURL   string
 }
 
 // AIEnabled reports whether summary/chat endpoints should be wired.
