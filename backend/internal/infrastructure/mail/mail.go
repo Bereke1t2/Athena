@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"sync"
 )
 
 var (
@@ -58,4 +59,56 @@ func (s *LoggingSender) Send(_ context.Context, msg Message) error {
 		"has_html", msg.HTMLBody != "",
 	)
 	return nil
+}
+
+// ---- MockSender -------------------------------------------------------------
+
+type MockSender struct {
+	mu       sync.Mutex
+	messages []Message
+}
+
+func NewMockSender() *MockSender {
+	return &MockSender{messages: make([]Message, 0)}
+}
+
+func (m *MockSender) Send(_ context.Context, msg Message) error {
+	if strings.TrimSpace(msg.To) == "" {
+		return ErrInvalidRecipient
+	}
+	if strings.TrimSpace(msg.Subject) == "" {
+		return ErrEmptySubject
+	}
+	if msg.TextBody == "" && msg.HTMLBody == "" {
+		return ErrEmptyBody
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.messages = append(m.messages, msg)
+	return nil
+}
+
+func (m *MockSender) Messages() []Message {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]Message, len(m.messages))
+	copy(out, m.messages)
+	return out
+}
+
+func (m *MockSender) Last() *Message {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.messages) == 0 {
+		return nil
+	}
+	msg := m.messages[len(m.messages)-1]
+	return &msg
+}
+
+func (m *MockSender) Reset() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.messages = m.messages[:0]
 }
