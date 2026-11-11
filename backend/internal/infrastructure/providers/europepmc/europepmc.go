@@ -1,6 +1,8 @@
 package europepmc
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"html"
 	"regexp"
@@ -195,4 +197,198 @@ func mapPubType(dto *resultDTO) research.PublicationType {
 		}
 	}
 	return research.PubTypeArticle
+}
+
+// normalize maps an EBI Europe PMC result to Athena's canonical domain model.
+func (p *Provider) normalize(dto *resultDTO) (research.Paper, error) {
+	title := collapseWS(html.UnescapeString(htmlTagRe.ReplaceAllString(dto.Title, " ")))
+	doi := research.CanonicalizeDOI(dto.DOI)
+	pmid := strings.TrimSpace(dto.PMID)
+	nativeID := strings.TrimSpace(dto.ID)
+	if nativeID == "" {
+		nativeID = pmid
+	}
+	if nativeID == "" {
+		nativeID = doi
+	}
+
+	if title == "" || (doi == "" && pmid == "" && nativeID == "") {
+		return research.Paper{}, fmt.Errorf("%w: europepmc item %q lacks identifier or title",
+			providers.ErrSchemaDrift, dto.ID)
+	}
+
+	paper := research.Paper{
+		Title:        title,
+		Language:     "en",
+		Abstract:     stripHTML(dto.AbstractText),
+		CitedByCount: dto.CitedByCount,
+		PubType:      mapPubType(dto),
+	}
+
+	if dto.JournalInfo != nil && dto.JournalInfo.Journal != nil {
+		paper.VenueName = collapseWS(dto.JournalInfo.Journal.Title)
+		paper.VenueType = "journal"
+	}
+
+	if pubDate := parsePublicationDate(dto); pubDate != nil {
+		paper.PublishedOn = pubDate
+		paper.Year = pubDate.Year()
+	}
+
+	// Identifiers: DOI, PubMed, PMCID, Europe PMC native ID
+	if doi != "" {
+		paper.Identifiers = append(paper.Identifiers, research.Identifier{
+			Type:  research.IDTypeDOI,
+			Value: doi,
+		})
+	}
+	if pmid != "" {
+		paper.Identifiers = append(paper.Identifiers, research.Identifier{
+			Type:  research.IDTypePubMed,
+			Value: pmid,
+		})
+	}
+	if pmcid := strings.TrimSpace(dto.PMCID); pmcid != "" {
+		paper.Identifiers = append(paper.Identifiers, research.Identifier{
+			Type:  research.IDTypeOther,
+			Value: "pmc:" + strings.TrimPrefix(strings.ToLower(pmcid), "pmc"),
+		})
+	}
+	if nativeID != "" && nativeID != pmid && nativeID != doi {
+		paper.Identifiers = append(paper.Identifiers, research.Identifier{
+			Type:  research.IDTypeOther,
+			Value: "epmc:" + nativeID,
+		})
+	}
+
+	// Authors
+	if dto.AuthorList != nil && len(dto.AuthorList.Author) > 0 {
+		for pos, au := range dto.AuthorList.Author {
+			name := strings.TrimSpace(au.FullName)
+			if name == "" {
+				name = strings.TrimSpace(au.FirstName + " " + au.LastName)
+			}
+			if name == "" {
+				continue
+			}
+			pids := map[research.IdentifierType]string{}
+			if au.AuthorID != nil && strings.TrimSpace(au.AuthorID.Text) != "" {
+				pids[research.IDTypeOther] = "orcid:" + strings.TrimSpace(au.AuthorID.Text)
+			}
+			paper.Authors = append(paper.Authors, research.AuthorRef{
+				DisplayName: name,
+				Position:    pos + 1,
+				ProviderIDs: pids,
+			})
+		}
+	} else if authorStr := strings.TrimSpace(dto.AuthorString); authorStr != "" {
+		authors := strings.Split(authorStr, ",")
+		for pos, a := range authors {
+			name := strings.TrimSpace(strings.TrimSuffix(a, "."))
+			if name == "" {
+				continue
+			}
+			paper.Authors = append(paper.Authors, research.AuthorRef{
+				DisplayName: name,
+				Position:    pos + 1,
+				ProviderIDs: map[research.IdentifierType]string{},
+			})
+		}
+	}
+
+	// Topics (Keywords and MeSH Headings)
+	addTopic := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" || len(paper.Topics) >= 6 {
+			return
+		}
+		slug := strings.ReplaceAll(research.NormalizeTitle(name), " ", "-")
+		for _, existing := range paper.Topics {
+			if existing.Slug == slug {
+				return
+			}
+		}
+		paper.Topics = append(paper.Topics, research.TopicRef{
+			Name:      name,
+			Slug:      slug,
+			Score:     1,
+			IsPrimary: len(paper.Topics) == 0,
+		})
+	}
+
+	if dto.KeywordList != nil {
+		for _, kw := range dto.KeywordList.Keyword {
+			addTopic(kw)
+		}
+	}
+	if dto.MeshHeadingList != nil {
+		for _, mh := range dto.MeshHeadingList.MeshHeading {
+			addTopic(mh.DescriptorName)
+		}
+	}
+
+	// Open Access & Full-Text URLs
+	isOpen := strings.EqualFold(dto.IsOpenAccess, "Y") ||
+		strings.EqualFold(dto.InEPMC, "Y") ||
+		strings.EqualFold(dto.InPMC, "Y")
+
+	if isOpen {
+		if strings.EqualFold(dto.Source, "PPR") {
+			paper.OA.Status = research.OAStatusGreen
+		} else {
+			paper.OA.Status = research.OAStatusGold
+		}
+	} else {
+		paper.OA.Status = research.OAStatusClosed
+	}
+
+	var bestPDF, bestLanding string
+	if dto.FullTextURLList != nil {
+		for _, u := range dto.FullTextURLList.FullTextURL {
+			urlStr := strings.TrimSpace(u.URL)
+			if urlStr == "" {
+				continue
+			}
+			if strings.EqualFold(u.DocumentStyle, "pdf") && bestPDF == "" {
+				bestPDF = urlStr
+			} else if bestLanding == "" {
+				bestLanding = urlStr
+			}
+		}
+	}
+
+	if bestPDF != "" {
+		paper.OA.URL = bestPDF
+		paper.Versions = append(paper.Versions, research.VersionRef{
+			Kind: research.VersionPublisher,
+			URL:  bestPDF,
+		})
+	} else if bestLanding != "" {
+		paper.OA.URL = bestLanding
+		paper.Versions = append(paper.Versions, research.VersionRef{
+			Kind: research.VersionPublisher,
+			URL:  bestLanding,
+		})
+	} else if doi != "" {
+		doiURL := "https://doi.org/" + doi
+		paper.Versions = append(paper.Versions, research.VersionRef{
+			Kind: research.VersionPublisher,
+			URL:  doiURL,
+		})
+		if isOpen {
+			paper.OA.URL = doiURL
+		}
+	}
+
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%d|%s",
+		nativeID, title, dto.CitedByCount, paper.Abstract)))
+	paper.Provenance = research.Provenance{
+		ProviderSlug:       Slug,
+		NativeID:           nativeID,
+		FetchedAt:          time.Now().UTC(),
+		PayloadFingerprint: hex.EncodeToString(sum[:]),
+	}
+
+	research.DeriveIdentity(&paper)
+	return paper, nil
 }
