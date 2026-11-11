@@ -35,7 +35,8 @@ type Config struct {
 	// Base-URL overrides (tests / outage simulation); empty = official APIs.
 	OpenAlexBaseURL string
 	ArxivBaseURL    string
-	S2BaseURL       string
+	S2BaseURL        string
+	EuropePMCBaseURL string
 
 	// MetricsAddr serves Prometheus /metrics from the worker process when set.
 	MetricsAddr string
@@ -43,6 +44,8 @@ type Config struct {
 	OpenAlexMaxRPS   float64
 	S2MaxRPS         float64
 	ArxivMinInterval time.Duration
+	EuropePMCMaxRPS  float64
+	EuropePMCEmail   string
 
 	// AI layer (ADR-0004). Empty LLMProvider disables the AI endpoints.
 	// "stub" selects a deterministic no-network provider for dev/tests.
