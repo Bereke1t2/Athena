@@ -18,6 +18,7 @@ func clearEnv(t *testing.T) {
 		"ARXIV_USER_AGENT", "OPENALEX_MAX_RPS", "SEMANTICSCHOLAR_MAX_RPS",
 		"ARXIV_MIN_INTERVAL", "LLM_PROVIDER", "LLM_BASE_URL", "LLM_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY",
 		"LLM_MODEL", "EMBEDDING_PROVIDER", "EMBEDDING_MODEL", "EMBEDDING_DIM",
+		"EUROPEPMC_BASE_URL", "EUROPEPMC_MAX_RPS", "EUROPEPMC_EMAIL",
 	}
 	for _, k := range keys {
 		t.Setenv(k, "")
@@ -134,4 +135,18 @@ func TestFromEnvDurationsAndNumbers(t *testing.T) {
 	assert.Equal(t, int32(7), cfg.DBMaxConns)
 	assert.InDelta(t, 2.5, cfg.OpenAlexMaxRPS, 0.001)
 	assert.Equal(t, 5*time.Second, cfg.ArxivMinInterval)
+}
+
+func TestFromEnvEuropePMC(t *testing.T) {
+	setEnv(t, map[string]string{
+		"ATHENA_DATABASE_URL": "postgres://x",
+		"EUROPEPMC_BASE_URL":  "https://custom.europepmc.org/rest",
+		"EUROPEPMC_MAX_RPS":   "7.5",
+		"EUROPEPMC_EMAIL":     "researcher@athena.dev",
+	})
+	cfg, err := FromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, "https://custom.europepmc.org/rest", cfg.EuropePMCBaseURL)
+	assert.InDelta(t, 7.5, cfg.EuropePMCMaxRPS, 0.001)
+	assert.Equal(t, "researcher@athena.dev", cfg.EuropePMCEmail)
 }
