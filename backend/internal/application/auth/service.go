@@ -36,7 +36,6 @@ type PasswordHasher interface {
 	Verify(hash, password string) bool
 }
 
-// Service wires the user and session stores with a hasher.
 // PasswordResetMailer sends password recovery emails.
 type PasswordResetMailer interface {
 	SendPasswordReset(ctx context.Context, u domainuser.User, resetURL string) error
@@ -59,6 +58,13 @@ func NewService(users domainuser.Store, sessions domainuser.SessionStore, hasher
 		hasher:     hasher,
 		sessionTTL: defaultSessionTTL,
 	}
+}
+
+// WithMailer binds an email sender and base URL for password recovery links.
+func (s *Service) WithMailer(m PasswordResetMailer, baseURL string) *Service {
+	s.mailer = m
+	s.baseURL = baseURL
+	return s
 }
 
 // Register validates the request, creates the account, and issues a session.
@@ -182,6 +188,16 @@ func (s *Service) RequestPasswordReset(ctx context.Context, email string) (strin
 	if err := s.users.CreatePasswordReset(ctx, cred.User.ID, tokenHash(token), expiresAt); err != nil {
 		return "", fmt.Errorf("store password reset: %w", err)
 	}
+
+	if s.mailer != nil {
+		baseURL := s.baseURL
+		if baseURL == "" {
+			baseURL = "https://athena.dev"
+		}
+		resetURL := fmt.Sprintf("%s/reset-password?token=%s", strings.TrimRight(baseURL, "/"), token)
+		_ = s.mailer.SendPasswordReset(ctx, cred.User, resetURL)
+	}
+
 	return token, nil
 }
 
