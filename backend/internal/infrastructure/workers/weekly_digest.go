@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,7 +14,9 @@ import (
 	appdigest "athena/backend/internal/application/digest"
 	domaindigest "athena/backend/internal/domain/digest"
 	domainnotif "athena/backend/internal/domain/notification"
+	domainuser "athena/backend/internal/domain/user"
 	"athena/backend/internal/infrastructure/database"
+	"athena/backend/internal/infrastructure/mail"
 )
 
 // WeeklyDigestKind is the River job type for periodic digest generation.
@@ -29,6 +32,9 @@ type WeeklyDigestWorker struct {
 	river.WorkerDefaults[WeeklyDigestArgs]
 
 	DigestService *appdigest.Service
+	UserStore     domainuser.Store
+	Mailer        mail.Sender
+	AppBaseURL    string
 	Pool          *pgxpool.Pool
 	Logger        *slog.Logger
 }
@@ -103,17 +109,48 @@ func (w *WeeklyDigestWorker) processUser(ctx context.Context, userID uuid.UUID, 
 			"paper_count": paperCount,
 		},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+
+	if w.Mailer != nil && w.UserStore != nil {
+		u, uerr := w.UserStore.ByID(ctx, userID)
+		if uerr == nil && strings.TrimSpace(u.Email) != "" {
+			subj, textBody, htmlBody, rerr := mail.RenderDigestEmail(u, digest, w.AppBaseURL)
+			if rerr == nil {
+				if merr := w.Mailer.Send(ctx, mail.Message{
+					To:       u.Email,
+					Subject:  subj,
+					TextBody: textBody,
+					HTMLBody: htmlBody,
+				}); merr != nil {
+					w.Logger.Warn("failed to send weekly digest email", "user_id", userID, "email", u.Email, "error", merr)
+				} else {
+					w.Logger.Info("sent weekly digest email", "user_id", userID, "email", u.Email)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // AddDigest registers the weekly digest worker with River.
 func AddDigest(riverWorkers *river.Workers, digestSvc *appdigest.Service, pool *pgxpool.Pool, logger *slog.Logger) {
+	AddDigestWithMailer(riverWorkers, digestSvc, pool, nil, nil, "", logger)
+}
+
+// AddDigestWithMailer registers the weekly digest worker with River including email dispatch.
+func AddDigestWithMailer(riverWorkers *river.Workers, digestSvc *appdigest.Service, pool *pgxpool.Pool, userStore domainuser.Store, mailer mail.Sender, appBaseURL string, logger *slog.Logger) {
 	if pool == nil || digestSvc == nil {
 		return
 	}
 	river.AddWorker(riverWorkers, &WeeklyDigestWorker{
 		DigestService: digestSvc,
 		Pool:          pool,
+		UserStore:     userStore,
+		Mailer:        mailer,
+		AppBaseURL:    appBaseURL,
 		Logger:        logger,
 	})
 }

@@ -25,6 +25,7 @@ import (
 	stubai "athena/backend/internal/infrastructure/ai/stub"
 	"athena/backend/internal/infrastructure/cache"
 	"athena/backend/internal/infrastructure/database"
+	"athena/backend/internal/infrastructure/mail"
 	arxivadapter "athena/backend/internal/infrastructure/providers/arxiv"
 	europepmcadapter "athena/backend/internal/infrastructure/providers/europepmc"
 	openalexadapter "athena/backend/internal/infrastructure/providers/openalex"
@@ -123,8 +124,17 @@ func main() {
 		}
 	}
 
+	mailer := mail.New(mail.Config{
+		Provider:     cfg.MailProvider,
+		SMTPHost:     cfg.SMTPHost,
+		SMTPPort:     cfg.SMTPPort,
+		SMTPUsername: cfg.SMTPUsername,
+		SMTPPassword: cfg.SMTPPassword,
+		From:         cfg.SMTPFrom,
+	}, log)
+	userStore := database.NewUserStore(pool)
 	digestSvc := appdigest.NewService(store, database.NewFollowStore(pool), database.NewDigestStore(pool), llm, log)
-	workers.AddDigest(riverWorkers, digestSvc, pool, log)
+	workers.AddDigestWithMailer(riverWorkers, digestSvc, pool, userStore, mailer, cfg.AppBaseURL, log)
 
 	// Phase 4: full-text RAG indexing when an LLM/embedding stack is set.
 	var ragService *appai.RAGService

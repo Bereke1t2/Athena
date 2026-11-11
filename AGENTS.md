@@ -46,7 +46,17 @@ Last updated: 2026-11-08 (River queue configuration alignment, DiskMediaStore pe
 
 ## Unfinished / verify next session
 
-1. **Europe PMC & PubMed Research Provider Integration (2026-11-11)**:
+1. **Email Digest & Transactional Mailer Engine (2026-11-11)**:
+   - **Scope**: Implemented full email delivery infrastructure (`internal/infrastructure/mail`) powering personalized weekly research briefings and transactional password recovery emails via SMTP, logging, or mock providers.
+   - **Core Deliverables**:
+     - *Mail Sender Port & Transports* ([`mail.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/mail/mail.go)): Implemented `Sender` interface with `SMTPSender` (RFC 822 / RFC 2046 multipart/alternative MIME generator, STARTTLS / direct SMTPS on port 465, plain authentication, UTF-8 base64 RFC 2047 subject encoding), `LoggingSender`, `MockSender`, and `NoopSender`.
+     - *Resarc Editorial Digest Template* ([`digest_template.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/mail/digest_template.go)): Built responsive dark-mode HTML email briefing with Aperture branding, executive AI synthesis card, key empirical takeaways list, curated paper discovery cards with open-access badges and deep-links, topic momentum pills, and clean plaintext fallback.
+     - *Password Reset Transactional Mailer* ([`reset_template.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/mail/reset_template.go), [`service.go`](file:///home/bereket/startup/Athena/backend/internal/application/auth/service.go)): Built single-use password recovery email template with 1-click CTA button and wired `WithMailer` into `auth.Service` for automated dispatch upon `RequestPasswordReset`.
+     - *Worker Automated Digest Dispatch* ([`weekly_digest.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/workers/weekly_digest.go), [`worker/main.go`](file:///home/bereket/startup/Athena/backend/cmd/worker/main.go)): Wired `WeeklyDigestWorker` to resolve user accounts, render digest emails, and dispatch weekly briefings during periodic background runs via `AddDigestWithMailer`.
+     - *Configuration & Testing* ([`config.go`](file:///home/bereket/startup/Athena/backend/internal/platform/config/config.go), [`.env.example`](file:///home/bereket/startup/Athena/.env.example), [`mail_test.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/mail/mail_test.go)): Added `ATHENA_MAIL_PROVIDER`, `ATHENA_SMTP_HOST`, `ATHENA_SMTP_PORT`, `ATHENA_SMTP_USERNAME`, `ATHENA_SMTP_PASSWORD`, `ATHENA_SMTP_FROM`, and `ATHENA_APP_BASE_URL` with 100% test coverage.
+   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); binaries `bin/api` and `bin/worker` build cleanly.
+
+2. **Europe PMC & PubMed Research Provider Integration (2026-11-11)**:
    - **Scope**: Implemented full Europe PMC provider adapter (`europepmc`) unlocking worldwide biomedical and life sciences research literature (PubMed, PMC, preprints), expanding live federated search fan-out to 5 providers, adding cross-provider PubMed ID (`pmid`) deduplication, and enabling open-access direct PDF resolution.
    - **Core Deliverables**:
      - *Europe PMC Adapter* ([`europepmc.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/providers/europepmc/europepmc.go), [`doc.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/providers/europepmc/doc.go)):
