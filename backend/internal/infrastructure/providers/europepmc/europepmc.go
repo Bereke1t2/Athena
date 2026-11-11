@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"html"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	"athena/backend/internal/domain/research"
 	"athena/backend/internal/infrastructure/providers"
 )
 
@@ -149,4 +151,48 @@ func stripHTML(s string) string {
 
 func collapseWS(s string) string {
 	return strings.Join(strings.Fields(s), " ")
+}
+
+func parsePublicationDate(dto *resultDTO) *time.Time {
+	if dto.FirstPublicationDate != "" {
+		if t, err := time.Parse("2006-01-02", strings.TrimSpace(dto.FirstPublicationDate)); err == nil {
+			utc := t.UTC()
+			return &utc
+		}
+	}
+	if dto.PubYear != "" {
+		if y, err := strconv.Atoi(strings.TrimSpace(dto.PubYear)); err == nil && y > 1800 && y < 2100 {
+			t := time.Date(y, 1, 1, 0, 0, 0, 0, time.UTC)
+			return &t
+		}
+	}
+	if dto.JournalInfo != nil && dto.JournalInfo.YearOfPublication > 1800 {
+		t := time.Date(dto.JournalInfo.YearOfPublication, 1, 1, 0, 0, 0, 0, time.UTC)
+		return &t
+	}
+	return nil
+}
+
+func mapPubType(dto *resultDTO) research.PublicationType {
+	if strings.EqualFold(dto.Source, "PPR") {
+		return research.PubTypePreprint
+	}
+	if dto.PubTypeList != nil {
+		for _, pt := range dto.PubTypeList.PubType {
+			low := strings.ToLower(pt)
+			if strings.Contains(low, "review") {
+				return research.PubTypeReview
+			}
+			if strings.Contains(low, "conference") || strings.Contains(low, "proceedings") {
+				return research.PubTypeConferencePaper
+			}
+			if strings.Contains(low, "dataset") {
+				return research.PubTypeDataset
+			}
+			if strings.Contains(low, "preprint") {
+				return research.PubTypePreprint
+			}
+		}
+	}
+	return research.PubTypeArticle
 }
