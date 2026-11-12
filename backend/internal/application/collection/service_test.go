@@ -11,8 +11,17 @@ import (
 
 	appcollection "athena/backend/internal/application/collection"
 	domaincollection "athena/backend/internal/domain/collection"
+	domainexport "athena/backend/internal/domain/export"
 	"athena/backend/internal/domain/research"
 )
+
+type mockExporter struct {
+	exported map[string]string
+}
+
+func (m *mockExporter) ExportPapersBulk(ctx context.Context, paperIDs []uuid.UUID, format domainexport.Format) (string, string, error) {
+	return "@article{mock, title={Mock}}", format.ContentType(), nil
+}
 
 // mockCollectionStore implements domaincollection.Store in memory.
 type mockCollectionStore struct {
@@ -282,3 +291,46 @@ func TestCollectionService_Lifecycle(t *testing.T) {
 	_, _, err = svc.GetCollection(ctx, user1, col.ID)
 	assert.ErrorIs(t, err, domaincollection.ErrNotFound)
 }
+
+func TestCollectionService_ExportCollection(t *testing.T) {
+	store := newMockStore()
+	exporter := &mockExporter{}
+	svc := appcollection.NewService(store, nil).WithExporter(exporter)
+	ctx := context.Background()
+
+	user1 := uuid.New()
+	user2 := uuid.New()
+
+	col, err := svc.CreateCollection(ctx, domaincollection.CreateInput{
+		UserID:      user1,
+		Name:        "Graph Neural Networks",
+		Description: "Key papers",
+		IsPublic:    false,
+	})
+	require.NoError(t, err)
+
+	err = svc.AddPaper(ctx, user1, col.ID, uuid.New(), "GCN baseline")
+	require.NoError(t, err)
+
+	// Owner can export
+	content, contentType, err := svc.ExportCollection(ctx, user1, col.ID, domainexport.FormatBibTeX)
+	require.NoError(t, err)
+	assert.Contains(t, content, "@article{mock")
+	assert.Equal(t, "application/x-bibtex; charset=utf-8", contentType)
+
+	// Non-owner cannot export private collection
+	_, _, err = svc.ExportCollection(ctx, user2, col.ID, domainexport.FormatBibTeX)
+	assert.ErrorIs(t, err, domaincollection.ErrUnauthorized)
+
+	// Public collection can be exported by anyone
+	isPublic := true
+	_, err = svc.UpdateCollection(ctx, user1, col.ID, domaincollection.UpdateInput{
+		IsPublic: &isPublic,
+	})
+	require.NoError(t, err)
+
+	content, _, err = svc.ExportCollection(ctx, user2, col.ID, domainexport.FormatBibTeX)
+	require.NoError(t, err)
+	assert.Contains(t, content, "@article{mock")
+}
+
