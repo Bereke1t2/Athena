@@ -23,6 +23,7 @@ const (
 	CodeInternal            = "internal"
 	CodeUpstreamUnavailable = "upstream_unavailable"
 	CodeRateLimited         = "rate_limited"
+	CodeConflict            = "conflict"
 )
 
 type errorDetail struct {
