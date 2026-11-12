@@ -29,6 +29,7 @@ type Deps struct {
 	History       *v1.HistoryHandlers
 	Export        *v1.ExportHandlers
 	Digest        *v1.DigestHandlers
+	Collections   *v1.CollectionsHandlers
 	Logger        *slog.Logger
 
 	// Limiter enforces inbound rate limiting per API spec (MemoryRateLimiter if nil).
@@ -218,6 +219,18 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 	if deps.Auth != nil && deps.Digest != nil {
 		mux.HandleFunc("GET /api/v1/research/digest/latest", deps.Digest.Latest)
 		mux.Handle("POST /api/v1/research/digest/generate", v1.RequireAuth(deps.Digest.Generate))
+	}
+
+	if deps.Collections != nil {
+		mux.Handle("POST /api/v1/collections", v1.RequireAuth(deps.Collections.Create))
+		mux.Handle("GET /api/v1/collections", v1.RequireAuth(deps.Collections.List))
+		mux.HandleFunc("GET /api/v1/collections/{id}", deps.Collections.Get)
+		mux.Handle("PATCH /api/v1/collections/{id}", v1.RequireAuth(deps.Collections.Update))
+		mux.Handle("DELETE /api/v1/collections/{id}", v1.RequireAuth(deps.Collections.Delete))
+		mux.Handle("POST /api/v1/collections/{id}/papers", v1.RequireAuth(deps.Collections.AddPaper))
+		mux.Handle("DELETE /api/v1/collections/{id}/papers/{paper_id}", v1.RequireAuth(deps.Collections.RemovePaper))
+		mux.HandleFunc("GET /api/v1/collections/{id}/export", deps.Collections.Export)
+		mux.Handle("GET /api/v1/papers/{id}/collections", v1.RequireAuth(deps.Collections.PaperMemberships))
 	}
 
 	if deps.Admin != nil {
