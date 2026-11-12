@@ -8,13 +8,20 @@ import (
 	"github.com/google/uuid"
 
 	domaincollection "athena/backend/internal/domain/collection"
+	domainexport "athena/backend/internal/domain/export"
 	"athena/backend/internal/domain/research"
 )
 
+// Exporter formats multiple papers into standard bibliographic formats.
+type Exporter interface {
+	ExportPapersBulk(ctx context.Context, paperIDs []uuid.UUID, format domainexport.Format) (string, string, error)
+}
+
 // Service coordinates research collections and reading lists use cases.
 type Service struct {
-	store  domaincollection.Store
-	reader research.PaperReader
+	store    domaincollection.Store
+	reader   research.PaperReader
+	exporter Exporter
 }
 
 // NewService constructs a collection application service.
@@ -23,6 +30,12 @@ func NewService(store domaincollection.Store, reader research.PaperReader) *Serv
 		store:  store,
 		reader: reader,
 	}
+}
+
+// WithExporter configures a citation exporter.
+func (s *Service) WithExporter(exporter Exporter) *Service {
+	s.exporter = exporter
+	return s
 }
 
 // CreateCollection creates a new collection for a user.
@@ -165,3 +178,36 @@ func (s *Service) GetPaperMemberships(ctx context.Context, userID, paperID uuid.
 	}
 	return s.store.GetPaperMemberships(ctx, userID, paperID)
 }
+
+// ExportCollection formats all papers in a collection into the requested bibliography format.
+func (s *Service) ExportCollection(ctx context.Context, userID, collectionID uuid.UUID, format domainexport.Format) (string, string, error) {
+	if collectionID == uuid.Nil {
+		return "", "", fmt.Errorf("%w: invalid collection id", domaincollection.ErrInvalidInput)
+	}
+
+	c, err := s.store.GetByID(ctx, collectionID)
+	if err != nil {
+		return "", "", err
+	}
+
+	if !c.IsPublic && c.UserID != userID {
+		return "", "", domaincollection.ErrUnauthorized
+	}
+
+	if s.exporter == nil {
+		return "", "", errors.New("exporter not configured")
+	}
+
+	papers, err := s.store.ListPapers(ctx, collectionID)
+	if err != nil {
+		return "", "", err
+	}
+
+	paperIDs := make([]uuid.UUID, len(papers))
+	for i, p := range papers {
+		paperIDs[i] = p.PaperID
+	}
+
+	return s.exporter.ExportPapersBulk(ctx, paperIDs, format)
+}
+
