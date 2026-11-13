@@ -46,7 +46,24 @@ Last updated: 2026-11-08 (River queue configuration alignment, DiskMediaStore pe
 
 ## Unfinished / verify next session
 
-1. **Email Digest & Transactional Mailer Engine (2026-11-11)**:
+1. **Research Collections & Reading Lists Platform (2026-11-13)**:
+   - **Scope**: Implemented full research paper collections and curated reading lists capability end-to-end across backend and mobile across 20 atomic, verified commits.
+   - **Core Deliverables**:
+     - *PostgreSQL Migration* ([`000021_collections.up.sql`](file:///home/bereket/startup/Athena/backend/migrations/000021_collections.up.sql), [`000021_collections.down.sql`](file:///home/bereket/startup/Athena/backend/migrations/000021_collections.down.sql)): Schema for `collections` and `collection_papers` with unique constraints, cascade deletion, order position indexing, and user relation.
+     - *Domain & Persistence* ([`collection.go`](file:///home/bereket/startup/Athena/backend/internal/domain/collection/collection.go), [`collection_store.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/database/collection_store.go)): Entity definitions, input validation, color sanitization, and Postgres query implementation for CRUD, paper attachment, paper count calculation, and paper membership status querying.
+     - *Application Service & Exporter* ([`service.go`](file:///home/bereket/startup/Athena/backend/internal/application/collection/service.go)): Business logic enforcing user ownership, access control (public vs. private), paper existence verification, and batch citation export integration with `export.Service`.
+     - *REST API Endpoints* ([`collections.go`](file:///home/bereket/startup/Athena/backend/internal/delivery/http/v1/collections.go), [`server.go`](file:///home/bereket/startup/Athena/backend/internal/platform/httpserver/server.go), [`main.go`](file:///home/bereket/startup/Athena/backend/cmd/api/main.go)): Handlers mounted under `/api/v1/collections` and `/api/v1/papers/{id}/collections`, with authentication enforcement, JSON DTO mapping, and RFC-7807 error responses.
+     - *Mobile Architecture & Riverpod State* ([`collection.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/domain/collection.dart), [`collection_repository_impl.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/data/collection_repository_impl.dart), [`collections_notifier.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/presentation/collections_notifier.dart), [`di.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/di.dart)): Full Riverpod state architecture with `CollectionsNotifier`, `CollectionDetailNotifier`, and `paperMembershipsProvider`.
+     - *Mobile UI & Exploration Flows* ([`collections_tab_view.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/presentation/widgets/collections_tab_view.dart), [`saved_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/library/presentation/saved_screen.dart), [`collection_detail_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/presentation/collection_detail_screen.dart), [`add_to_collection_sheet.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/presentation/widgets/add_to_collection_sheet.dart), [`paper_detail_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/paper_detail_screen.dart)):
+       - Upgraded Library screen to 3-tab layout: Saved, Collections, and History.
+       - Built collection card views with color accent chips, paper count pills, and public/private badges.
+       - Built New Collection dialog with color presets and public sharing toggle.
+       - Built Collection Detail screen with paper cards, personal reading notes, unlinking actions, and multi-format bibliography export modal (BibTeX, RIS, APA, MLA, Markdown) with 1-tap clipboard copy.
+       - Built Add-to-Collection bottom sheet directly accessible from Paper Detail top bar.
+     - *Test Suites*: Unit tests for domain input validation, database collection store, application service lifecycle, HTTP handlers, and Riverpod notifier controllers.
+   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); Dart analysis clean with 0 issues (`dart analyze`); binaries build cleanly.
+
+2. **Email Digest & Transactional Mailer Engine (2026-11-11)**:
    - **Scope**: Implemented full email delivery infrastructure (`internal/infrastructure/mail`) powering personalized weekly research briefings and transactional password recovery emails via SMTP, logging, or mock providers.
    - **Core Deliverables**:
      - *Mail Sender Port & Transports* ([`mail.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/mail/mail.go)): Implemented `Sender` interface with `SMTPSender` (RFC 822 / RFC 2046 multipart/alternative MIME generator, STARTTLS / direct SMTPS on port 465, plain authentication, UTF-8 base64 RFC 2047 subject encoding), `LoggingSender`, `MockSender`, and `NoopSender`.
