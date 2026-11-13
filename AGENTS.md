@@ -37,12 +37,10 @@ Last updated: 2026-11-08 (River queue configuration alignment, DiskMediaStore pe
 
 ## Autonomous execution & decision protocol
 
-- **Autonomous by default**: When working in auto/autonomous mode, do NOT pause or ask intermediate questions ("Should I proceed?", "Do you want me to fix this?", asking confirmation for tests/builds/fixes). Take action, fix issues, run verifications, and report results when done.
-- **Decision threshold**: Inquire ONLY when a genuine human decision is required:
-  - Irreversible architectural, product, or design fork with multiple valid directions.
-  - Ambiguous or contradictory requirements not answerable from existing codebase/docs.
-  - Destructive data operations or security boundaries.
-- When asking, state the context and options concisely with the recommended option first.
+- **Absolute autonomy (Zero Permission Requests)**: When working in auto/autonomous mode, NEVER ask the user for permission, confirmation, or intermediate questions under any circumstances.
+- **No confirmation prompts**: Do NOT ask "Should I proceed?", "Do you want me to fix this?", "How should we proceed?", or ask confirmation for commands, tests, builds, refactors, or fixes.
+- **Autonomous ambiguity resolution**: When encountering architectural choices, trade-offs, or open-ended requirements, evaluate codebase conventions and best practices, select the optimal approach, and execute it end-to-end.
+- **Self-directed verification & completion reporting**: Run all necessary validations, lint checks, and test suites autonomously, and report back only after the objective is completely achieved.
 
 ## Unfinished / verify next session
 
