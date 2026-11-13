@@ -10,14 +10,19 @@ class CollectionsNotifier extends StateNotifier<AsyncValue<List<Collection>>> {
   }
 
   final CollectionRepository _repo;
+  bool _isLoading = false;
 
   Future<void> load() async {
+    if (_isLoading) return;
+    _isLoading = true;
     state = const AsyncValue.loading();
     try {
       final items = await _repo.listCollections();
       state = AsyncValue.data(items);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+    } finally {
+      _isLoading = false;
     }
   }
 
@@ -34,7 +39,7 @@ class CollectionsNotifier extends StateNotifier<AsyncValue<List<Collection>>> {
       isPublic: isPublic,
     );
 
-    final current = state.valueOrNull ?? [];
+    final current = (state.valueOrNull ?? []).where((c) => c.id != created.id).toList();
     state = AsyncValue.data([created, ...current]);
     return created;
   }
@@ -111,14 +116,19 @@ class CollectionDetailNotifier
 
   final CollectionRepository _repo;
   final String _collectionId;
+  bool _isLoading = false;
 
   Future<void> load() async {
+    if (_isLoading) return;
+    _isLoading = true;
     state = const AsyncValue.loading();
     try {
       final (col, papers) = await _repo.getCollection(_collectionId);
       state = AsyncValue.data((collection: col, papers: papers));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+    } finally {
+      _isLoading = false;
     }
   }
 

@@ -46,7 +46,7 @@ class FakeCollectionRepository implements CollectionRepository {
   };
 
   @override
-  Future<List<Collection>> listCollections() async => collections;
+  Future<List<Collection>> listCollections() async => List.of(collections);
 
   @override
   Future<(Collection, List<CollectionPaper>)> getCollection(String id) async {
