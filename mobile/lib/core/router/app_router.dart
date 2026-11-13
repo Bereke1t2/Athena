@@ -6,6 +6,7 @@ import '../../features/ai/presentation/chat_screen.dart';
 import '../../features/ai/presentation/create_audio_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
+import '../../features/collections/presentation/collection_detail_screen.dart';
 import '../../features/comparison/presentation/comparison_screen.dart';
 import '../../features/digest/presentation/digest_screen.dart';
 import '../../features/feed/presentation/feed_screen.dart';
@@ -162,6 +163,14 @@ GoRouter buildAppRouter() {
         name: 'saved',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const SavedScreen(),
+      ),
+      GoRoute(
+        path: '/collections/:id',
+        name: 'collection-detail',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => CollectionDetailScreen(
+          collectionId: state.pathParameters['id']!,
+        ),
       ),
       GoRoute(
         path: '/profile',
