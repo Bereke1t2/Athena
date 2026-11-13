@@ -14,6 +14,7 @@ import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../ai/presentation/paper_summary_card.dart';
+import '../../collections/presentation/widgets/add_to_collection_sheet.dart';
 import '../../follows/presentation/follows_notifier.dart';
 import '../../history/presentation/history_notifier.dart';
 import '../domain/citation_graph.dart';
@@ -101,6 +102,19 @@ class PaperDetailScreen extends ConsumerWidget {
               icon: const Icon(Icons.headphones_outlined, size: 20),
               onPressed: () => context.push(
                 '/create-audio?paperId=${paper.summary.id}&title=${Uri.encodeComponent(paper.title)}',
+              ),
+            ),
+            IconButton(
+              tooltip: 'Add to Collection',
+              icon: const Icon(Icons.folder_open_outlined, size: 20),
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => AddToCollectionSheet(
+                  paperId: paper.summary.id,
+                  paperTitle: paper.title,
+                ),
               ),
             ),
             _SaveButton(

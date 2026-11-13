@@ -182,6 +182,12 @@ Acceptance:
       briefings dispatched via SMTP/logging/mock mailers. Resarc editorial HTML
       email design with executive AI synthesis, top takeaways, curated paper links,
       and password recovery emails.
+- [x] Research Collections & Reading Lists: Custom named research paper folders and
+      curated reading lists. PostgreSQL persistence (`collections`, `collection_papers`),
+      REST endpoints (`/api/v1/collections`, `/api/v1/collections/{id}/papers`),
+      cross-format bulk citation export (BibTeX, RIS, APA, MLA, Markdown), and
+      mobile Flutter experience with dedicated Library tab, collection details,
+      and 1-tap paper pinning bottom sheet.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · alternative engines
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · alternative engines
 if ADR-0005 triggers fire · web client · multi-language UIs · institutional features.

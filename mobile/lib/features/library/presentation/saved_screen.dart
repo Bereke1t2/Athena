@@ -6,6 +6,7 @@ import '../../../core/prefs/saved_papers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
+import '../../collections/presentation/widgets/collections_tab_view.dart';
 import '../../history/presentation/history_notifier.dart';
 import '../../papers/presentation/paper_audio_player_screen.dart';
 
@@ -21,7 +22,7 @@ class SavedScreen extends ConsumerWidget {
     final historyState = ref.watch(historyNotifierProvider);
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
         appBar: AthenaTopBar(
@@ -34,7 +35,8 @@ class SavedScreen extends ConsumerWidget {
             labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
             tabs: [
               Tab(text: 'Saved (${saved.length})'),
-              const Tab(text: 'Reading History'),
+              const Tab(text: 'Collections'),
+              const Tab(text: 'History'),
             ],
           ),
         ),
@@ -171,7 +173,10 @@ class SavedScreen extends ConsumerWidget {
                     },
                   ),
 
-            // Tab 2: Reading History
+            // Tab 2: Collections
+            const CollectionsTabView(),
+
+            // Tab 3: Reading History
             historyState.isLoading && historyState.items.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : historyState.items.isEmpty

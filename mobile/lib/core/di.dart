@@ -7,6 +7,8 @@ import '../features/auth/data/auth_repository_impl.dart';
 import '../features/auth/domain/auth_repository.dart';
 import '../features/bookmarks/data/bookmarks_repository_impl.dart';
 import '../features/bookmarks/domain/bookmarks_repository.dart';
+import '../features/collections/data/collection_repository_impl.dart';
+import '../features/collections/domain/collection_repository.dart';
 import '../features/comparison/data/comparison_repository_impl.dart';
 import '../features/comparison/domain/comparison_repository.dart';
 import '../features/digest/data/digest_repository_impl.dart';
@@ -83,6 +85,11 @@ DigestRepository digestRepository(Ref ref) =>
 @riverpod
 BookmarksRepository bookmarksRepository(Ref ref) =>
     BookmarksRepositoryImpl(ref.watch(apiClientProvider));
+
+@riverpod
+CollectionRepository collectionRepository(Ref ref) =>
+    CollectionRepositoryImpl(ref.watch(apiClientProvider));
+
 
 
 

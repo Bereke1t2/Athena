@@ -238,5 +238,24 @@ final bookmarksRepositoryProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef BookmarksRepositoryRef = AutoDisposeProviderRef<BookmarksRepository>;
+String _$collectionRepositoryHash() =>
+    r'29e63ba0b46c8d9b83595e9bf13a47790f1a3074';
+
+/// See also [collectionRepository].
+@ProviderFor(collectionRepository)
+final collectionRepositoryProvider =
+    AutoDisposeProvider<CollectionRepository>.internal(
+  collectionRepository,
+  name: r'collectionRepositoryProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$collectionRepositoryHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef CollectionRepositoryRef = AutoDisposeProviderRef<CollectionRepository>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

@@ -18,6 +18,7 @@ import (
 
 	appauth "athena/backend/internal/application/auth"
 	appbookmark "athena/backend/internal/application/bookmark"
+	appcollection "athena/backend/internal/application/collection"
 	appdigest "athena/backend/internal/application/digest"
 	appexport "athena/backend/internal/application/export"
 	appfeed "athena/backend/internal/application/feed"
@@ -255,9 +256,15 @@ func run() error {
 	historyHandlers := v1.NewHistoryHandlers(
 		apphistory.NewService(historyStore), log)
 
-	exportHandlers := v1.NewExportHandlers(appexport.NewService(store), log)
+	exportSvc := appexport.NewService(store)
+	exportHandlers := v1.NewExportHandlers(exportSvc, log)
 	digestStore := database.NewDigestStore(pool)
 	digestHandlers := v1.NewDigestHandlers(appdigest.NewService(store, followStore, digestStore, llm, log), log)
+
+	// Research Collections & Reading Lists
+	collectionStore := database.NewCollectionStore(pool)
+	collectionHandlers := v1.NewCollectionsHandlers(
+		appcollection.NewService(collectionStore, store).WithExporter(exportSvc), log)
 
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
@@ -273,8 +280,9 @@ func run() error {
 			Follows:       followHandlers,
 			Notifications: notifHandlers,
 			History:       historyHandlers,
-			Export:         exportHandlers,
-			Digest:         digestHandlers,
+			Export:        exportHandlers,
+			Digest:        digestHandlers,
+			Collections:   collectionHandlers,
 			AllowedOrigins: cfg.CORSAllowedOrigins,
 			Logger:         log,
 			Ping: func() error {
