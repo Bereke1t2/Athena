@@ -337,6 +337,20 @@ POST   /devices                            { "token": "...", "platform": "androi
 DELETE /devices/{token}
 ```
 
+### Research Collections & Reading Lists
+
+```text
+POST   /collections                        { "title": "...", "description": "...", "color": "#...", "is_public": false }
+GET    /collections                        # user collections with paper counts
+GET    /collections/{id}                   # collection detail and papers
+PATCH  /collections/{id}                   { "title": "...", "description": "...", "color": "...", "is_public": bool }
+DELETE /collections/{id}
+POST   /collections/{id}/papers            { "paper_id": "...", "notes": "..." }
+DELETE /collections/{id}/papers/{paper_id}
+GET    /collections/{id}/export?format=bibtex|ris|apa|mla|markdown
+GET    /papers/{id}/collections            # collection memberships for paper
+```
+
 ### Admin / ingestion ops (Phase 1)
 
 Guarded by `Authorization: Bearer $ATHENA_ADMIN_TOKEN`.
