@@ -41,9 +41,21 @@ func TestPeriodicSyncWindow(t *testing.T) {
 	assert.True(t, syncArgs.To.After(syncArgs.From))
 }
 
+func TestPeriodicHousekeeping(t *testing.T) {
+	pj := workers.PeriodicHousekeeping(24 * time.Hour)
+	require.NotNil(t, pj)
+
+	args, opts := workers.PeriodicHousekeepingConstructor()
+	require.NotNil(t, args)
+	require.NotNil(t, opts)
+
+	assert.Equal(t, workers.HousekeepingKind, args.Kind())
+}
+
 func TestJobKinds(t *testing.T) {
 	assert.Equal(t, "weekly_digest", workers.WeeklyDigestArgs{}.Kind())
 	assert.Equal(t, "sync_provider_window", workers.SyncProviderWindowArgs{}.Kind())
 	assert.Equal(t, "notification_fanout", workers.NotificationFanoutArgs{}.Kind())
 	assert.Equal(t, "rag_index_paper", workers.RagIndexArgs{}.Kind())
+	assert.Equal(t, "housekeeping_cleanup", workers.HousekeepingArgs{}.Kind())
 }
