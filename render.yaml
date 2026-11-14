@@ -96,10 +96,10 @@ services:
       - key: LLM_MODEL
         value: gemini-3.5-flash-lite
       - key: EMBEDDING_PROVIDER
-        # Native Google Gemini embedding provider (text-embedding-004)
+        # Native Google Gemini embedding provider (gemini-embedding-001)
         value: gemini
       - key: EMBEDDING_MODEL
-        value: text-embedding-004
+        value: gemini-embedding-001
       - key: EMBEDDING_DIM
         value: "768"
       - key: GEMINI_API_KEY
@@ -111,3 +111,9 @@ services:
       - key: OPENALEX_MAILTO
         # Simply your email (e.g. yourname@gmail.com) for polite pool access
         sync: false
+      - key: EUROPEPMC_EMAIL
+        sync: false
+      - key: ATHENA_MAIL_PROVIDER
+        value: noop
+      - key: ATHENA_PUSH_PROVIDER
+        value: noop
