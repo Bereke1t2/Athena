@@ -35,6 +35,9 @@ type Deps struct {
 	// Limiter enforces inbound rate limiting per API spec (MemoryRateLimiter if nil).
 	Limiter v1.RateLimiter
 
+	// IdempotencyStore caches responses for mutating requests (MemoryIdempotencyStore if nil).
+	IdempotencyStore v1.IdempotencyStore
+
 	// AllowedOrigins configures CORS allow-listing (empty disables CORS headers).
 	AllowedOrigins []string
 
