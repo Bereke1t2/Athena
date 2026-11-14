@@ -126,3 +126,35 @@ func TestRedisRateLimiter(t *testing.T) {
 		t.Fatalf("resetAt should be in the future, got %v", resetAt)
 	}
 }
+
+func TestRedisIdempotencyStore(t *testing.T) {
+	c, _ := newTestCache(t)
+	store := c.IdempotencyStore()
+	if store == nil {
+		t.Fatal("expected non-nil idempotency store")
+	}
+
+	key := "idem-key-12345"
+	if _, ok := store.Get(key); ok {
+		t.Fatal("expected key to be absent")
+	}
+
+	resp := v1.CachedResponse{
+		StatusCode: 201,
+		Header:     map[string][]string{"Content-Type": {"application/json"}},
+		Body:       []byte(`{"created":true}`),
+	}
+
+	store.Set(key, resp, 5*time.Minute)
+
+	got, ok := store.Get(key)
+	if !ok || got == nil {
+		t.Fatal("expected to retrieve cached response")
+	}
+	if got.StatusCode != 201 {
+		t.Fatalf("expected status 201, got %d", got.StatusCode)
+	}
+	if string(got.Body) != `{"created":true}` {
+		t.Fatalf("expected body %s, got %s", `{"created":true}`, string(got.Body))
+	}
+}
