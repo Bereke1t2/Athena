@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
@@ -51,4 +52,33 @@ func (w *HousekeepingWorker) Work(ctx context.Context, job *river.Job[Housekeepi
 	)
 
 	return nil
+}
+
+// AddHousekeeping registers the database housekeeping worker.
+func AddHousekeeping(workers *river.Workers, pool *pgxpool.Pool, logger *slog.Logger) {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	river.AddWorker(workers, &HousekeepingWorker{
+		Pool:   pool,
+		Logger: logger,
+	})
+}
+
+// PeriodicHousekeepingConstructor returns the job arguments and insert options for database housekeeping.
+func PeriodicHousekeepingConstructor() (river.JobArgs, *river.InsertOpts) {
+	return HousekeepingArgs{}, &river.InsertOpts{
+		Queue: river.QueueDefault,
+	}
+}
+
+// PeriodicHousekeeping schedules automated daily database cleanup.
+func PeriodicHousekeeping(every time.Duration) *river.PeriodicJob {
+	return river.NewPeriodicJob(
+		river.PeriodicInterval(every),
+		func() (river.JobArgs, *river.InsertOpts) {
+			return PeriodicHousekeepingConstructor()
+		},
+		&river.PeriodicJobOpts{RunOnStart: false},
+	)
 }
