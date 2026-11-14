@@ -40,6 +40,22 @@ func (c *Cache) Ping(ctx context.Context) error {
 	return c.rdb.Ping(ctx).Err()
 }
 
+// RDB exposes the underlying redis client.
+func (c *Cache) RDB() *redis.Client {
+	if c == nil {
+		return nil
+	}
+	return c.rdb
+}
+
+// RateLimiter returns a Redis-backed sliding-window rate limiter.
+func (c *Cache) RateLimiter() *RedisRateLimiter {
+	if c == nil || c.rdb == nil {
+		return nil
+	}
+	return NewRedisRateLimiter(c.rdb)
+}
+
 // Close releases the underlying connection pool.
 func (c *Cache) Close() error {
 	if c == nil || c.rdb == nil {
