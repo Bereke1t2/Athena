@@ -283,6 +283,12 @@ func run() error {
 			Export:        exportHandlers,
 			Digest:        digestHandlers,
 			Collections:   collectionHandlers,
+			Limiter: func() v1.RateLimiter {
+				if rawCache != nil {
+					return rawCache.RateLimiter()
+				}
+				return nil
+			}(),
 			AllowedOrigins: cfg.CORSAllowedOrigins,
 			Logger:         log,
 			Ping: func() error {
