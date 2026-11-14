@@ -1,6 +1,6 @@
 # AGENTS.md — working notes for AI agents on Athena
 
-Last updated: 2026-11-08 (River queue configuration alignment, DiskMediaStore persistent audio storage, mobile native audio hardware streaming via just_audio). Read this first.
+Last updated: 2026-11-14 (Platform hardening: Redis rate limiter & idempotency store, housekeeping River worker, worker periodic ingestion sync, API spec synchronization, mobile citation graph extraction). Read this first.
 
 ## Stack & layout
 
@@ -44,7 +44,17 @@ Last updated: 2026-11-08 (River queue configuration alignment, DiskMediaStore pe
 
 ## Unfinished / verify next session
 
-1. **Research Collections & Reading Lists Platform (2026-11-13)**:
+1. **Platform Hardening, Multi-Replica Safety & Maintenance (2026-11-14)**:
+   - **Scope**: Implemented distributed Redis rate limiting and idempotency caching, periodic database housekeeping worker, worker periodic ingestion sync for Europe PMC and Semantic Scholar, full API spec and CI/CD alignment, and mobile citation graph modularization.
+   - **Core Deliverables**:
+     - *Distributed Rate Limiting & Idempotency* ([`ratelimit.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/cache/ratelimit.go), [`idempotency.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/cache/idempotency.go), [`redis.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/cache/redis.go), [`server.go`](file:///home/bereket/startup/Athena/backend/internal/platform/httpserver/server.go), [`main.go`](file:///home/bereket/startup/Athena/backend/cmd/api/main.go)): Built atomic Redis Lua sliding-window rate limiter (`RedisRateLimiter`) and Redis idempotency cache (`RedisIdempotencyStore`), wiring into HTTP server composition whenever Redis is configured. Tested with miniredis in [`redis_test.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/cache/redis_test.go).
+     - *Database Housekeeping Worker* ([`housekeeping.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/workers/housekeeping.go), [`worker/main.go`](file:///home/bereket/startup/Athena/backend/cmd/worker/main.go)): Built River job `housekeeping_cleanup` to prune expired sessions (>7 days) and stale password resets (>1 day), scheduled daily with `PeriodicHousekeeping`. Unit tested in [`workers_test.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/workers/workers_test.go).
+     - *Periodic Ingestion Scheduling* ([`worker/main.go`](file:///home/bereket/startup/Athena/backend/cmd/worker/main.go)): Registered periodic background sync windows for `europepmc` (6h) and `semanticscholar` (12h) alongside `openalex` and `arxiv`.
+     - *API Spec & Environment Synchronization* ([`api-specification.md`](file:///home/bereket/startup/Athena/docs/api/api-specification.md), [`.env.example`](file:///home/bereket/startup/Athena/.env.example), [`Makefile`](file:///home/bereket/startup/Athena/Makefile), [`render.yaml`](file:///home/bereket/startup/Athena/render.yaml), [`.github/workflows/ci.yml`](file:///home/bereket/startup/Athena/.github/workflows/ci.yml)): Documented Collections, Bulk Export, correct Follows URLs, Device registration, removed obsolete `ATHENA_JWT_SECRET`, added missing Europe PMC/TTS/Mailer variables, and aligned CI Go toolchain via `go-version-file: backend/go.mod`.
+     - *Mobile UI Decomposition & UX Alignment* ([`citation_graph_explorer.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/widgets/citation_graph_explorer.dart), [`paper_detail_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/paper_detail_screen.dart), [`app_router.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/router/app_router.dart), [`widget_test.dart`](file:///home/bereket/startup/Athena/mobile/test/widget_test.dart)): Extracted 787 lines of interactive canvas graph code from `paper_detail_screen.dart` into a modular widget component, and aligned 5th navigation destination label to 'Library' with `Icons.local_library_outlined`.
+   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); binaries `bin/api`, `bin/worker`, `bin/migrate` build cleanly.
+
+2. **Research Collections & Reading Lists Platform (2026-11-13)**:
    - **Scope**: Implemented full research paper collections and curated reading lists capability end-to-end across backend and mobile across 20 atomic, verified commits.
    - **Core Deliverables**:
      - *PostgreSQL Migration* ([`000021_collections.up.sql`](file:///home/bereket/startup/Athena/backend/migrations/000021_collections.up.sql), [`000021_collections.down.sql`](file:///home/bereket/startup/Athena/backend/migrations/000021_collections.down.sql)): Schema for `collections` and `collection_papers` with unique constraints, cascade deletion, order position indexing, and user relation.
