@@ -106,6 +106,7 @@ func main() {
 	riverWorkers := river.NewWorkers()
 	workers.AddAll(riverWorkers, service, log)
 	workers.AddNotificationsWithPush(riverWorkers, pool, pushSender, log)
+	workers.AddHousekeeping(riverWorkers, pool, log)
 
 	var llm domainai.LLMProvider
 	if cfg.AIEnabled() {
