@@ -175,7 +175,9 @@ func main() {
 			workers.PeriodicSyncWindow(openalexadapter.Slug, 6*time.Hour),
 			workers.PeriodicSyncWindow(arxivadapter.Slug, 6*time.Hour),
 			workers.PeriodicSyncWindow(europepmcadapter.Slug, 6*time.Hour),
+			workers.PeriodicSyncWindow(s2adapter.Slug, 12*time.Hour),
 			workers.PeriodicWeeklyDigest(7 * 24 * time.Hour),
+			workers.PeriodicHousekeeping(24 * time.Hour),
 		}
 	}
 
