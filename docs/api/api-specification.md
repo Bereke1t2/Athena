@@ -280,27 +280,75 @@ Comparison (Phase 6):
 POST /research/compare   { "paper_ids": ["…","…"], "question": null,
                            "aspects": ["methodology","results","limitations"],
                            "level": "advanced" }
-      → 202 { "comparison_id": "…" } ; poll GET /comparisons/{comparison_id}
+      → 200 { "summary": "...", "comparison_matrix": [...] }
 ```
 
-### Personalization (Phase 5)
+### Research Export & Citation Intelligence
 
 ```text
-POST /auth/register | /auth/login | /auth/refresh | POST /auth/logout
-GET  /me                                    GET /me/feed-config
-PUT  /me/explanation-level                  { "level": "advanced" }
+GET  /research/papers/{id}/export?format=bibtex|ris|apa|mla|markdown
+POST /research/papers/export              { "paper_ids": ["..."], "format": "bibtex|ris|apa|mla|markdown" }
+GET  /research/papers/{id}/graph?depth=1|2&limit=25
+GET  /research/trends?window_days=30
+```
 
-GET    /bookmarks?cursor=
-PUT    /bookmarks/{paper_id}                # idempotent save (body: optional note)
-DELETE /bookmarks/{paper_id}
+### Weekly Editorial AI Digest
 
-PUT    /me/topics/{slug}    { "notify": true }     # follow
-DELETE /me/topics/{slug}                          # unfollow
-PUT    /me/authors/{id} ; DELETE /me/authors/{id}
+```text
+GET  /research/digest/latest
+POST /research/digest/generate             # generates personalized digest for authenticated user
+```
 
-GET  /notifications?type=&unread_only=&cursor=
-POST /notifications/read                  { "ids": [...], "all": false }
-POST /devices                             # push registration (later)
+### Personalization & User Account
+
+```text
+POST   /auth/register                      { "email": "...", "password": "...", "display_name": "..." }
+POST   /auth/login                         { "email": "...", "password": "..." }
+POST   /auth/refresh                       # session renewal
+POST   /auth/forgot-password               { "email": "..." }
+POST   /auth/reset-password                { "token": "...", "new_password": "..." }
+POST   /auth/logout                        # revokes current session
+GET    /me                                 # account profile
+DELETE /me                                 # App Store 5.1.1(v) account deletion
+PUT    /me/explanation-level               { "level": "beginner|intermediate|advanced|expert" }
+
+POST   /me/bookmarks                       { "paper_id": "...", "note": "..." }
+GET    /me/bookmarks                       # saved papers list
+DELETE /me/bookmarks/{paperId}
+
+POST   /me/follows/topics                  { "slug": "...", "notify": true }
+DELETE /me/follows/topics/{slug}
+GET    /me/follows/topics
+POST   /me/follows/authors                 { "author_id": "..." }
+DELETE /me/follows/authors/{authorId}
+GET    /me/follows/authors
+
+POST   /me/history/progress                { "paper_id": "...", "progress": 0.75, "scroll_position": 1400 }
+GET    /me/history/progress/{paperId}
+GET    /me/history                         # reading history
+DELETE /me/history                         # clear history
+
+GET    /me/notifications                   ?cursor=&limit=
+POST   /me/notifications/{id}/read
+POST   /me/notifications/read-all
+GET    /me/notifications/unread-count
+
+POST   /devices                            { "token": "...", "platform": "android|ios" }
+DELETE /devices/{token}
+```
+
+### Research Collections & Reading Lists
+
+```text
+POST   /collections                        { "title": "...", "description": "...", "color": "#...", "is_public": false }
+GET    /collections                        # user collections with paper counts
+GET    /collections/{id}                   # collection detail and papers
+PATCH  /collections/{id}                   { "title": "...", "description": "...", "color": "...", "is_public": bool }
+DELETE /collections/{id}
+POST   /collections/{id}/papers            { "paper_id": "...", "notes": "..." }
+DELETE /collections/{id}/papers/{paper_id}
+GET    /collections/{id}/export?format=bibtex|ris|apa|mla|markdown
+GET    /papers/{id}/collections            # collection memberships for paper
 ```
 
 ### Admin / ingestion ops (Phase 1)

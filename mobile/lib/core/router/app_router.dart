@@ -317,9 +317,9 @@ class _HomeShell extends StatelessWidget {
                     label: 'Digest',
                   ),
                   NavigationDestination(
-                    icon: Icon(Icons.assignment_turned_in_outlined),
-                    selectedIcon: Icon(Icons.assignment_turned_in_rounded, color: AppTheme.coral),
-                    label: 'Saved',
+                    icon: Icon(Icons.local_library_outlined),
+                    selectedIcon: Icon(Icons.local_library_rounded, color: AppTheme.coral),
+                    label: 'Library',
                   ),
                 ],
               ),

@@ -188,6 +188,14 @@ Acceptance:
       cross-format bulk citation export (BibTeX, RIS, APA, MLA, Markdown), and
       mobile Flutter experience with dedicated Library tab, collection details,
       and 1-tap paper pinning bottom sheet.
+- [x] Platform Hardening, Multi-Replica Safety & Maintenance (2026-11-14):
+      Distributed Redis-backed rate limiting (`RedisRateLimiter`) and idempotency store
+      (`RedisIdempotencyStore`) for multi-replica horizontal scaling; periodic River
+      housekeeping worker pruning expired sessions and password resets; periodic sync
+      scheduling for Europe PMC and Semantic Scholar; full synchronization of REST API
+      specifications (`docs/api/api-specification.md`) and CI/CD Go 1.26 toolchain;
+      mobile code modularization (extracting citation graph explorer widget from detail screen)
+      and 5-tab Library navigation alignment.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · alternative engines
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Platform Hardening & Multi-Replica Safety ✅ · alternative engines
 if ADR-0005 triggers fire · web client · multi-language UIs · institutional features.
