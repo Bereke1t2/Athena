@@ -292,24 +292,49 @@ GET  /research/papers/{id}/graph?depth=1|2&limit=25
 GET  /research/trends?window_days=30
 ```
 
-### Personalization (Phase 5)
+### Weekly Editorial AI Digest
 
 ```text
-POST /auth/register | /auth/login | /auth/refresh | POST /auth/logout
-GET  /me                                    GET /me/feed-config
-PUT  /me/explanation-level                  { "level": "advanced" }
+GET  /research/digest/latest
+POST /research/digest/generate             # generates personalized digest for authenticated user
+```
 
-GET    /bookmarks?cursor=
-PUT    /bookmarks/{paper_id}                # idempotent save (body: optional note)
-DELETE /bookmarks/{paper_id}
+### Personalization & User Account
 
-PUT    /me/topics/{slug}    { "notify": true }     # follow
-DELETE /me/topics/{slug}                          # unfollow
-PUT    /me/authors/{id} ; DELETE /me/authors/{id}
+```text
+POST   /auth/register                      { "email": "...", "password": "...", "display_name": "..." }
+POST   /auth/login                         { "email": "...", "password": "..." }
+POST   /auth/refresh                       # session renewal
+POST   /auth/forgot-password               { "email": "..." }
+POST   /auth/reset-password                { "token": "...", "new_password": "..." }
+POST   /auth/logout                        # revokes current session
+GET    /me                                 # account profile
+DELETE /me                                 # App Store 5.1.1(v) account deletion
+PUT    /me/explanation-level               { "level": "beginner|intermediate|advanced|expert" }
 
-GET  /notifications?type=&unread_only=&cursor=
-POST /notifications/read                  { "ids": [...], "all": false }
-POST /devices                             # push registration (later)
+POST   /me/bookmarks                       { "paper_id": "...", "note": "..." }
+GET    /me/bookmarks                       # saved papers list
+DELETE /me/bookmarks/{paperId}
+
+POST   /me/follows/topics                  { "slug": "...", "notify": true }
+DELETE /me/follows/topics/{slug}
+GET    /me/follows/topics
+POST   /me/follows/authors                 { "author_id": "..." }
+DELETE /me/follows/authors/{authorId}
+GET    /me/follows/authors
+
+POST   /me/history/progress                { "paper_id": "...", "progress": 0.75, "scroll_position": 1400 }
+GET    /me/history/progress/{paperId}
+GET    /me/history                         # reading history
+DELETE /me/history                         # clear history
+
+GET    /me/notifications                   ?cursor=&limit=
+POST   /me/notifications/{id}/read
+POST   /me/notifications/read-all
+GET    /me/notifications/unread-count
+
+POST   /devices                            { "token": "...", "platform": "android|ios" }
+DELETE /devices/{token}
 ```
 
 ### Admin / ingestion ops (Phase 1)
