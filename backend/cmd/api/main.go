@@ -289,6 +289,12 @@ func run() error {
 				}
 				return nil
 			}(),
+			IdempotencyStore: func() v1.IdempotencyStore {
+				if rawCache != nil {
+					return rawCache.IdempotencyStore()
+				}
+				return nil
+			}(),
 			AllowedOrigins: cfg.CORSAllowedOrigins,
 			Logger:         log,
 			Ping: func() error {
