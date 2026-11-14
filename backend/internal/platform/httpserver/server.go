@@ -81,7 +81,12 @@ func New(deps Deps) http.Handler {
 		limiter = v1.NewMemoryRateLimiter()
 	}
 	handler = v1.WithRateLimit(limiter, deps.Logger, handler)
-	handler = v1.WithIdempotency(v1.NewMemoryIdempotencyStore(), 10*time.Minute, handler)
+
+	idemStore := deps.IdempotencyStore
+	if idemStore == nil {
+		idemStore = v1.NewMemoryIdempotencyStore()
+	}
+	handler = v1.WithIdempotency(idemStore, 10*time.Minute, handler)
 	if deps.Auth != nil {
 		handler = v1.WithAuth(deps.Auth.Svc, deps.Logger, handler)
 	}
