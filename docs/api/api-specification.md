@@ -280,7 +280,16 @@ Comparison (Phase 6):
 POST /research/compare   { "paper_ids": ["…","…"], "question": null,
                            "aspects": ["methodology","results","limitations"],
                            "level": "advanced" }
-      → 202 { "comparison_id": "…" } ; poll GET /comparisons/{comparison_id}
+      → 200 { "summary": "...", "comparison_matrix": [...] }
+```
+
+### Research Export & Citation Intelligence
+
+```text
+GET  /research/papers/{id}/export?format=bibtex|ris|apa|mla|markdown
+POST /research/papers/export              { "paper_ids": ["..."], "format": "bibtex|ris|apa|mla|markdown" }
+GET  /research/papers/{id}/graph?depth=1|2&limit=25
+GET  /research/trends?window_days=30
 ```
 
 ### Personalization (Phase 5)
