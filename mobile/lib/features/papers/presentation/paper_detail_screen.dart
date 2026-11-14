@@ -1,10 +1,8 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/di.dart';
 import '../../../core/prefs/saved_papers.dart';
 import '../../../core/prefs/user_preferences.dart';
 import '../../../core/router/app_router.dart';
@@ -17,7 +15,6 @@ import '../../ai/presentation/paper_summary_card.dart';
 import '../../collections/presentation/widgets/add_to_collection_sheet.dart';
 import '../../follows/presentation/follows_notifier.dart';
 import '../../history/presentation/history_notifier.dart';
-import '../domain/citation_graph.dart';
 import '../domain/paper.dart';
 import '../domain/pdf_repository.dart';
 import 'paper_detail_notifier.dart';
