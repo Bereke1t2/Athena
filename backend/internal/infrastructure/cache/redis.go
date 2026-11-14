@@ -56,6 +56,14 @@ func (c *Cache) RateLimiter() *RedisRateLimiter {
 	return NewRedisRateLimiter(c.rdb)
 }
 
+// IdempotencyStore returns a Redis-backed idempotency cache.
+func (c *Cache) IdempotencyStore() *RedisIdempotencyStore {
+	if c == nil || c.rdb == nil {
+		return nil
+	}
+	return NewRedisIdempotencyStore(c.rdb)
+}
+
 // Close releases the underlying connection pool.
 func (c *Cache) Close() error {
 	if c == nil || c.rdb == nil {
