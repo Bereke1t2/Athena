@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -51,5 +52,39 @@ func NewRedisRateLimiter(rdb *redis.Client) *RedisRateLimiter {
 }
 
 func (r *RedisRateLimiter) Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, int, time.Time, error) {
-	return true, limit, time.Now().Add(window), nil
+	if r == nil || r.rdb == nil {
+		return true, limit, time.Now().Add(window), nil
+	}
+
+	now := time.Now()
+	nowMs := now.UnixNano() / int64(time.Millisecond)
+	windowMs := window.Milliseconds()
+	memberID := fmt.Sprintf("%d-%d", nowMs, now.UnixNano()%1000000)
+
+	redisKey := r.prefix + key
+	res, err := slidingWindowScript.Run(ctx, r.rdb, []string{redisKey}, nowMs, windowMs, limit, memberID).Result()
+	if err != nil {
+		// Degrade open if Redis is unavailable
+		return true, limit, now.Add(window), fmt.Errorf("redis rate limit error: %w", err)
+	}
+
+	slice, ok := res.([]any)
+	if !ok || len(slice) < 2 {
+		return true, limit, now.Add(window), nil
+	}
+
+	allowedInt, _ := slice[0].(int64)
+	remainingInt, _ := slice[1].(int64)
+	allowed := allowedInt == 1
+	remaining := int(remainingInt)
+
+	resetAt := now.Add(window)
+	if !allowed && len(slice) >= 3 {
+		if oldestScore, ok := slice[2].(int64); ok && oldestScore > 0 {
+			oldestTime := time.UnixMilli(oldestScore)
+			resetAt = oldestTime.Add(window)
+		}
+	}
+
+	return allowed, remaining, resetAt, nil
 }
