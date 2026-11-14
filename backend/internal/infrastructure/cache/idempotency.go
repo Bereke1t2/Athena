@@ -46,4 +46,18 @@ func (s *RedisIdempotencyStore) Get(key string) (*v1.CachedResponse, bool) {
 	return &resp, true
 }
 
-func (s *RedisIdempotencyStore) Set(key string, resp v1.CachedResponse, ttl time.Duration) {}
+func (s *RedisIdempotencyStore) Set(key string, resp v1.CachedResponse, ttl time.Duration) {
+	if s == nil || s.rdb == nil {
+		return
+	}
+
+	data, err := json.Marshal(resp)
+	if err != nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_ = s.rdb.Set(ctx, s.prefix+key, data, ttl).Err()
+}
