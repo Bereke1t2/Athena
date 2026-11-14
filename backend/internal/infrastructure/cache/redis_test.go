@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+
+	v1 "athena/backend/internal/delivery/http/v1"
 )
 
 func newTestCache(t *testing.T) (*Cache, *miniredis.Miniredis) {
@@ -81,4 +83,46 @@ func TestRedisDownDegradesToMiss(t *testing.T) {
 		t.Fatalf("expected nil on down redis, got %s", b)
 	}
 	_ = err // callers may inspect but must not depend on it
+}
+
+func TestRedisRateLimiter(t *testing.T) {
+	c, _ := newTestCache(t)
+	limiter := c.RateLimiter()
+	if limiter == nil {
+		t.Fatal("expected non-nil limiter")
+	}
+
+	ctx := context.Background()
+	key := "test-user-rate-limit"
+	limit := 3
+	window := time.Minute
+
+	// Attempts 1, 2, 3 should be allowed
+	for i := 1; i <= limit; i++ {
+		allowed, remaining, _, err := limiter.Allow(ctx, key, limit, window)
+		if err != nil {
+			t.Fatalf("unexpected error on attempt %d: %v", i, err)
+		}
+		if !allowed {
+			t.Fatalf("attempt %d should be allowed", i)
+		}
+		if remaining != limit-i {
+			t.Fatalf("expected %d remaining, got %d", limit-i, remaining)
+		}
+	}
+
+	// Attempt 4 should be rejected
+	allowed, remaining, resetAt, err := limiter.Allow(ctx, key, limit, window)
+	if err != nil {
+		t.Fatalf("unexpected error on limit exceeded: %v", err)
+	}
+	if allowed {
+		t.Fatal("attempt 4 should NOT be allowed")
+	}
+	if remaining != 0 {
+		t.Fatalf("expected 0 remaining, got %d", remaining)
+	}
+	if resetAt.Before(time.Now()) {
+		t.Fatalf("resetAt should be in the future, got %v", resetAt)
+	}
 }
