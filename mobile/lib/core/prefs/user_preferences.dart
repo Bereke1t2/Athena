@@ -146,6 +146,14 @@ class UserPreferences {
     await _prefs!.setStringList(_kSearchHistory, current);
   }
 
+  Future<void> removeSearchHistory(String query) async {
+    await load();
+    if (_prefs == null) return;
+    final current = List<String>.from(searchHistory);
+    current.removeWhere((item) => item.toLowerCase() == query.trim().toLowerCase());
+    await _prefs!.setStringList(_kSearchHistory, current);
+  }
+
   Future<void> reset() async {
     if (!_ready) return;
     await _prefs!.remove(_kTopics);
