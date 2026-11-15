@@ -95,7 +95,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
-    await UserPreferences.instance.load();
+    await UserPreferences.instance.load(force: true);
   });
 
   testWidgets('SearchScreen accepts initialQuery and auto-submits', (tester) async {
@@ -278,7 +278,7 @@ void main() {
     // Tap the recent search chip
     await tester.tap(find.text('Graph Neural Networks'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(fakeRepo.lastFilters?.query, 'Graph Neural Networks');
     expect(find.text('Found Paper for Graph Neural Networks'), findsOneWidget);

@@ -57,7 +57,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
-    await UserPreferences.instance.load();
+    await UserPreferences.instance.load(force: true);
   });
 
   test('submit loads results and reports meta', () async {

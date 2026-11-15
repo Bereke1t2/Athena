@@ -45,7 +45,7 @@ class SearchNotifier extends _$SearchNotifier {
     final q = rawQuery.trim();
     if (q.isEmpty) return;
     _hasQuery = true;
-    ref.read(searchHistoryProvider.notifier).add(q);
+    await ref.read(searchHistoryProvider.notifier).add(q);
     state = state.copyWith(
       filters: state.filters.copyWith(query: q),
       page: const AsyncValue.loading(),

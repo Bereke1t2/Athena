@@ -30,7 +30,8 @@ class UserPreferences {
 
   bool get _ready => _prefs != null;
 
-  Future<void> load() async {
+  Future<void> load({bool force = false}) async {
+    if (_ready && !force) return;
     _prefs = await SharedPreferences.getInstance();
     _cachedThemeMode = _prefs?.getString(_kThemeMode);
     try {

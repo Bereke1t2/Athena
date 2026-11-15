@@ -9,7 +9,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
-    await UserPreferences.instance.load();
+    await UserPreferences.instance.load(force: true);
   });
 
   test('UserPreferences searchHistory is initially empty', () {
