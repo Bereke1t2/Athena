@@ -7,7 +7,10 @@ import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/paper_card.dart';
 import '../domain/search.dart';
+import '../../../core/prefs/prefs_providers.dart';
+import '../../../core/widgets/async_list_view.dart';
 import 'search_notifier.dart';
+import 'topic_suggestions_provider.dart';
 
 /// Friendly provider names for federated-search telemetry chips.
 const _sourceLabels = {
@@ -34,6 +37,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _focus.addListener(_onFocusChange);
     if (widget.initialQuery != null && widget.initialQuery!.trim().isNotEmpty) {
       _controller.text = widget.initialQuery!.trim();
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -53,11 +57,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
   }
 
+  void _onFocusChange() {
+    setState(() {});
+  }
+
   @override
   void dispose() {
+    _focus.removeListener(_onFocusChange);
     _controller.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  bool get _shouldShowSuggestions {
+    final query = _controller.text.trim();
+    if (query.length < 2) return false;
+    final state = ref.read(searchNotifierProvider);
+    if (!state.submitted) return true;
+    return _focus.hasFocus && query.toLowerCase() != state.filters.query.toLowerCase();
   }
 
   @override
