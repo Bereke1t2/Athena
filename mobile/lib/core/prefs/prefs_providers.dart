@@ -41,3 +41,26 @@ class AppThemeModeNotifier extends Notifier<ThemeMode> {
     UserPreferences.instance.setThemeMode(mode == ThemeMode.dark ? 'dark' : 'light');
   }
 }
+
+final searchHistoryProvider =
+    NotifierProvider<SearchHistoryNotifier, List<String>>(SearchHistoryNotifier.new);
+
+class SearchHistoryNotifier extends Notifier<List<String>> {
+  @override
+  List<String> build() => UserPreferences.instance.searchHistory;
+
+  Future<void> add(String query) async {
+    await UserPreferences.instance.addSearchHistory(query);
+    state = UserPreferences.instance.searchHistory;
+  }
+
+  Future<void> remove(String query) async {
+    await UserPreferences.instance.removeSearchHistory(query);
+    state = UserPreferences.instance.searchHistory;
+  }
+
+  Future<void> clear() async {
+    await UserPreferences.instance.clearSearchHistory();
+    state = const [];
+  }
+}

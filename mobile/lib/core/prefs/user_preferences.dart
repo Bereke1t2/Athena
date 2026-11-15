@@ -16,6 +16,7 @@ class UserPreferences {
   static const _kUserId = 'athena.auth.user_id';
   static const _kUserEmail = 'athena.auth.user_email';
   static const _kUserDisplayName = 'athena.auth.user_display_name';
+  static const _kSearchHistory = 'athena.search.history';
 
   SharedPreferences? _prefs;
   FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
@@ -29,7 +30,8 @@ class UserPreferences {
 
   bool get _ready => _prefs != null;
 
-  Future<void> load() async {
+  Future<void> load({bool force = false}) async {
+    if (_ready && !force) return;
     _prefs = await SharedPreferences.getInstance();
     _cachedThemeMode = _prefs?.getString(_kThemeMode);
     try {
@@ -128,11 +130,43 @@ class UserPreferences {
     }
   }
 
+  List<String> get searchHistory =>
+      _ready ? (_prefs!.getStringList(_kSearchHistory) ?? const <String>[]) : const <String>[];
+
+  Future<void> addSearchHistory(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return;
+    await load();
+    if (_prefs == null) return;
+    final current = List<String>.from(searchHistory);
+    current.removeWhere((item) => item.toLowerCase() == q.toLowerCase());
+    current.insert(0, q);
+    if (current.length > 10) {
+      current.removeRange(10, current.length);
+    }
+    await _prefs!.setStringList(_kSearchHistory, current);
+  }
+
+  Future<void> removeSearchHistory(String query) async {
+    await load();
+    if (_prefs == null) return;
+    final current = List<String>.from(searchHistory);
+    current.removeWhere((item) => item.toLowerCase() == query.trim().toLowerCase());
+    await _prefs!.setStringList(_kSearchHistory, current);
+  }
+
+  Future<void> clearSearchHistory() async {
+    await load();
+    if (_prefs == null) return;
+    await _prefs!.remove(_kSearchHistory);
+  }
+
   Future<void> reset() async {
     if (!_ready) return;
     await _prefs!.remove(_kTopics);
     await _prefs!.remove(_kOnboarded);
     await _prefs!.remove(_kThemeMode);
+    await _prefs!.remove(_kSearchHistory);
     await clearAuthSession();
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -81,15 +82,18 @@ class PaperDetailScreen extends ConsumerWidget {
                 savedAt: DateTime.now(),
               ),
             ),
+            IconButton(
+              tooltip: 'Share Paper',
+              icon: const Icon(Icons.share_outlined, size: 20),
+              onPressed: () => _sharePaper(context, paper),
+            ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert_rounded, size: 20),
               tooltip: 'More actions',
               onSelected: (val) {
                 switch (val) {
                   case 'share':
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Link copied to clipboard')),
-                    );
+                    _sharePaper(context, paper);
                     break;
                   case 'cite':
                     showPaperExportModal(context, paper);
@@ -690,6 +694,47 @@ class PaperDetailScreen extends ConsumerWidget {
     ),
   );
 }
+
+  void _sharePaper(BuildContext context, PaperDetail paper) {
+    final title = paper.title;
+    final authorsList = paper.authors.map((a) => a.name).toList();
+    final authorsStr = authorsList.isEmpty
+        ? ''
+        : (authorsList.length <= 3
+            ? authorsList.join(', ')
+            : '${authorsList.take(3).join(", ")} et al.');
+    final venueYear = [
+      if (paper.summary.venueName.isNotEmpty) paper.summary.venueName,
+      if (paper.summary.year > 0) '${paper.summary.year}',
+    ].join(' · ');
+
+    final link = paper.doi.isNotEmpty
+        ? (paper.doi.startsWith('http') ? paper.doi : 'https://doi.org/${paper.doi}')
+        : (paper.arxivId.isNotEmpty
+            ? 'https://arxiv.org/abs/${paper.arxivId}'
+            : (paper.bestOaUrl.isNotEmpty ? paper.bestOaUrl : 'https://athena.app/papers/${paper.summary.id}'));
+
+    final shareText = [
+      title,
+      if (authorsStr.isNotEmpty) 'Authors: $authorsStr',
+      if (venueYear.isNotEmpty) venueYear,
+      'Link: $link',
+    ].join('\n');
+
+    Clipboard.setData(ClipboardData(text: shareText));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Paper details & link copied to clipboard'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: AppTheme.coral,
+          onPressed: () {},
+        ),
+      ),
+    );
+  }
 
   void _openReader(BuildContext context, PaperDetail paper) {
     final encodedTitle = Uri.encodeComponent(paper.title);

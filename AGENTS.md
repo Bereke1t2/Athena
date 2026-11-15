@@ -1,6 +1,6 @@
 # AGENTS.md — working notes for AI agents on Athena
 
-Last updated: 2026-11-14 (Platform hardening: Redis rate limiter & idempotency store, housekeeping River worker, worker periodic ingestion sync, API spec synchronization, mobile citation graph extraction). Read this first.
+Last updated: 2026-11-15 (Search Autocomplete, Topic Suggestions & Search History: local query persistence, reactive SearchHistoryNotifier, topicSuggestionsProvider, and interactive autocomplete search screen). Read this first.
 
 ## Stack & layout
 
@@ -44,7 +44,21 @@ Last updated: 2026-11-14 (Platform hardening: Redis rate limiter & idempotency s
 
 ## Unfinished / verify next session
 
-1. **Platform Hardening, Multi-Replica Safety & Maintenance (2026-11-14)**:
+1. **Search Autocomplete, Topic Suggestions & Query History (2026-11-15)**:
+   - **Scope**: Implemented real-time topic autocomplete suggestions against `/api/v1/topics?q=`, local search query history persistence via `SharedPreferences`, reactive `SearchHistoryNotifier`, and redesigned `SearchScreen` with dynamic suggestion cards and recent search history chips.
+   - **Core Deliverables**:
+     - *User Preferences Query Persistence* ([`user_preferences.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/prefs/user_preferences.dart), [`prefs_providers.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/prefs/prefs_providers.dart)): Added `_kSearchHistory`, `searchHistory` getter, deduplicated `addSearchHistory` (capped at 10 items), `removeSearchHistory`, and `clearSearchHistory` in `UserPreferences`. Added reactive `searchHistoryProvider` via `SearchHistoryNotifier`.
+     - *Topic Autocomplete Provider* ([`topic_suggestions_provider.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/search/presentation/topic_suggestions_provider.dart)): Created auto-disposing family provider querying `topicsRepositoryProvider.list(query: q, limit: 6)` on input lengths >= 2.
+     - *Search Notifier Query Logging & Reset* ([`search_notifier.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/search/presentation/search_notifier.dart)): Automatically logs submitted search terms into `searchHistoryProvider` on `submit()`, and added `reset()` returning the state to unsubmitted idle.
+     - *Interactive Search Screen UI* ([`search_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/search/presentation/search_screen.dart)):
+       - Added live suggestion cards with topic icon, field name, and paper count badge (`_buildSuggestions`).
+       - Added direct query execution card for custom queries.
+       - Added recent search chips with tap-to-execute and individual delete icons, plus a 1-tap "Clear all" button (`_idle`).
+       - Connected search bar clear button to `notifier.reset()`.
+     - *Test Suites* ([`search_history_test.dart`](file:///home/bereket/startup/Athena/mobile/test/core/prefs/search_history_test.dart), [`search_flow_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/search/search_flow_test.dart)): Created 5 unit tests for `UserPreferences` search history and added 2 widget tests verifying topic autocomplete rendering and recent search chip interactions.
+   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); Mobile test suite 100% green (114 passing, 1 skipped); GitHub Actions CI workflow (Run #43757171248) 100% green for both Backend (Go) and Mobile (Flutter); PR #22 checks passing cleanly.
+
+2. **Platform Hardening, Multi-Replica Safety & Maintenance (2026-11-14)**:
    - **Scope**: Implemented distributed Redis rate limiting and idempotency caching, periodic database housekeeping worker, worker periodic ingestion sync for Europe PMC and Semantic Scholar, full API spec and CI/CD alignment, and mobile citation graph modularization.
    - **Core Deliverables**:
      - *Distributed Rate Limiting & Idempotency* ([`ratelimit.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/cache/ratelimit.go), [`idempotency.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/cache/idempotency.go), [`redis.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/cache/redis.go), [`server.go`](file:///home/bereket/startup/Athena/backend/internal/platform/httpserver/server.go), [`main.go`](file:///home/bereket/startup/Athena/backend/cmd/api/main.go)): Built atomic Redis Lua sliding-window rate limiter (`RedisRateLimiter`) and Redis idempotency cache (`RedisIdempotencyStore`), wiring into HTTP server composition whenever Redis is configured. Tested with miniredis in [`redis_test.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/cache/redis_test.go).
