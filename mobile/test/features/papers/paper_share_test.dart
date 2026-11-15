@@ -35,7 +35,7 @@ class _FakePaperRepository implements PaperRepository {
 
   @override
   Future<CitationGraph> getCitationGraph(String id, {int depth = 1, int limit = 25}) async =>
-      const CitationGraph(nodes: [], edges: []);
+      CitationGraph(rootId: id, nodes: const [], edges: const []);
 
   @override
   Future<AudioTrack> synthesizeAudio(
@@ -81,7 +81,7 @@ void main() {
       AuthorLine(id: 'a3', name: 'Niki Parmar'),
       AuthorLine(id: 'a4', name: 'Jakob Uszkoreit'),
     ],
-    topics: [TopicLine(slug: 'transformers', name: 'Transformers')],
+    topics: [TopicLine(slug: 'transformers', name: 'Transformers', score: 0.95, isPrimary: true)],
     versions: [],
     referenceCount: 38,
     sources: ['arxiv'],
