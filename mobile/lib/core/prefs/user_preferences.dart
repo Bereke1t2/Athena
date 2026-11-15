@@ -154,11 +154,18 @@ class UserPreferences {
     await _prefs!.setStringList(_kSearchHistory, current);
   }
 
+  Future<void> clearSearchHistory() async {
+    await load();
+    if (_prefs == null) return;
+    await _prefs!.remove(_kSearchHistory);
+  }
+
   Future<void> reset() async {
     if (!_ready) return;
     await _prefs!.remove(_kTopics);
     await _prefs!.remove(_kOnboarded);
     await _prefs!.remove(_kThemeMode);
+    await _prefs!.remove(_kSearchHistory);
     await clearAuthSession();
   }
 
