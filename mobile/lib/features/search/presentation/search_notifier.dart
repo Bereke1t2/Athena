@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/di.dart';
 import '../../../core/error/failure.dart';
+import '../../../core/prefs/prefs_providers.dart';
 import '../domain/search.dart';
 
 part 'search_notifier.freezed.dart';
@@ -44,6 +45,7 @@ class SearchNotifier extends _$SearchNotifier {
     final q = rawQuery.trim();
     if (q.isEmpty) return;
     _hasQuery = true;
+    ref.read(searchHistoryProvider.notifier).add(q);
     state = state.copyWith(
       filters: state.filters.copyWith(query: q),
       page: const AsyncValue.loading(),
