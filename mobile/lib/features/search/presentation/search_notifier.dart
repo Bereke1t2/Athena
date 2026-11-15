@@ -54,6 +54,12 @@ class SearchNotifier extends _$SearchNotifier {
     await _run(cursor: null);
   }
 
+  /// Resets search state back to initial unsubmitted state.
+  void reset() {
+    _hasQuery = false;
+    state = const SearchState();
+  }
+
   Future<void> setSort(SearchSort sort) async {
     if (!_hasQuery || sort == state.filters.sort) return;
     state = state.copyWith(
