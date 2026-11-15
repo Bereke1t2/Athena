@@ -129,6 +129,9 @@ class UserPreferences {
     }
   }
 
+  List<String> get searchHistory =>
+      _ready ? (_prefs!.getStringList(_kSearchHistory) ?? const <String>[]) : const <String>[];
+
   Future<void> reset() async {
     if (!_ready) return;
     await _prefs!.remove(_kTopics);
