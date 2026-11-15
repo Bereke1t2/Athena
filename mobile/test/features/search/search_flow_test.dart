@@ -1,11 +1,15 @@
 import 'package:athena/core/di.dart';
+import 'package:athena/core/prefs/user_preferences.dart';
 import 'package:athena/features/papers/domain/paper.dart';
 import 'package:athena/features/search/domain/search.dart';
 import 'package:athena/features/search/domain/search_repository.dart';
 import 'package:athena/features/search/presentation/search_screen.dart';
+import 'package:athena/features/topics/domain/topic.dart';
+import 'package:athena/features/topics/domain/topics_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeSearchRepository implements SearchRepository {
   SearchFilters? lastFilters;
@@ -52,7 +56,48 @@ class _FakeSearchRepository implements SearchRepository {
   }
 }
 
+class _FakeTopicsRepository implements TopicsRepository {
+  @override
+  Future<TopicPage> list({
+    String? kind,
+    String? query,
+    String? parent,
+    String? cursor,
+    int limit = 50,
+  }) async {
+    if (query != null && query.toLowerCase().contains('mach')) {
+      return const TopicPage(
+        items: [
+          Topic(
+            slug: 'machine-learning',
+            name: 'Machine Learning',
+            kind: 'field',
+            paperCountEstimate: 1420,
+            parentName: 'Computer Science',
+          ),
+        ],
+        nextCursor: null,
+      );
+    }
+    return const TopicPage(items: [], nextCursor: null);
+  }
+
+  @override
+  Future<Topic> getBySlug(String slug) async => throw UnimplementedError();
+
+  @override
+  Future<PaperListPage> listResearch(String slug, {String sort = 'newest', String? cursor, int limit = 20}) async =>
+      throw UnimplementedError();
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await UserPreferences.instance.load();
+  });
+
   testWidgets('SearchScreen accepts initialQuery and auto-submits', (tester) async {
     final fakeRepo = _FakeSearchRepository();
 
@@ -147,5 +192,75 @@ void main() {
 
     expect(find.text('Europe PMC (5)'), findsOneWidget);
     expect(find.text('arXiv (10)'), findsOneWidget);
+  });
+
+  testWidgets('SearchScreen displays topic suggestions when typing query', (tester) async {
+    final fakeRepo = _FakeSearchRepository();
+    final fakeTopics = _FakeTopicsRepository();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(fakeRepo),
+          topicsRepositoryProvider.overrideWithValue(fakeTopics),
+        ],
+        child: const MaterialApp(
+          home: SearchScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Type query into search bar
+    await tester.enterText(find.byType(SearchBar), 'mach');
+    await tester.pumpAndSettle();
+
+    // Verify autocomplete suggestions appear
+    expect(find.text('TOPIC & FIELD SUGGESTIONS'), findsOneWidget);
+    expect(find.text('Machine Learning'), findsOneWidget);
+    expect(find.text('1420 papers'), findsOneWidget);
+    expect(find.text('Computer Science'), findsOneWidget);
+
+    // Tap the suggestion
+    await tester.tap(find.text('Machine Learning'));
+    await tester.pumpAndSettle();
+
+    // Verify search was submitted with the topic name
+    expect(fakeRepo.lastFilters?.query, 'Machine Learning');
+    expect(find.text('Found Paper for Machine Learning'), findsOneWidget);
+  });
+
+  testWidgets('SearchScreen displays and uses recent search history chips', (tester) async {
+    final fakeRepo = _FakeSearchRepository();
+    final fakeTopics = _FakeTopicsRepository();
+
+    // Prime search history
+    await UserPreferences.instance.addSearchHistory('Graph Neural Networks');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          searchRepositoryProvider.overrideWithValue(fakeRepo),
+          topicsRepositoryProvider.overrideWithValue(fakeTopics),
+        ],
+        child: const MaterialApp(
+          home: SearchScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify recent searches section appears
+    expect(find.text('RECENT SEARCHES'), findsOneWidget);
+    expect(find.text('Graph Neural Networks'), findsOneWidget);
+
+    // Tap the recent search chip
+    await tester.tap(find.text('Graph Neural Networks'));
+    await tester.pumpAndSettle();
+
+    expect(fakeRepo.lastFilters?.query, 'Graph Neural Networks');
+    expect(find.text('Found Paper for Graph Neural Networks'), findsOneWidget);
   });
 }
