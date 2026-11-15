@@ -42,6 +42,9 @@ class AppThemeModeNotifier extends Notifier<ThemeMode> {
   }
 }
 
+final searchHistoryProvider =
+    NotifierProvider<SearchHistoryNotifier, List<String>>(SearchHistoryNotifier.new);
+
 class SearchHistoryNotifier extends Notifier<List<String>> {
   @override
   List<String> build() => UserPreferences.instance.searchHistory;
