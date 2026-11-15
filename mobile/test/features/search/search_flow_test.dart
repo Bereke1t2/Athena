@@ -100,11 +100,13 @@ void main() {
 
   testWidgets('SearchScreen accepts initialQuery and auto-submits', (tester) async {
     final fakeRepo = _FakeSearchRepository();
+    final fakeTopics = _FakeTopicsRepository();
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           searchRepositoryProvider.overrideWithValue(fakeRepo),
+          topicsRepositoryProvider.overrideWithValue(fakeTopics),
         ],
         child: const MaterialApp(
           home: SearchScreen(initialQuery: 'transformers'),
@@ -113,7 +115,8 @@ void main() {
     );
 
     // Initial pump & settle
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('transformers'), findsOneWidget);
     expect(find.text('Found Paper for transformers'), findsOneWidget);
@@ -123,11 +126,13 @@ void main() {
 
   testWidgets('SearchScreen toggles between Corpus and Live Web', (tester) async {
     final fakeRepo = _FakeSearchRepository();
+    final fakeTopics = _FakeTopicsRepository();
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           searchRepositoryProvider.overrideWithValue(fakeRepo),
+          topicsRepositoryProvider.overrideWithValue(fakeTopics),
         ],
         child: const MaterialApp(
           home: SearchScreen(initialQuery: 'quantum'),
@@ -135,23 +140,27 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     expect(fakeRepo.lastFilters?.isLive, false);
 
     // Tap 'Live Web' chip
     await tester.tap(find.text('Live Web'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(fakeRepo.lastFilters?.isLive, true);
   });
 
   testWidgets('SearchScreen shows Web Search prompt on empty corpus', (tester) async {
     final fakeRepo = _FakeSearchRepository();
+    final fakeTopics = _FakeTopicsRepository();
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           searchRepositoryProvider.overrideWithValue(fakeRepo),
+          topicsRepositoryProvider.overrideWithValue(fakeTopics),
         ],
         child: const MaterialApp(
           home: SearchScreen(initialQuery: 'empty-corpus'),
@@ -159,24 +168,28 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Search Web'), findsOneWidget);
 
     // Tap the 'Search Web' fallback button
     await tester.tap(find.text('Search Web'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(fakeRepo.lastFilters?.isLive, true);
   });
 
   testWidgets('SearchScreen renders Europe PMC telemetry chip on live search', (tester) async {
     final fakeRepo = _FakeSearchRepository();
+    final fakeTopics = _FakeTopicsRepository();
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           searchRepositoryProvider.overrideWithValue(fakeRepo),
+          topicsRepositoryProvider.overrideWithValue(fakeTopics),
         ],
         child: const MaterialApp(
           home: SearchScreen(initialQuery: 'crispr-cas9'),
@@ -184,11 +197,13 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Tap 'Live Web' chip to trigger live mode
     await tester.tap(find.text('Live Web'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Europe PMC (5)'), findsOneWidget);
     expect(find.text('arXiv (10)'), findsOneWidget);
@@ -210,11 +225,13 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Type query into search bar
     await tester.enterText(find.byType(SearchBar), 'mach');
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Verify autocomplete suggestions appear
     expect(find.text('TOPIC & FIELD SUGGESTIONS'), findsOneWidget);
@@ -224,7 +241,8 @@ void main() {
 
     // Tap the suggestion
     await tester.tap(find.text('Machine Learning'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Verify search was submitted with the topic name
     expect(fakeRepo.lastFilters?.query, 'Machine Learning');
@@ -250,7 +268,8 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Verify recent searches section appears
     expect(find.text('RECENT SEARCHES'), findsOneWidget);
@@ -258,7 +277,8 @@ void main() {
 
     // Tap the recent search chip
     await tester.tap(find.text('Graph Neural Networks'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(fakeRepo.lastFilters?.query, 'Graph Neural Networks');
     expect(find.text('Found Paper for Graph Neural Networks'), findsOneWidget);

@@ -1,5 +1,6 @@
 import 'package:athena/core/di.dart';
 import 'package:athena/core/error/failure.dart';
+import 'package:athena/core/prefs/user_preferences.dart';
 import 'package:athena/features/papers/domain/paper.dart';
 import 'package:athena/features/search/domain/search.dart';
 import 'package:athena/features/search/domain/search_repository.dart'
@@ -7,6 +8,7 @@ import 'package:athena/features/search/domain/search_repository.dart'
 import 'package:athena/features/search/presentation/search_notifier.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeSearchRepository implements SearchRepository {
   FakeSearchRepository();
@@ -51,6 +53,13 @@ class FakeSearchRepository implements SearchRepository {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await UserPreferences.instance.load();
+  });
+
   test('submit loads results and reports meta', () async {
     final fake = FakeSearchRepository();
     final container = ProviderContainer(overrides: [
