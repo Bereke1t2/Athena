@@ -16,6 +16,7 @@ class UserPreferences {
   static const _kUserId = 'athena.auth.user_id';
   static const _kUserEmail = 'athena.auth.user_email';
   static const _kUserDisplayName = 'athena.auth.user_display_name';
+  static const _kSearchHistory = 'athena.search.history';
 
   SharedPreferences? _prefs;
   FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
