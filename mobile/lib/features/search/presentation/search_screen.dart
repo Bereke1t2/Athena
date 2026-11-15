@@ -110,6 +110,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       icon: const Icon(Icons.close, size: 18),
                       onPressed: () {
                         _controller.clear();
+                        notifier.reset();
                         setState(() {});
                         _focus.requestFocus();
                       },
@@ -495,114 +496,175 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _idle(BuildContext context) {
     final notifier = ref.read(searchNotifierProvider.notifier);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return
-      return Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF20242E) : const Color(0xFFF3F4F6),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.travel_explore_rounded,
-                  size: 36,
-                  color: AppTheme.coral,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Search every source at once',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'One query fans out to arXiv, Semantic Scholar,\nOpenAlex and Crossref — best matches first.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  for (final label in _sourceLabels.values)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1C2028) : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isDark ? const Color(0xFF2C3240) : const Color(0xFFE5E7EB),
+    final history = ref.watch(searchHistoryProvider);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (history.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.history_rounded,
+                          size: 15,
+                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                         ),
-                      ),
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF374151),
+                        const SizedBox(width: 6),
+                        Text(
+                          'RECENT SEARCHES',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                ],
+                    TextButton(
+                      onPressed: () => ref.read(searchHistoryProvider.notifier).clear(),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(50, 24),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Clear all', style: TextStyle(fontSize: 11, color: AppTheme.coral)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final query in history)
+                      InputChip(
+                        avatar: const Icon(Icons.north_west_rounded, size: 12),
+                        label: Text(query, style: const TextStyle(fontSize: 12)),
+                        onPressed: () {
+                          _controller.text = query;
+                          _focus.unfocus();
+                          notifier.submit(query);
+                        },
+                        onDeleted: () => ref.read(searchHistoryProvider.notifier).remove(query),
+                        deleteIcon: const Icon(Icons.close, size: 14),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
-              // Popular research suggestions
-              Text(
-                'TRENDING TOPICS',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.0,
-                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+            ],
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF20242E) : const Color(0xFFF3F4F6),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB),
                 ),
               ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  for (final topic in [
-                    'Scaling Laws',
-                    'Diffusion Models',
-                    'Reasoning & LLMs',
-                    'Transformers',
-                    'Reinforcement Learning',
-                    'Mechanistic Interpretability',
-                  ])
-                    ActionChip(
-                      label: Text(topic),
-                      onPressed: () {
-                        _controller.text = topic;
-                        notifier.submit(topic);
-                      },
-                    ),
-                ],
+              child: const Icon(
+                Icons.travel_explore_rounded,
+                size: 36,
+                color: AppTheme.coral,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Search every source at once',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'One query fans out to arXiv, Semantic Scholar,\nOpenAlex, Crossref and Europe PMC — best matches first.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final label in _sourceLabels.values)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1C2028) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF2C3240) : const Color(0xFFE5E7EB),
+                      ),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF374151),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'TRENDING TOPICS',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+                color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final topic in [
+                  'Scaling Laws',
+                  'Diffusion Models',
+                  'Reasoning & LLMs',
+                  'Transformers',
+                  'Reinforcement Learning',
+                  'Mechanistic Interpretability',
+                ])
+                  ActionChip(
+                    label: Text(topic),
+                    onPressed: () {
+                      _controller.text = topic;
+                      _focus.unfocus();
+                      notifier.submit(topic);
+                    },
+                  ),
+              ],
+            ),
+          ],
         ),
-      );
-    }
-
+      ),
+    );
   }
 
   Widget _sourceSummary(BuildContext context, SearchPageState meta) {
