@@ -132,6 +132,20 @@ class UserPreferences {
   List<String> get searchHistory =>
       _ready ? (_prefs!.getStringList(_kSearchHistory) ?? const <String>[]) : const <String>[];
 
+  Future<void> addSearchHistory(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return;
+    await load();
+    if (_prefs == null) return;
+    final current = List<String>.from(searchHistory);
+    current.removeWhere((item) => item.toLowerCase() == q.toLowerCase());
+    current.insert(0, q);
+    if (current.length > 10) {
+      current.removeRange(10, current.length);
+    }
+    await _prefs!.setStringList(_kSearchHistory, current);
+  }
+
   Future<void> reset() async {
     if (!_ready) return;
     await _prefs!.remove(_kTopics);
