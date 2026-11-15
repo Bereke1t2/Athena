@@ -56,7 +56,7 @@ Last updated: 2026-11-15 (Search Autocomplete, Topic Suggestions & Search Histor
        - Added recent search chips with tap-to-execute and individual delete icons, plus a 1-tap "Clear all" button (`_idle`).
        - Connected search bar clear button to `notifier.reset()`.
      - *Test Suites* ([`search_history_test.dart`](file:///home/bereket/startup/Athena/mobile/test/core/prefs/search_history_test.dart), [`search_flow_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/search/search_flow_test.dart)): Created 5 unit tests for `UserPreferences` search history and added 2 widget tests verifying topic autocomplete rendering and recent search chip interactions.
-   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); binaries `bin/api`, `bin/worker`, `bin/migrate` build cleanly.
+   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); Mobile test suite 100% green (114 passing, 1 skipped); GitHub Actions CI workflow (Run #43757171248) 100% green for both Backend (Go) and Mobile (Flutter); PR #22 checks passing cleanly.
 
 2. **Platform Hardening, Multi-Replica Safety & Maintenance (2026-11-14)**:
    - **Scope**: Implemented distributed Redis rate limiting and idempotency caching, periodic database housekeeping worker, worker periodic ingestion sync for Europe PMC and Semantic Scholar, full API spec and CI/CD alignment, and mobile citation graph modularization.
