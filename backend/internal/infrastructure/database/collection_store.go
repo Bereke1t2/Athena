@@ -76,15 +76,18 @@ func (s *CollectionStore) GetByID(ctx context.Context, id uuid.UUID) (domaincoll
 	return c, nil
 }
 
-// ListByUser returns all collections owned by the user, newest first.
+// ListByUser returns all collections owned by or shared with the user, newest first.
 func (s *CollectionStore) ListByUser(ctx context.Context, userID uuid.UUID) ([]domaincollection.Collection, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT c.id, c.user_id, c.name, c.description, c.color, c.is_public,
-		       COUNT(cp.paper_id)::int AS paper_count, c.created_at, c.updated_at
+		       COUNT(DISTINCT cp.paper_id)::int AS paper_count,
+		       c.created_at, c.updated_at,
+		       CASE WHEN c.user_id = $1 THEN 'owner' ELSE COALESCE(cc.role::text, 'viewer') END AS user_role
 		FROM collections c
+		LEFT JOIN collection_collaborators cc ON cc.collection_id = c.id AND cc.user_id = $1
 		LEFT JOIN collection_papers cp ON cp.collection_id = c.id
-		WHERE c.user_id = $1
-		GROUP BY c.id
+		WHERE c.user_id = $1 OR cc.user_id = $1
+		GROUP BY c.id, cc.role
 		ORDER BY c.created_at DESC`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list collections by user: %w", err)
@@ -94,10 +97,12 @@ func (s *CollectionStore) ListByUser(ctx context.Context, userID uuid.UUID) ([]d
 	var out []domaincollection.Collection
 	for rows.Next() {
 		var c domaincollection.Collection
+		var roleStr string
 		if err := rows.Scan(&c.ID, &c.UserID, &c.Name, &c.Description, &c.Color, &c.IsPublic,
-			&c.PaperCount, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			&c.PaperCount, &c.CreatedAt, &c.UpdatedAt, &roleStr); err != nil {
 			return nil, err
 		}
+		c.UserRole = domaincollection.Role(roleStr)
 		out = append(out, c)
 	}
 	if err := rows.Err(); err != nil {
@@ -276,4 +281,87 @@ func (s *CollectionStore) GetPaperMemberships(ctx context.Context, userID, paper
 		out = []domaincollection.PaperMembership{}
 	}
 	return out, nil
+}
+
+// AddCollaborator inserts or updates a collaborator role on a collection.
+func (s *CollectionStore) AddCollaborator(ctx context.Context, c domaincollection.Collaborator) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO collection_collaborators (collection_id, user_id, role, invited_by, created_at)
+		VALUES ($1, $2, $3::collection_role, NULLIF($4, '00000000-0000-0000-0000-000000000000'::uuid), NOW())
+		ON CONFLICT (collection_id, user_id)
+		DO UPDATE SET role = EXCLUDED.role`,
+		c.CollectionID, c.UserID, string(c.Role), c.InvitedBy,
+	)
+	if err != nil {
+		return fmt.Errorf("add collaborator: %w", err)
+	}
+	return nil
+}
+
+// RemoveCollaborator deletes a collaborator association from a collection.
+func (s *CollectionStore) RemoveCollaborator(ctx context.Context, collectionID, userID uuid.UUID) error {
+	tag, err := s.pool.Exec(ctx, `
+		DELETE FROM collection_collaborators
+		WHERE collection_id = $1 AND user_id = $2`,
+		collectionID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("remove collaborator: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domaincollection.ErrCollaboratorNotFound
+	}
+	return nil
+}
+
+// ListCollaborators returns all collaborators associated with a collection.
+func (s *CollectionStore) ListCollaborators(ctx context.Context, collectionID uuid.UUID) ([]domaincollection.Collaborator, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT cc.collection_id, cc.user_id, COALESCE(u.email, ''), cc.role::text,
+		       COALESCE(cc.invited_by, '00000000-0000-0000-0000-000000000000'::uuid), cc.created_at
+		FROM collection_collaborators cc
+		LEFT JOIN users u ON u.id = cc.user_id
+		WHERE cc.collection_id = $1
+		ORDER BY cc.created_at ASC`,
+		collectionID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list collaborators: %w", err)
+	}
+	defer rows.Close()
+
+	var out []domaincollection.Collaborator
+	for rows.Next() {
+		var col domaincollection.Collaborator
+		var roleStr string
+		if err := rows.Scan(&col.CollectionID, &col.UserID, &col.Email, &roleStr, &col.InvitedBy, &col.CreatedAt); err != nil {
+			return nil, err
+		}
+		col.Role = domaincollection.Role(roleStr)
+		out = append(out, col)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = []domaincollection.Collaborator{}
+	}
+	return out, nil
+}
+
+// GetUserRole returns the collaborator role of a user in a collection.
+func (s *CollectionStore) GetUserRole(ctx context.Context, collectionID, userID uuid.UUID) (domaincollection.Role, error) {
+	var roleStr string
+	err := s.pool.QueryRow(ctx, `
+		SELECT role::text FROM collection_collaborators
+		WHERE collection_id = $1 AND user_id = $2`,
+		collectionID, userID,
+	).Scan(&roleStr)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", domaincollection.ErrCollaboratorNotFound
+		}
+		return "", fmt.Errorf("get user role: %w", err)
+	}
+	return domaincollection.Role(roleStr), nil
 }
