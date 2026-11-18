@@ -130,6 +130,23 @@ class UserPreferences {
     }
   }
 
+  String? getCollectionChatSessionId(String collectionId) {
+    if (!_ready || collectionId.isEmpty) return null;
+    return _prefs!.getString('athena.chat.collection.$collectionId');
+  }
+
+  Future<void> setCollectionChatSessionId(String collectionId, String sessionId) async {
+    if (collectionId.isEmpty) return;
+    await load();
+    if (_prefs != null) {
+      if (sessionId.isEmpty) {
+        await _prefs!.remove('athena.chat.collection.$collectionId');
+      } else {
+        await _prefs!.setString('athena.chat.collection.$collectionId', sessionId);
+      }
+    }
+  }
+
   List<String> get searchHistory =>
       _ready ? (_prefs!.getStringList(_kSearchHistory) ?? const <String>[]) : const <String>[];
 

@@ -10,10 +10,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 class FakeAiRepository implements AiRepository {
   List<ChatMessage> mockMessages = [];
   String nextSessionId = 'sess-new-1';
+  String? lastCreatedCollectionId;
 
   @override
   Future<String> createSession(String paperId) async {
     return nextSessionId;
+  }
+
+  @override
+  Future<String> createCollectionSession(String collectionId) async {
+    lastCreatedCollectionId = collectionId;
+    return 'col-$nextSessionId';
   }
 
   @override
@@ -117,5 +124,38 @@ void main() {
     expect(state.messages.first.role, 'user');
     expect(state.messages.last.content, 'Test answer');
     expect(UserPreferences.instance.getChatSessionId('paper-2'), 'sess-new-1');
+  });
+
+  test('collection chat thread initializes empty and creates collection session on send', () async {
+    final container = ProviderContainer(
+      overrides: [aiRepositoryProvider.overrideWithValue(fakeRepo)],
+    );
+    addTearDown(container.dispose);
+
+    final sub = container.listen(collectionChatThreadProvider('col-101'), (_, __) {});
+    addTearDown(sub.close);
+
+    final initial = container.read(collectionChatThreadProvider('col-101'));
+    expect(initial.sessionId, isNull);
+    expect(initial.messages, isEmpty);
+
+    await container.read(collectionChatThreadProvider('col-101').notifier).send('Synthesize papers');
+
+    expect(fakeRepo.lastCreatedCollectionId, 'col-101');
+    final state = container.read(collectionChatThreadProvider('col-101'));
+    expect(state.sessionId, 'col-sess-new-1');
+    expect(state.messages.length, 2);
+    expect(state.messages.first.role, 'user');
+    expect(state.messages.first.content, 'Synthesize papers');
+    expect(state.messages.last.role, 'assistant');
+    expect(state.messages.last.content, 'Test answer');
+    expect(UserPreferences.instance.getCollectionChatSessionId('col-101'), 'col-sess-new-1');
+
+    // Test reset
+    container.read(collectionChatThreadProvider('col-101').notifier).reset();
+    final resetState = container.read(collectionChatThreadProvider('col-101'));
+    expect(resetState.sessionId, isNull);
+    expect(resetState.messages, isEmpty);
+    expect(UserPreferences.instance.getCollectionChatSessionId('col-101'), isNull);
   });
 }
