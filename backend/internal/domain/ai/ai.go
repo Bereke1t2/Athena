@@ -192,15 +192,18 @@ type Citation struct {
 	Quote       string    `json:"quote"`
 }
 
-// Session is a single-paper chat container.
+// Session is a grounded chat container for single papers, multi-paper comparisons, or collections.
 type Session struct {
-	ID            uuid.UUID
-	PaperID       uuid.UUID
-	UserID        *uuid.UUID
-	Title         string
-	MessageCount  int
-	LastMessageAt *time.Time
-	CreatedAt     time.Time
+	ID              uuid.UUID
+	SessionType     string
+	PaperID         uuid.UUID
+	CollectionID    uuid.UUID
+	ComparePaperIDs []uuid.UUID
+	UserID          *uuid.UUID
+	Title           string
+	MessageCount    int
+	LastMessageAt   *time.Time
+	CreatedAt       time.Time
 }
 
 // Message is one stored chat turn.
@@ -217,9 +220,12 @@ type Message struct {
 
 // NewSessionInput gates session creation.
 type NewSessionInput struct {
-	PaperID uuid.UUID
-	UserID  *uuid.UUID
-	Title   string
+	SessionType     string
+	PaperID         uuid.UUID
+	CollectionID    uuid.UUID
+	ComparePaperIDs []uuid.UUID
+	UserID          *uuid.UUID
+	Title           string
 }
 
 // HistoryTurn is prior conversation context fed back to the model.
