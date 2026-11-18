@@ -215,6 +215,14 @@ Acceptance:
 - [x] Multi-Paper Comparison Input Enhancement (2026-11-18):
       Eliminated single-paper dead ends in comparison by enabling direct UUID or DOI manual input in both
       insufficient papers state and add-to-compare modal.
+- [x] Collection-Grounded Multi-Paper Chat ("Ask My Collection") (2026-11-18):
+      Extended AI RAG conversational assistant from single papers to entire research collections.
+      Database migration (`000023_collection_chat_sessions.up.sql`) supporting `collection` session type,
+      application service (`internal/application/chat/service.go`) aggregating multi-paper RAG chunks with
+      `[Paper Title] Section` heading attribution, HTTP handler (`POST /api/v1/chat/sessions`),
+      mobile repository and Riverpod state architecture (`collectionChatThreadProvider`), adaptive
+      `ChatScreen` with Collection Grounding badge and comparative synthesis suggested prompts,
+      and 1-tap "Ask AI" navigation from collection detail screen.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · alternative engines
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.

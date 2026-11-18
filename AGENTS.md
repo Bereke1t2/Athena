@@ -1,6 +1,6 @@
 # AGENTS.md — working notes for AI agents on Athena
 
-Last updated: 2026-11-18 (Collaborative Research Collections Mobile Experience, Advanced Search Filter Engine, and Multi-Paper Comparison Enhancements). Read this first.
+Last updated: 2026-11-18 (Collection-Grounded Multi-Paper Chat, Collaborative Research Collections Mobile Experience, Advanced Search Filter Engine, and Multi-Paper Comparison Enhancements). Read this first.
 
 ## Stack & layout
 
@@ -44,7 +44,19 @@ Last updated: 2026-11-18 (Collaborative Research Collections Mobile Experience, 
 
 ## Unfinished / verify next session
 
-1. **Collaborative Research Collections Mobile Experience (2026-11-18)**:
+1. **Collection-Grounded Multi-Paper Chat ("Ask My Collection") (2026-11-18)**:
+   - **Scope**: Extended AI RAG conversational assistant to synthesize knowledge across entire research collections and reading lists, grounded in multi-paper citations with attribution across member papers.
+   - **Core Deliverables**:
+     - *PostgreSQL Migration* ([`000023_collection_chat_sessions.up.sql`](file:///home/bereket/startup/Athena/backend/migrations/000023_collection_chat_sessions.up.sql), [`000023_collection_chat_sessions.down.sql`](file:///home/bereket/startup/Athena/backend/migrations/000023_collection_chat_sessions.down.sql)): Added `collection_id` uuid column and updated `session_type` check to accept `'collection'`, with mutual constraints guaranteeing single paper, comparison, or collection sessions.
+     - *Domain & Persistence* ([`ai.go`](file:///home/bereket/startup/Athena/backend/internal/domain/ai/ai.go), [`ai_store.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/database/ai_store.go)): Updated `Session` and `NewSessionInput` to include `SessionType`, `CollectionID`, and `ComparePaperIDs`. Added database query and insert operations for collection sessions.
+     - *Application Service Multi-Paper Grounding* ([`service.go`](file:///home/bereket/startup/Athena/backend/internal/application/chat/service.go)): Added `CollectionSource` port and `WithCollections` builder. Updated `Ask` to load collection papers, aggregate multi-paper RAG chunks with `[Paper Title] Section` heading attribution, and synthesize cross-paper grounded answers with citation enforcement.
+     - *REST API Endpoints & Spec* ([`ai.go`](file:///home/bereket/startup/Athena/backend/internal/delivery/http/v1/ai.go), [`api-specification.md`](file:///home/bereket/startup/Athena/docs/api/api-specification.md)): Added `collection_id` to `POST /api/v1/chat/sessions` request body, validating targets and emitting 201 Created with `session_type: "collection"`.
+     - *Mobile Architecture & Riverpod State* ([`ai_repository.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/ai/domain/ai_repository.dart), [`ai_repository_impl.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/ai/data/ai_repository_impl.dart), [`chat_notifier.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/ai/presentation/chat_notifier.dart), [`user_preferences.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/prefs/user_preferences.dart)): Added `createCollectionSession` to repository, added `CollectionChatNotifier` and `collectionChatThreadProvider`, and added collection session preference persistence.
+     - *Mobile UI & Router Integration* ([`chat_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/ai/presentation/chat_screen.dart), [`collection_detail_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/presentation/collection_detail_screen.dart), [`app_router.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/router/app_router.dart)): Added `/collections/:id/chat` route, added "Ask AI" buttons to collection detail screen top bar and header card, updated `ChatScreen` with Collection Grounding badge, collection icon, and comparative synthesis suggested prompt cards.
+     - *Test Coverage* ([`service_test.go`](file:///home/bereket/startup/Athena/backend/internal/application/chat/service_test.go), [`ai_test.go`](file:///home/bereket/startup/Athena/backend/internal/delivery/http/v1/ai_test.go), [`chat_notifier_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/ai/presentation/chat_notifier_test.dart)): Unit tests for multi-paper chunk citation verification, HTTP session creation, and mobile collection chat lifecycle (restore, send, reset).
+   - **Verification**: Go backend tests 100% green (`go test -count=1 ./...`); binaries `bin/api`, `bin/worker`, `bin/migrate` build cleanly.
+
+2. **Collaborative Research Collections Mobile Experience (2026-11-18)**:
    - **Scope**: Completed end-to-end mobile Flutter integration for collaborative research reading groups and collections, binding the mobile UI to PostgreSQL role-based authorization APIs.
    - **Core Deliverables**:
      - *Domain Models & Permissions* ([`collection.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/domain/collection.dart)): Added `CollectionRole` (`owner`, `admin`, `editor`, `viewer`) with permission helpers (`isOwner`, `canManageMembers`, `canEditPapers`). Defined `Collaborator` entity and added `userRole` to `Collection`.
