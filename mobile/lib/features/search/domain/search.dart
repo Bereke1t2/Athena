@@ -7,11 +7,35 @@ extension SearchSortWire on SearchSort {
   String get wireValue => name;
 }
 
+/// Search engines / retrieval modes supported by the platform.
+enum SearchMode {
+  hybrid,
+  keyword,
+  semantic,
+  live;
+
+  String get wireValue => name;
+
+  String get label {
+    switch (this) {
+      case SearchMode.hybrid:
+        return 'Hybrid AI';
+      case SearchMode.keyword:
+        return 'Keyword';
+      case SearchMode.semantic:
+        return 'Vector';
+      case SearchMode.live:
+        return 'Live Federated';
+    }
+  }
+}
+
 /// User-facing search filters; null means "not filtered".
 class SearchFilters {
   const SearchFilters({
     required this.query,
     this.sort = SearchSort.relevance,
+    this.mode = SearchMode.hybrid,
     this.topicSlug,
     this.fieldSlug,
     this.source,
@@ -24,6 +48,7 @@ class SearchFilters {
 
   final String query;
   final SearchSort sort;
+  final SearchMode mode;
   final String? topicSlug;
   final String? fieldSlug;
   final String? source;
@@ -36,19 +61,29 @@ class SearchFilters {
   SearchFilters copyWith({
     String? query,
     SearchSort? sort,
+    SearchMode? mode,
+    String? topicSlug,
+    String? fieldSlug,
+    String? source,
+    DateTime? publishedAfter,
+    DateTime? publishedBefore,
     bool? openAccess,
+    int? minCitations,
     bool? isLive,
+    bool clearDates = false,
+    bool clearMinCitations = false,
   }) =>
       SearchFilters(
         query: query ?? this.query,
         sort: sort ?? this.sort,
-        topicSlug: topicSlug,
-        fieldSlug: fieldSlug,
-        source: source,
-        publishedAfter: publishedAfter,
-        publishedBefore: publishedBefore,
-        openAccess: openAccess,
-        minCitations: minCitations,
+        mode: mode ?? this.mode,
+        topicSlug: topicSlug ?? this.topicSlug,
+        fieldSlug: fieldSlug ?? this.fieldSlug,
+        source: source ?? this.source,
+        publishedAfter: clearDates ? null : (publishedAfter ?? this.publishedAfter),
+        publishedBefore: clearDates ? null : (publishedBefore ?? this.publishedBefore),
+        openAccess: openAccess ?? this.openAccess,
+        minCitations: clearMinCitations ? null : (minCitations ?? this.minCitations),
         isLive: isLive ?? this.isLive,
       );
 }
