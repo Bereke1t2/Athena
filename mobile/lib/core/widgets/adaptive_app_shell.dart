@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../theme/app_theme.dart';
 import '../../features/papers/presentation/widgets/mini_audio_player.dart';
+import '../theme/app_theme.dart';
 
 /// Breakpoint for switching between mobile bottom navigation and wide-screen navigation rail.
 const double kTabletBreakpoint = 720.0;

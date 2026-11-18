@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../domain/search.dart';
+import '../../domain/search.dart';
 
 class SearchFiltersSheet extends StatefulWidget {
   const SearchFiltersSheet({
@@ -211,7 +211,7 @@ class _SearchFiltersSheetState extends State<SearchFiltersSheet> {
                       ),
                       Switch.adaptive(
                         value: _openAccess == true,
-                        activeColor: const Color(0xFF10B981),
+                        activeTrackColor: const Color(0xFF10B981),
                         onChanged: (val) {
                           setState(() {
                             _openAccess = val ? true : null;

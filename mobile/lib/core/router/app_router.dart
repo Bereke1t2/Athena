@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/app_theme.dart';
 import '../../features/ai/presentation/chat_screen.dart';
 import '../../features/ai/presentation/create_audio_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';

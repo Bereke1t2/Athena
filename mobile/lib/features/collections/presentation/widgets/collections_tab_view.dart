@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../domain/collection.dart';
 import '../collections_notifier.dart';
 
 class CollectionsTabView extends ConsumerStatefulWidget {
