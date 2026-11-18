@@ -10,6 +10,7 @@ class CollectionDto {
     required this.color,
     required this.isPublic,
     required this.paperCount,
+    this.userRole = 'owner',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -23,6 +24,7 @@ class CollectionDto {
       color: json['color'] as String? ?? '#6366F1',
       isPublic: json['is_public'] as bool? ?? false,
       paperCount: (json['paper_count'] as num?)?.toInt() ?? 0,
+      userRole: json['user_role'] as String? ?? 'owner',
       createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] as String? ?? '') ?? DateTime.now(),
     );
@@ -35,6 +37,7 @@ class CollectionDto {
   final String color;
   final bool isPublic;
   final int paperCount;
+  final String userRole;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -47,6 +50,7 @@ class CollectionDto {
       'color': color,
       'is_public': isPublic,
       'paper_count': paperCount,
+      'user_role': userRole,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -61,8 +65,60 @@ class CollectionDto {
       color: color,
       isPublic: isPublic,
       paperCount: paperCount,
+      userRole: CollectionRole.fromString(userRole),
       createdAt: createdAt,
       updatedAt: updatedAt,
+    );
+  }
+}
+
+class CollaboratorDto {
+  const CollaboratorDto({
+    required this.collectionId,
+    required this.userId,
+    required this.email,
+    required this.role,
+    required this.invitedBy,
+    required this.createdAt,
+  });
+
+  factory CollaboratorDto.fromJson(Map<String, dynamic> json) {
+    return CollaboratorDto(
+      collectionId: json['collection_id'] as String? ?? '',
+      userId: json['user_id'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      role: json['role'] as String? ?? 'viewer',
+      invitedBy: json['invited_by'] as String? ?? '',
+      createdAt: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  final String collectionId;
+  final String userId;
+  final String email;
+  final String role;
+  final String invitedBy;
+  final DateTime createdAt;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'collection_id': collectionId,
+      'user_id': userId,
+      'email': email,
+      'role': role,
+      'invited_by': invitedBy,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+
+  Collaborator toDomain() {
+    return Collaborator(
+      collectionId: collectionId,
+      userId: userId,
+      email: email,
+      role: CollectionRole.fromString(role),
+      invitedBy: invitedBy,
+      createdAt: createdAt,
     );
   }
 }

@@ -120,4 +120,37 @@ class CollectionRepositoryImpl implements CollectionRepository {
       return dto.toDomain();
     }).toList();
   }
+
+  @override
+  Future<List<Collaborator>> listCollaborators(String collectionId) async {
+    final res = await _dio.get<Map<String, dynamic>>('/collections/$collectionId/collaborators');
+    final data = res.data!;
+    final itemsRaw = (data['collaborators'] as List<dynamic>?) ?? [];
+    return itemsRaw.map((raw) {
+      final dto = CollaboratorDto.fromJson((raw as Map).cast<String, dynamic>());
+      return dto.toDomain();
+    }).toList();
+  }
+
+  @override
+  Future<Collaborator> addCollaborator(
+    String collectionId, {
+    required String userId,
+    required CollectionRole role,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/collections/$collectionId/collaborators',
+      data: {
+        'user_id': userId,
+        'role': role.name,
+      },
+    );
+    final data = res.data!;
+    return CollaboratorDto.fromJson(data).toDomain();
+  }
+
+  @override
+  Future<void> removeCollaborator(String collectionId, String userId) async {
+    await _dio.delete<void>('/collections/$collectionId/collaborators/$userId');
+  }
 }
