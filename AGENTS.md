@@ -1,6 +1,6 @@
 # AGENTS.md — working notes for AI agents on Athena
 
-Last updated: 2026-11-15 (Search Autocomplete, Topic Suggestions & Search History: local query persistence, reactive SearchHistoryNotifier, topicSuggestionsProvider, and interactive autocomplete search screen). Read this first.
+Last updated: 2026-11-18 (Collaborative Research Collections Mobile Experience, Advanced Search Filter Engine, and Multi-Paper Comparison Enhancements). Read this first.
 
 ## Stack & layout
 
@@ -44,7 +44,48 @@ Last updated: 2026-11-15 (Search Autocomplete, Topic Suggestions & Search Histor
 
 ## Unfinished / verify next session
 
-1. **Search Autocomplete, Topic Suggestions & Query History (2026-11-15)**:
+1. **Collaborative Research Collections Mobile Experience (2026-11-18)**:
+   - **Scope**: Completed end-to-end mobile Flutter integration for collaborative research reading groups and collections, binding the mobile UI to PostgreSQL role-based authorization APIs.
+   - **Core Deliverables**:
+     - *Domain Models & Permissions* ([`collection.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/domain/collection.dart)): Added `CollectionRole` (`owner`, `admin`, `editor`, `viewer`) with permission helpers (`isOwner`, `canManageMembers`, `canEditPapers`). Defined `Collaborator` entity and added `userRole` to `Collection`.
+     - *Repository & DTO Layer* ([`collection_repository.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/domain/collection_repository.dart), [`collection_dto.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/data/collection_dto.dart), [`collection_repository_impl.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/data/collection_repository_impl.dart)): Implemented `listCollaborators`, `addCollaborator`, and `removeCollaborator` invoking `/api/v1/collections/{id}/collaborators`.
+     - *Riverpod State Controller* ([`collections_notifier.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/presentation/collections_notifier.dart)): Built auto-disposing `collectionCollaboratorsProvider` family notifier handling live member state, role changes, and member removals.
+     - *Collaborator Management Sheet* ([`collaborators_sheet.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/presentation/widgets/collaborators_sheet.dart)): Modern bottom sheet displaying collection members with initialed avatars, role pills, join dates, role editing, member removal confirmation, and an in-sheet member invite form with role dropdown.
+     - *Collection Detail & Tab View Integration* ([`collection_detail_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/presentation/collection_detail_screen.dart), [`collections_tab_view.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/presentation/widgets/collections_tab_view.dart)): Added Reading Group Members top bar icon and header action, role pill on collections shared with user, guarded paper deletion according to edit permissions, and added `Shared (${role})` badge on library cards.
+     - *Test Coverage* ([`collections_notifier_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/collections/collections_notifier_test.dart)): Unit tested collaborator lifecycle (list, invite, remove).
+
+2. **Advanced Search Filter Engine & UI (2026-11-18)**:
+   - **Scope**: Built comprehensive search filter drawer and expanded query capabilities across both backend parameters and mobile UI.
+   - **Core Deliverables**:
+     - *Search Domain & Repository* ([`search.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/search/domain/search.dart), [`search_repository_impl.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/search/data/search_repository_impl.dart)): Added `SearchMode` (`hybrid`, `keyword`, `semantic`, `live`). Updated `SearchFilters` with `mode`, `minCitations`, `publishedAfter`, `publishedBefore`, `source`. Wired `YYYY-MM-DD` query serialization in repository.
+     - *Search Notifier* ([`search_notifier.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/search/presentation/search_notifier.dart)): Added `setMode` and `applyAdvancedFilters` supporting atomic multi-filter state transitions.
+     - *Search Filters Bottom Sheet* ([`search_filters_sheet.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/search/presentation/widgets/search_filters_sheet.dart), [`search_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/search/presentation/search_screen.dart)): Built filter sheet with Search Engine Mode chips, sort order chips, citation threshold chips (Any, 10+, 50+, 100+, 500+), publication time range presets, open-access toggle, reset button, and an active filter count pill on `SearchScreen`.
+
+3. **Multi-Paper Comparison Input Enhancement (2026-11-18)**:
+   - **Scope**: Eliminated dead ends in multi-paper comparison by providing direct input and selection for any paper UUID or DOI.
+   - **Core Deliverables**:
+     - *Direct Paper Input* ([`comparison_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/comparison/presentation/comparison_screen.dart)): Added text field for entering paper UUID or DOI directly into comparison in both `_buildInsufficientPapersView` and `_showAddPaperDialog`, allowing seamless comparison between any papers.
+
+4. **Multi-Platform Adaptive Layout & Web Support (2026-11-16)**:
+   - **Scope**: Implemented responsive multi-platform layout for Flutter targeting tablets, desktop, and web environments, including an adaptive application navigation shell, wide-screen reading constraints, web engine initialization scaffolding, and platform-resilient PDF viewing.
+   - **Core Deliverables**:
+     - *Adaptive App Shell* ([`adaptive_app_shell.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/adaptive_app_shell.dart), [`app_router.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/router/app_router.dart)): Built `AdaptiveAppShell` with breakpoint switching at 720px width (`kTabletBreakpoint`). Renders a modern left `NavigationRail` with Aperture brand icon on wide viewports (tablet/desktop/web), and the standard bottom `NavigationBar` on mobile viewports. Added centered `ConstrainedBox(maxWidth: 1200)` container for comfortable reading ergonomics.
+     - *Web Platform Scaffolding* ([`index.html`](file:///home/bereket/startup/Athena/mobile/web/index.html), [`manifest.json`](file:///home/bereket/startup/Athena/mobile/web/manifest.json)): Provisioned HTML5 web bootstrap, dark-mode styling (`#0B0C0E`), and PWA manifest for Flutter Web compatibility.
+     - *Web-Resilient PDF Viewer* ([`pdf_viewer_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/pdf_viewer_screen.dart)): Added `kIsWeb` check preventing native platform channel failures on web, providing a clean direct browser launch interface via `url_launcher`.
+     - *Widget Test Suite* ([`adaptive_app_shell_test.dart`](file:///home/bereket/startup/Athena/mobile/test/core/widgets/adaptive_app_shell_test.dart)): Created widget tests verifying `NavigationBar` on mobile viewports (<720px) and `NavigationRail` with branding and destinations on wide viewports (>=720px).
+
+5. **Collaborative Research Collections & Reading Groups (2026-11-16)**:
+   - **Scope**: Extended research collections into institutional and team reading groups with role-based access control (`owner`, `admin`, `editor`, `viewer`), collaboration schema migrations, permission-enforcing application services, and REST API endpoints.
+   - **Core Deliverables**:
+     - *PostgreSQL Migration* ([`000022_collection_collaborators.up.sql`](file:///home/bereket/startup/Athena/backend/migrations/000022_collection_collaborators.up.sql), [`000022_collection_collaborators.down.sql`](file:///home/bereket/startup/Athena/backend/migrations/000022_collection_collaborators.down.sql)): Defined `collection_role` enum and `collection_collaborators` table with unique constraint, cascade deletion, and indexing.
+     - *Domain & Permissions* ([`collection.go`](file:///home/bereket/startup/Athena/backend/internal/domain/collection/collection.go)): Defined `Role` (`owner`, `admin`, `editor`, `viewer`), `Collaborator` entity, `AddCollaboratorInput` validation, and permission methods (`CanManageMembers`, `CanEditPapers`, `CanView`). Added `UserRole` field to `Collection`.
+     - *Database Persistence* ([`collection_store.go`](file:///home/bereket/startup/Athena/backend/internal/infrastructure/database/collection_store.go)): Implemented `AddCollaborator`, `RemoveCollaborator`, `ListCollaborators`, and `GetUserRole`. Upgraded `ListByUser` to query both owned and shared collections with user role.
+     - *Application Service* ([`service.go`](file:///home/bereket/startup/Athena/backend/internal/application/collection/service.go)): Wired role verification across `GetCollection`, `UpdateCollection`, `DeleteCollection`, `AddPaper`, and `RemovePaper`. Added `ListCollaborators`, `AddCollaborator`, and `RemoveCollaborator`.
+     - *REST API Endpoints* ([`collections.go`](file:///home/bereket/startup/Athena/backend/internal/delivery/http/v1/collections.go), [`server.go`](file:///home/bereket/startup/Athena/backend/internal/platform/httpserver/server.go), [`api-specification.md`](file:///home/bereket/startup/Athena/docs/api/api-specification.md)): Added `GET /api/v1/collections/{id}/collaborators`, `POST /api/v1/collections/{id}/collaborators`, and `DELETE /api/v1/collections/{id}/collaborators/{user_id}`.
+     - *Test Suites* ([`collections_test.go`](file:///home/bereket/startup/Athena/backend/internal/delivery/http/v1/collections_test.go), [`collection_test.go`](file:///home/bereket/startup/Athena/backend/internal/domain/collection/collection_test.go)): Unit tests for role permissions, input validation, and full collaborator lifecycle (invite, collaborate, manage, leave).
+   - **Verification**: Go backend tests 100% green (`go test ./...`); all collection and HTTP handlers passing cleanly.
+
+3. **Search Autocomplete, Topic Suggestions & Query History (2026-11-15)**:
    - **Scope**: Implemented real-time topic autocomplete suggestions against `/api/v1/topics?q=`, local search query history persistence via `SharedPreferences`, reactive `SearchHistoryNotifier`, and redesigned `SearchScreen` with dynamic suggestion cards and recent search history chips.
    - **Core Deliverables**:
      - *User Preferences Query Persistence* ([`user_preferences.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/prefs/user_preferences.dart), [`prefs_providers.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/prefs/prefs_providers.dart)): Added `_kSearchHistory`, `searchHistory` getter, deduplicated `addSearchHistory` (capped at 10 items), `removeSearchHistory`, and `clearSearchHistory` in `UserPreferences`. Added reactive `searchHistoryProvider` via `SearchHistoryNotifier`.

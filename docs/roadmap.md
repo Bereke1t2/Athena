@@ -196,6 +196,25 @@ Acceptance:
       specifications (`docs/api/api-specification.md`) and CI/CD Go 1.26 toolchain;
       mobile code modularization (extracting citation graph explorer widget from detail screen)
       and 5-tab Library navigation alignment.
+- [x] Multi-Platform Adaptive Layout & Web Support (2026-11-16):
+      Responsive `AdaptiveAppShell` with breakpoint-switching at 720px (`kTabletBreakpoint`),
+      `NavigationRail` on wide viewports (tablets, desktop, web) with Aperture branding,
+      ergonomic `1200px` max-width reading container, HTML5 web engine scaffolding (`index.html`,
+      `manifest.json`), web-resilient PDF viewing fallback, and widget test coverage.
+- [x] Collaborative Research Collections & Reading Groups (2026-11-18):
+      Multi-user collaborative collections with PostgreSQL schema (`000022_collection_collaborators.up.sql`),
+      role-based permissions (`owner`, `admin`, `editor`, `viewer`), membership management endpoints
+      (`GET|POST /api/v1/collections/{id}/collaborators`, `DELETE /api/v1/collections/{id}/collaborators/{user_id}`),
+      dynamic query support returning owned and shared reading groups with `user_role`, and unit tests.
+      Full mobile Flutter experience with `CollaboratorsSheet`, member avatar listing, role indicators,
+      invite dialog with role selector, and permissions-guarded paper operations.
+- [x] Advanced Search Filter Engine & UI (2026-11-18):
+      Multi-modal search filter sheet supporting search engine modes (`Hybrid AI`, `Keyword`, `Vector`, `Live Federated`),
+      minimum citations threshold (Any, 10+, 50+, 100+, 500+), publication time range presets, open access toggle,
+      active filter counter badge, and full query parameter synchronization with backend (`published_after`, `published_before`).
+- [x] Multi-Paper Comparison Input Enhancement (2026-11-18):
+      Eliminated single-paper dead ends in comparison by enabling direct UUID or DOI manual input in both
+      insufficient papers state and add-to-compare modal.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Platform Hardening & Multi-Replica Safety ✅ · alternative engines
-if ADR-0005 triggers fire · web client · multi-language UIs · institutional features.
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · alternative engines
+if ADR-0005 triggers fire · multi-language UIs · institutional features.

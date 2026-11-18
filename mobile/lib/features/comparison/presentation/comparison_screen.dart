@@ -22,12 +22,19 @@ class ComparisonScreen extends ConsumerStatefulWidget {
 class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
   late List<String> _paperIds;
   Future<ComparisonReport>? _reportFuture;
+  final _customIdController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _paperIds = List.from(widget.initialPaperIds);
     _triggerComparison();
+  }
+
+  @override
+  void dispose() {
+    _customIdController.dispose();
+    super.dispose();
   }
 
   void _triggerComparison() {
@@ -183,6 +190,43 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
                   color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                   height: 1.4,
                 ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _customIdController,
+                      decoration: InputDecoration(
+                        hintText: 'Enter paper UUID or DOI...',
+                        hintStyle: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+                        ),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.coral,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: () {
+                      final val = _customIdController.text.trim();
+                      if (val.isNotEmpty) {
+                        _customIdController.clear();
+                        _addPaperId(val);
+                      }
+                    },
+                    child: const Text('Add Paper', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                ],
               ),
             ],
           ),
@@ -374,6 +418,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final saved = ref.read(savedPapersProvider);
     final available = saved.where((p) => !_paperIds.contains(p.id)).toList();
+    final inputCtrl = TextEditingController();
 
     showModalBottomSheet(
       context: context,
@@ -385,10 +430,15 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
       builder: (ctx) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.7,
+                maxHeight: MediaQuery.of(context).size.height * 0.75,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -399,6 +449,45 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: inputCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'Enter paper UUID or DOI...',
+                          hintStyle: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppTheme.coral,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onPressed: () {
+                        final val = inputCtrl.text.trim();
+                        if (val.isNotEmpty) {
+                          Navigator.pop(ctx);
+                          _addPaperId(val);
+                        }
+                      },
+                      child: const Text('Add', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Divider(height: 1),
+                const SizedBox(height: 10),
                 if (available.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
