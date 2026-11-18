@@ -143,8 +143,8 @@ class ChatThread extends _$ChatThread {
     }
   }
 
-  void reset() {
-    UserPreferences.instance.setChatSessionId(paperId, '');
+  Future<void> reset() async {
+    await UserPreferences.instance.setChatSessionId(paperId, '');
     state = const ChatThreadState();
   }
 }
@@ -274,8 +274,8 @@ class CollectionChatNotifier extends StateNotifier<ChatThreadState> {
     }
   }
 
-  void reset() {
-    UserPreferences.instance.setCollectionChatSessionId(collectionId, '');
+  Future<void> reset() async {
+    await UserPreferences.instance.setCollectionChatSessionId(collectionId, '');
     state = const ChatThreadState();
   }
 }

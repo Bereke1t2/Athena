@@ -152,7 +152,7 @@ void main() {
     expect(UserPreferences.instance.getCollectionChatSessionId('col-101'), 'col-sess-new-1');
 
     // Test reset
-    container.read(collectionChatThreadProvider('col-101').notifier).reset();
+    await container.read(collectionChatThreadProvider('col-101').notifier).reset();
     final resetState = container.read(collectionChatThreadProvider('col-101'));
     expect(resetState.sessionId, isNull);
     expect(resetState.messages, isEmpty);

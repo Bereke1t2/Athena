@@ -227,7 +227,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
                       onPressed: () async {
                         if (_isCollectionChat) {
-                          ref.read(collectionChatThreadProvider(widget.collectionId!).notifier).reset();
+                          await ref.read(collectionChatThreadProvider(widget.collectionId!).notifier).reset();
                         } else if (activePaperId.isNotEmpty) {
                           await UserPreferences.instance.setChatSessionId(activePaperId, '');
                           ref.invalidate(chatThreadProvider(activePaperId));
