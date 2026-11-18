@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	domainai "athena/backend/internal/domain/ai"
+	domaincollection "athena/backend/internal/domain/collection"
 	"athena/backend/internal/domain/research"
 )
 
@@ -63,7 +64,13 @@ type fakeSessions struct {
 }
 
 func (f *fakeSessions) CreateSession(_ context.Context, in domainai.NewSessionInput) (domainai.Session, error) {
-	s := domainai.Session{ID: uuid.New(), PaperID: in.PaperID, Title: in.Title}
+	s := domainai.Session{
+		ID:           uuid.New(),
+		SessionType:  in.SessionType,
+		PaperID:      in.PaperID,
+		CollectionID: in.CollectionID,
+		Title:        in.Title,
+	}
 	if f.sessions == nil {
 		f.sessions = map[uuid.UUID]domainai.Session{}
 	}
@@ -322,4 +329,95 @@ func mustSession(t *testing.T, svc *Service) uuid.UUID {
 		t.Fatal(err)
 	}
 	return s.ID
+}
+
+type fakeCollections struct {
+	collections map[uuid.UUID]domaincollection.Collection
+	papers      map[uuid.UUID][]domaincollection.CollectionPaper
+}
+
+func (f *fakeCollections) GetByID(_ context.Context, id uuid.UUID) (domaincollection.Collection, error) {
+	if c, ok := f.collections[id]; ok {
+		return c, nil
+	}
+	return domaincollection.Collection{}, domaincollection.ErrNotFound
+}
+
+func (f *fakeCollections) ListPapers(_ context.Context, collectionID uuid.UUID) ([]domaincollection.CollectionPaper, error) {
+	return f.papers[collectionID], nil
+}
+
+func TestAsk_CollectionChatWithMultiPaperSynthesis(t *testing.T) {
+	colID := uuid.New()
+	p1ID := uuid.New()
+	p2ID := uuid.New()
+
+	fakeCol := &fakeCollections{
+		collections: map[uuid.UUID]domaincollection.Collection{
+			colID: {
+				ID:   colID,
+				Name: "Diffusion Reading Group",
+			},
+		},
+		papers: map[uuid.UUID][]domaincollection.CollectionPaper{
+			colID: {
+				{
+					CollectionID: colID,
+					PaperID:      p1ID,
+					Paper: research.PaperSummary{
+						ID:    p1ID,
+						Title: "DDPM Principles",
+						Year:  2020,
+					},
+				},
+				{
+					CollectionID: colID,
+					PaperID:      p2ID,
+					Paper: research.PaperSummary{
+						ID:    p2ID,
+						Title: "Latent Diffusion",
+						Year:  2022,
+					},
+				},
+			},
+		},
+	}
+
+	sessions := &fakeSessions{}
+	llm := &fakeChatLLM{
+		responses: []string{"Both DDPM and Latent Diffusion operate on noise schedules [chunk 1]."},
+	}
+	retriever := &fakeRetriever{
+		chunks: []domainai.RetrievedChunk{
+			{Chunk: domainai.Chunk{ID: uuid.New(), Content: "We parameterize the forward process using linear schedules.", SectionPath: "3. Methods"}},
+		},
+	}
+
+	svc := NewService(llm, sessions, retriever, &fakeChatPapers{}, slog.Default()).WithCollections(fakeCol)
+
+	sess, err := svc.CreateSession(context.Background(), domainai.NewSessionInput{
+		SessionType:  "collection",
+		CollectionID: colID,
+		Title:        "Diffusion Discussion",
+	})
+	if err != nil {
+		t.Fatalf("create collection session failed: %v", err)
+	}
+	if sess.SessionType != "collection" || sess.CollectionID != colID {
+		t.Fatalf("unexpected session attributes: %+v", sess)
+	}
+
+	var streamed string
+	msg, err := svc.Ask(context.Background(), sess.ID, "How do noise schedules compare?", func(d string) {
+		streamed += d
+	})
+	if err != nil {
+		t.Fatalf("Ask collection chat failed: %v", err)
+	}
+	if len(msg.Citations) == 0 {
+		t.Fatalf("expected citations in collection answer, got: %v", msg)
+	}
+	if !strings.Contains(msg.Content, "[chunk 1]") {
+		t.Fatalf("expected [chunk 1] in answer: %s", msg.Content)
+	}
 }
