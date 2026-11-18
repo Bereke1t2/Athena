@@ -60,7 +60,18 @@ func (s *Service) CreateCollection(ctx context.Context, input domaincollection.C
 	return created, nil
 }
 
-// GetCollection returns a collection and its papers, verifying ownership or public access.
+// getUserRole resolves the role for a user relative to a collection.
+func (s *Service) getUserRole(ctx context.Context, collectionID, userID, ownerID uuid.UUID) (domaincollection.Role, error) {
+	if userID != uuid.Nil && userID == ownerID {
+		return domaincollection.RoleOwner, nil
+	}
+	if userID == uuid.Nil {
+		return "", domaincollection.ErrUnauthorized
+	}
+	return s.store.GetUserRole(ctx, collectionID, userID)
+}
+
+// GetCollection returns a collection and its papers, verifying ownership, membership or public access.
 func (s *Service) GetCollection(ctx context.Context, userID, collectionID uuid.UUID) (domaincollection.Collection, []domaincollection.CollectionPaper, error) {
 	if collectionID == uuid.Nil {
 		return domaincollection.Collection{}, nil, fmt.Errorf("%w: invalid collection id", domaincollection.ErrInvalidInput)
@@ -71,7 +82,12 @@ func (s *Service) GetCollection(ctx context.Context, userID, collectionID uuid.U
 		return domaincollection.Collection{}, nil, err
 	}
 
-	if !c.IsPublic && c.UserID != userID {
+	role, err := s.getUserRole(ctx, collectionID, userID, c.UserID)
+	if err == nil {
+		c.UserRole = role
+	}
+
+	if !c.IsPublic && !role.CanView() {
 		return domaincollection.Collection{}, nil, domaincollection.ErrUnauthorized
 	}
 
@@ -83,7 +99,7 @@ func (s *Service) GetCollection(ctx context.Context, userID, collectionID uuid.U
 	return c, papers, nil
 }
 
-// ListCollections returns all collections owned by a user.
+// ListCollections returns all collections owned by or shared with a user.
 func (s *Service) ListCollections(ctx context.Context, userID uuid.UUID) ([]domaincollection.Collection, error) {
 	if userID == uuid.Nil {
 		return nil, fmt.Errorf("%w: user id required", domaincollection.ErrInvalidInput)
@@ -91,7 +107,7 @@ func (s *Service) ListCollections(ctx context.Context, userID uuid.UUID) ([]doma
 	return s.store.ListByUser(ctx, userID)
 }
 
-// UpdateCollection mutates collection properties, asserting ownership.
+// UpdateCollection mutates collection properties, asserting ownership or admin permissions.
 func (s *Service) UpdateCollection(ctx context.Context, userID, collectionID uuid.UUID, input domaincollection.UpdateInput) (domaincollection.Collection, error) {
 	if collectionID == uuid.Nil {
 		return domaincollection.Collection{}, fmt.Errorf("%w: invalid collection id", domaincollection.ErrInvalidInput)
@@ -104,7 +120,8 @@ func (s *Service) UpdateCollection(ctx context.Context, userID, collectionID uui
 	if err != nil {
 		return domaincollection.Collection{}, err
 	}
-	if existing.UserID != userID {
+	role, err := s.getUserRole(ctx, collectionID, userID, existing.UserID)
+	if err != nil || !role.CanManageMembers() {
 		return domaincollection.Collection{}, domaincollection.ErrUnauthorized
 	}
 
@@ -128,7 +145,7 @@ func (s *Service) DeleteCollection(ctx context.Context, userID, collectionID uui
 	return s.store.Delete(ctx, collectionID)
 }
 
-// AddPaper links a paper to a user's collection.
+// AddPaper links a paper to a collection, asserting edit permissions.
 func (s *Service) AddPaper(ctx context.Context, userID, collectionID, paperID uuid.UUID, note string) error {
 	if collectionID == uuid.Nil || paperID == uuid.Nil {
 		return fmt.Errorf("%w: collection and paper id required", domaincollection.ErrInvalidInput)
@@ -138,7 +155,8 @@ func (s *Service) AddPaper(ctx context.Context, userID, collectionID, paperID uu
 	if err != nil {
 		return err
 	}
-	if existing.UserID != userID {
+	role, err := s.getUserRole(ctx, collectionID, userID, existing.UserID)
+	if err != nil || !role.CanEditPapers() {
 		return domaincollection.ErrUnauthorized
 	}
 
@@ -154,7 +172,7 @@ func (s *Service) AddPaper(ctx context.Context, userID, collectionID, paperID uu
 	return s.store.AddPaper(ctx, collectionID, paperID, note)
 }
 
-// RemovePaper unlinks a paper from a user's collection.
+// RemovePaper unlinks a paper from a collection, asserting edit permissions.
 func (s *Service) RemovePaper(ctx context.Context, userID, collectionID, paperID uuid.UUID) error {
 	if collectionID == uuid.Nil || paperID == uuid.Nil {
 		return fmt.Errorf("%w: collection and paper id required", domaincollection.ErrInvalidInput)
@@ -164,7 +182,8 @@ func (s *Service) RemovePaper(ctx context.Context, userID, collectionID, paperID
 	if err != nil {
 		return err
 	}
-	if existing.UserID != userID {
+	role, err := s.getUserRole(ctx, collectionID, userID, existing.UserID)
+	if err != nil || !role.CanEditPapers() {
 		return domaincollection.ErrUnauthorized
 	}
 
@@ -209,5 +228,77 @@ func (s *Service) ExportCollection(ctx context.Context, userID, collectionID uui
 	}
 
 	return s.exporter.ExportPapersBulk(ctx, paperIDs, format)
+}
+
+// ListCollaborators returns the members who have collaborative access to the collection.
+func (s *Service) ListCollaborators(ctx context.Context, userID, collectionID uuid.UUID) ([]domaincollection.Collaborator, error) {
+	if collectionID == uuid.Nil {
+		return nil, fmt.Errorf("%w: invalid collection id", domaincollection.ErrInvalidInput)
+	}
+
+	existing, err := s.store.GetByID(ctx, collectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	role, err := s.getUserRole(ctx, collectionID, userID, existing.UserID)
+	if !existing.IsPublic && (err != nil || !role.CanView()) {
+		return nil, domaincollection.ErrUnauthorized
+	}
+
+	return s.store.ListCollaborators(ctx, collectionID)
+}
+
+// AddCollaborator adds or updates a collaborator role on the collection.
+func (s *Service) AddCollaborator(ctx context.Context, actorID uuid.UUID, input domaincollection.AddCollaboratorInput) error {
+	if err := input.Validate(); err != nil {
+		return fmt.Errorf("%w: %s", domaincollection.ErrInvalidInput, err.Error())
+	}
+
+	existing, err := s.store.GetByID(ctx, input.CollectionID)
+	if err != nil {
+		return err
+	}
+
+	actorRole, err := s.getUserRole(ctx, input.CollectionID, actorID, existing.UserID)
+	if err != nil || !actorRole.CanManageMembers() {
+		return domaincollection.ErrUnauthorized
+	}
+
+	if input.UserID == existing.UserID {
+		return fmt.Errorf("%w: cannot add collection owner as collaborator", domaincollection.ErrInvalidInput)
+	}
+
+	c := domaincollection.Collaborator{
+		CollectionID: input.CollectionID,
+		UserID:       input.UserID,
+		Role:         input.Role,
+		InvitedBy:    input.InvitedBy,
+	}
+	return s.store.AddCollaborator(ctx, c)
+}
+
+// RemoveCollaborator removes a collaborator from the collection.
+func (s *Service) RemoveCollaborator(ctx context.Context, actorID, collectionID, targetUserID uuid.UUID) error {
+	if collectionID == uuid.Nil || targetUserID == uuid.Nil {
+		return fmt.Errorf("%w: collection and user id required", domaincollection.ErrInvalidInput)
+	}
+
+	existing, err := s.store.GetByID(ctx, collectionID)
+	if err != nil {
+		return err
+	}
+
+	if targetUserID == existing.UserID {
+		return fmt.Errorf("%w: cannot remove collection owner", domaincollection.ErrInvalidInput)
+	}
+
+	actorRole, err := s.getUserRole(ctx, collectionID, actorID, existing.UserID)
+	isSelfRemoval := actorID == targetUserID
+	if !isSelfRemoval && (err != nil || !actorRole.CanManageMembers()) {
+		return domaincollection.ErrUnauthorized
+	}
+
+	return s.store.RemoveCollaborator(ctx, collectionID, targetUserID)
 }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/app_theme.dart';
 import '../../features/ai/presentation/chat_screen.dart';
 import '../../features/ai/presentation/create_audio_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
@@ -17,13 +16,13 @@ import '../../features/papers/presentation/article_reader_screen.dart';
 import '../../features/papers/presentation/paper_audio_player_screen.dart';
 import '../../features/papers/presentation/paper_detail_screen.dart';
 import '../../features/papers/presentation/pdf_viewer_screen.dart';
-import '../../features/papers/presentation/widgets/mini_audio_player.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/topics/presentation/topic_detail_screen.dart';
 import '../../features/topics/presentation/topics_screen.dart';
 import '../prefs/user_preferences.dart';
+import '../widgets/adaptive_app_shell.dart';
 
 /// App routes + deep links (`athena://paper/{id}` arrives at path `/{id}` on
 /// custom schemes, hence the UUID-guarded catch-all below).
@@ -55,7 +54,7 @@ GoRouter buildAppRouter() {
         pageBuilder: _fadeTransition(OnboardingScreen.new),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, shell) => _HomeShell(shell),
+        builder: (context, state, shell) => AdaptiveAppShell(shell: shell),
         branches: [
           StatefulShellBranch(routes: [
             GoRoute(path: '/', name: 'feed', pageBuilder: _noTransition(FeedScreen.new)),
@@ -115,12 +114,23 @@ GoRouter buildAppRouter() {
         ),
       ),
       GoRoute(
+        path: '/collections/:id/chat',
+        name: 'collection-chat',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => ChatScreen(
+          collectionId: state.pathParameters['id']!,
+          collectionTitle: state.uri.queryParameters['title'],
+        ),
+      ),
+      GoRoute(
         path: '/chat',
         name: 'chat',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => ChatScreen(
           paperId: state.uri.queryParameters['paperId'],
           paperTitle: state.uri.queryParameters['title'],
+          collectionId: state.uri.queryParameters['collectionId'],
+          collectionTitle: state.uri.queryParameters['collectionTitle'],
           initialQuery: state.uri.queryParameters['q'],
         ),
       ),
@@ -257,76 +267,4 @@ bool isPaperToken(String s) {
   // DOI format: e.g. 10.1145/... or doi:...
   if (s.startsWith('10.') || s.startsWith('doi:')) return true;
   return false;
-}
-
-class _HomeShell extends StatelessWidget {
-  const _HomeShell(this.shell);
-
-  final StatefulNavigationShell shell;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      body: shell,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const MiniAudioPlayer(),
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF111216) : Colors.white,
-              border: Border(
-                top: BorderSide(
-                  color: isDark ? const Color(0xFF222632) : const Color(0xFFE5E7EB),
-                  width: 1.0,
-                ),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: NavigationBar(
-                selectedIndex: shell.currentIndex,
-                onDestinationSelected: shell.goBranch,
-                height: 64,
-                elevation: 0,
-                backgroundColor: Colors.transparent,
-                indicatorColor: isDark
-                    ? AppTheme.coral.withValues(alpha: 0.18)
-                    : AppTheme.coralSubtle,
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.home_outlined),
-                    selectedIcon: Icon(Icons.home_rounded, color: AppTheme.coral),
-                    label: 'Feed',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.description_outlined),
-                    selectedIcon: Icon(Icons.description_rounded, color: AppTheme.coral),
-                    label: 'Search',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.category_outlined),
-                    selectedIcon: Icon(Icons.category_rounded, color: AppTheme.coral),
-                    label: 'Topics',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.auto_stories_outlined),
-                    selectedIcon: Icon(Icons.auto_stories_rounded, color: AppTheme.coral),
-                    label: 'Digest',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.local_library_outlined),
-                    selectedIcon: Icon(Icons.local_library_rounded, color: AppTheme.coral),
-                    label: 'Library',
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

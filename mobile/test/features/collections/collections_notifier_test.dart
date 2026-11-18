@@ -45,6 +45,19 @@ class FakeCollectionRepository implements CollectionRepository {
     ],
   };
 
+  Map<String, List<Collaborator>> collaborators = {
+    'c1': [
+      Collaborator(
+        collectionId: 'c1',
+        userId: 'u2',
+        email: 'collaborator@example.com',
+        role: CollectionRole.editor,
+        invitedBy: 'u1',
+        createdAt: DateTime.utc(2026, 11, 2),
+      ),
+    ],
+  };
+
   @override
   Future<List<Collection>> listCollections() async => List.of(collections);
 
@@ -139,6 +152,39 @@ class FakeCollectionRepository implements CollectionRepository {
       );
     }).toList();
   }
+
+  @override
+  Future<List<Collaborator>> listCollaborators(String collectionId) async {
+    return List.of(collaborators[collectionId] ?? []);
+  }
+
+  @override
+  Future<Collaborator> addCollaborator(
+    String collectionId, {
+    required String userId,
+    required CollectionRole role,
+  }) async {
+    final list = collaborators.putIfAbsent(collectionId, () => []);
+    list.removeWhere((c) => c.userId == userId);
+    final col = Collaborator(
+      collectionId: collectionId,
+      userId: userId,
+      email: '$userId@example.com',
+      role: role,
+      invitedBy: 'u1',
+      createdAt: DateTime.now(),
+    );
+    list.add(col);
+    return col;
+  }
+
+  @override
+  Future<void> removeCollaborator(String collectionId, String userId) async {
+    final list = collaborators[collectionId];
+    if (list != null) {
+      list.removeWhere((c) => c.userId == userId);
+    }
+  }
 }
 
 void main() {
@@ -222,5 +268,41 @@ void main() {
     final afterRemove = container.read(collectionDetailProvider('c1'));
     expect(afterRemove.value!.papers, isEmpty);
     expect(afterRemove.value!.collection.paperCount, 0);
+  });
+
+  test('collaborators notifier loads members, invites collaborator, and removes collaborator', () async {
+    final fakeRepo = FakeCollectionRepository();
+    final container = ProviderContainer(
+      overrides: [
+        collectionRepositoryProvider.overrideWithValue(fakeRepo),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final notifier = container.read(collectionCollaboratorsProvider('c1').notifier);
+    await notifier.load();
+
+    final state = container.read(collectionCollaboratorsProvider('c1'));
+    expect(state.hasValue, isTrue);
+    expect(state.value!.length, 1);
+    expect(state.value!.first.email, 'collaborator@example.com');
+    expect(state.value!.first.role, CollectionRole.editor);
+
+    // Add / Invite collaborator
+    final added = await notifier.addCollaborator(
+      userId: 'u3',
+      role: CollectionRole.admin,
+    );
+    expect(added.userId, 'u3');
+    expect(added.role, CollectionRole.admin);
+
+    final stateAfterAdd = container.read(collectionCollaboratorsProvider('c1'));
+    expect(stateAfterAdd.value!.length, 2);
+
+    // Remove collaborator
+    await notifier.removeCollaborator('u2');
+    final stateAfterRemove = container.read(collectionCollaboratorsProvider('c1'));
+    expect(stateAfterRemove.value!.length, 1);
+    expect(stateAfterRemove.value!.first.userId, 'u3');
   });
 }

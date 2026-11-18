@@ -21,4 +21,7 @@ abstract class CollectionRepository {
   Future<void> removePaper(String collectionId, String paperId);
   Future<String> exportCollection(String collectionId, {String format = 'bibtex'});
   Future<List<PaperMembership>> getPaperMemberships(String paperId);
+  Future<List<Collaborator>> listCollaborators(String collectionId);
+  Future<Collaborator> addCollaborator(String collectionId, {required String userId, required CollectionRole role});
+  Future<void> removeCollaborator(String collectionId, String userId);
 }

@@ -10,6 +10,7 @@ import '../../../core/widgets/paper_card.dart';
 import '../domain/search.dart';
 import 'search_notifier.dart';
 import 'topic_suggestions_provider.dart';
+import 'widgets/search_filters_sheet.dart';
 
 /// Friendly provider names for federated-search telemetry chips.
 const _sourceLabels = {
@@ -76,6 +77,40 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return _focus.hasFocus && query.toLowerCase() != state.filters.query.toLowerCase();
   }
 
+  int _activeFilterCount(SearchFilters f) {
+    int count = 0;
+    if (f.mode != SearchMode.hybrid) count++;
+    if (f.openAccess == true) count++;
+    if (f.minCitations != null && f.minCitations! > 0) count++;
+    if (f.publishedAfter != null) count++;
+    if (f.sort != SearchSort.relevance) count++;
+    return count;
+  }
+
+  void _showFiltersSheet(BuildContext context, SearchFilters current) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SearchFiltersSheet(
+        currentFilters: current,
+        onApply: (updated) {
+          ref.read(searchNotifierProvider.notifier).applyAdvancedFilters(
+            mode: updated.mode,
+            sort: updated.sort,
+            openAccess: updated.openAccess,
+            minCitations: updated.minCitations,
+            publishedAfter: updated.publishedAfter,
+            publishedBefore: updated.publishedBefore,
+            source: updated.source,
+            clearDates: updated.publishedAfter == null,
+            clearMinCitations: updated.minCitations == null,
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(searchNotifierProvider);
@@ -125,6 +160,31 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
+                    ActionChip(
+                      avatar: const Icon(Icons.tune_rounded, size: 14, color: AppTheme.coral),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Filters', style: TextStyle(fontWeight: FontWeight.w700)),
+                          if (_activeFilterCount(state.filters) > 0) ...[
+                            const SizedBox(width: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: const BoxDecoration(
+                                color: AppTheme.coral,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '${_activeFilterCount(state.filters)}',
+                                style: const TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      onPressed: () => _showFiltersSheet(context, state.filters),
+                    ),
+                    const SizedBox(width: 8),
                     ChoiceChip(
                       avatar: const Icon(Icons.library_books_rounded, size: 15),
                       label: const Text('Corpus'),

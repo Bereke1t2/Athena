@@ -180,6 +180,9 @@ func run() error {
 	notifHandlers := v1.NewNotificationsHandlers(
 		appnotif.NewService(notifStore).WithDevices(notifStore, pushSender), log)
 
+	// Research Collections & Reading Lists Store
+	collectionStore := database.NewCollectionStore(pool)
+
 	// Phase 4 AI layer: only wired when an LLM provider is configured.
 	var aiHandlers *v1.AIHandlers
 	var llm domainai.LLMProvider
@@ -220,7 +223,7 @@ func run() error {
 		retrieval.Logger = log
 		summarySvc := appai.NewSummaryService(llm, aiStore, paperStore, aiStore, log)
 		summarySvc.Indexer = rag
-		chatSvc := appchat.NewService(llm, aiStore, retrieval, paperStore, log)
+		chatSvc := appchat.NewService(llm, aiStore, retrieval, paperStore, log).WithCollections(collectionStore)
 		chatSvc.Indexer = rag
 
 		aiHandlers = v1.NewAIHandlers(summarySvc, chatSvc, log)
@@ -262,7 +265,6 @@ func run() error {
 	digestHandlers := v1.NewDigestHandlers(appdigest.NewService(store, followStore, digestStore, llm, log), log)
 
 	// Research Collections & Reading Lists
-	collectionStore := database.NewCollectionStore(pool)
 	collectionHandlers := v1.NewCollectionsHandlers(
 		appcollection.NewService(collectionStore, store).WithExporter(exportSvc), log)
 

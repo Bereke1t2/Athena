@@ -271,16 +271,43 @@ func pgvectorLiteral(v []float32) string {
 
 // ---- chat -------------------------------------------------------------------
 
-// CreateSession inserts a single-paper chat session.
+// CreateSession inserts a single-paper, comparison, or collection chat session.
 func (s *AIStore) CreateSession(ctx context.Context, in ai.NewSessionInput) (ai.Session, error) {
+	sType := in.SessionType
+	if sType == "" {
+		if in.CollectionID != uuid.Nil {
+			sType = "collection"
+		} else if len(in.ComparePaperIDs) >= 2 {
+			sType = "comparison"
+		} else {
+			sType = "single_paper"
+		}
+	}
+
+	var paperIDParam *uuid.UUID
+	if in.PaperID != uuid.Nil {
+		paperIDParam = &in.PaperID
+	}
+	var colIDParam *uuid.UUID
+	if in.CollectionID != uuid.Nil {
+		colIDParam = &in.CollectionID
+	}
+	compareIDs := in.ComparePaperIDs
+	if compareIDs == nil {
+		compareIDs = []uuid.UUID{}
+	}
+
 	row := s.pool.QueryRow(ctx, `
-		INSERT INTO chat_sessions (id, user_id, session_type, paper_id, title)
-		VALUES ($1, $2, 'single_paper', $3, NULLIF($4,''))
-		RETURNING id, user_id, paper_id, COALESCE(title,''), message_count, last_message_at, created_at`,
-		uuid.New(), in.UserID, in.PaperID, in.Title)
+		INSERT INTO chat_sessions (id, user_id, session_type, paper_id, collection_id, compare_paper_ids, title)
+		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7,''))
+		RETURNING id, session_type, COALESCE(paper_id, '00000000-0000-0000-0000-000000000000'::uuid),
+		          COALESCE(collection_id, '00000000-0000-0000-0000-000000000000'::uuid),
+		          compare_paper_ids, user_id, COALESCE(title,''), message_count, last_message_at, created_at`,
+		uuid.New(), in.UserID, sType, paperIDParam, colIDParam, compareIDs, in.Title)
 
 	var sess ai.Session
-	err := row.Scan(&sess.ID, &sess.UserID, &sess.PaperID, &sess.Title,
+	err := row.Scan(&sess.ID, &sess.SessionType, &sess.PaperID, &sess.CollectionID,
+		&sess.ComparePaperIDs, &sess.UserID, &sess.Title,
 		&sess.MessageCount, &sess.LastMessageAt, &sess.CreatedAt)
 	if err != nil {
 		return ai.Session{}, fmt.Errorf("create chat session: %w", err)
@@ -291,10 +318,13 @@ func (s *AIStore) CreateSession(ctx context.Context, in ai.NewSessionInput) (ai.
 // GetSession loads one session header.
 func (s *AIStore) GetSession(ctx context.Context, id uuid.UUID) (ai.Session, error) {
 	row := s.pool.QueryRow(ctx, `
-		SELECT id, user_id, paper_id, COALESCE(title,''), message_count, last_message_at, created_at
-		FROM chat_sessions WHERE id = $1 AND session_type = 'single_paper'`, id)
+		SELECT id, session_type, COALESCE(paper_id, '00000000-0000-0000-0000-000000000000'::uuid),
+		       COALESCE(collection_id, '00000000-0000-0000-0000-000000000000'::uuid),
+		       compare_paper_ids, user_id, COALESCE(title,''), message_count, last_message_at, created_at
+		FROM chat_sessions WHERE id = $1`, id)
 	var sess ai.Session
-	err := row.Scan(&sess.ID, &sess.UserID, &sess.PaperID, &sess.Title,
+	err := row.Scan(&sess.ID, &sess.SessionType, &sess.PaperID, &sess.CollectionID,
+		&sess.ComparePaperIDs, &sess.UserID, &sess.Title,
 		&sess.MessageCount, &sess.LastMessageAt, &sess.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ai.Session{}, ai.ErrNotFound

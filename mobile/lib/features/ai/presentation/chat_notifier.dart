@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -141,4 +142,145 @@ class ChatThread extends _$ChatThread {
       );
     }
   }
+
+  Future<void> reset() async {
+    await UserPreferences.instance.setChatSessionId(paperId, '');
+    state = const ChatThreadState();
+  }
 }
+
+/// One chat thread per collection ("Ask My Collection").
+class CollectionChatNotifier extends StateNotifier<ChatThreadState> {
+  CollectionChatNotifier(this._ref, this.collectionId) : super(const ChatThreadState()) {
+    _init();
+  }
+
+  final Ref _ref;
+  final String collectionId;
+
+  void _init() {
+    final savedSessionId = UserPreferences.instance.getCollectionChatSessionId(collectionId);
+    if (savedSessionId != null && savedSessionId.isNotEmpty) {
+      state = ChatThreadState(sessionId: savedSessionId);
+      _restoreSession(savedSessionId);
+    }
+  }
+
+  Future<void> _restoreSession(String sessionId) async {
+    try {
+      final repo = _ref.read(aiRepositoryProvider);
+      final msgs = await repo.messages(sessionId);
+      if (msgs.isNotEmpty && state.sessionId == sessionId && state.messages.isEmpty) {
+        state = state.copyWith(messages: msgs);
+      }
+    } catch (_) {
+      // Graceful fallback
+    }
+  }
+
+  Future<void> send(String text) async {
+    final content = text.trim();
+    if (content.isEmpty || state.sending) return;
+    final repo = _ref.read(aiRepositoryProvider);
+
+    var sessionId = state.sessionId;
+    try {
+      if (sessionId == null) {
+        sessionId = await repo.createCollectionSession(collectionId);
+        await UserPreferences.instance.setCollectionChatSessionId(collectionId, sessionId);
+      }
+    } catch (e) {
+      state = state.copyWith(
+        messages: [
+          ...state.messages,
+          ChatMessage(
+            id: 'local-err-${DateTime.now()}',
+            role: 'assistant',
+            content: 'Failed to start collection chat: ${e.toString()}',
+          ),
+        ],
+      );
+      return;
+    }
+
+    final userMsg = ChatMessage(id: 'local-${DateTime.now()}', role: 'user', content: content);
+    state = state.copyWith(
+      sessionId: sessionId,
+      messages: [...state.messages, userMsg],
+      sending: true,
+      streaming: '',
+    );
+
+    final buffer = StringBuffer();
+    try {
+      await for (final event in repo.ask(sessionId, content)) {
+        switch (event) {
+          case ChatDelta(:final text):
+            buffer.write(text);
+            state = state.copyWith(streaming: buffer.toString());
+          case ChatDone(:final message):
+            final finalContent = message.content.isNotEmpty ? message.content : buffer.toString().trim();
+            state = state.copyWith(
+              messages: [...state.messages, message.copyWith(content: finalContent)],
+              streaming: '',
+              sending: false,
+            );
+          case ChatFailed(:final message):
+            state = state.copyWith(
+              messages: [
+                ...state.messages,
+                ChatMessage(
+                  id: 'local-err-${DateTime.now()}',
+                  role: 'assistant',
+                  content: message,
+                ),
+              ],
+              streaming: '',
+              sending: false,
+            );
+        }
+      }
+    } catch (e) {
+      final partial = buffer.toString().trim();
+      state = state.copyWith(
+        messages: [
+          ...state.messages,
+          if (partial.isNotEmpty)
+            ChatMessage(id: 'local-partial', role: 'assistant', content: partial),
+          if (partial.isEmpty)
+            ChatMessage(
+              id: 'local-err-${DateTime.now()}',
+              role: 'assistant',
+              content: 'Connection error: ${e.toString()}',
+            ),
+        ],
+        streaming: '',
+        sending: false,
+      );
+      return;
+    }
+
+    if (state.sending) {
+      final partial = buffer.toString().trim();
+      state = state.copyWith(
+        messages: [
+          ...state.messages,
+          if (partial.isNotEmpty)
+            ChatMessage(id: 'local-partial', role: 'assistant', content: partial),
+        ],
+        streaming: '',
+        sending: false,
+      );
+    }
+  }
+
+  Future<void> reset() async {
+    await UserPreferences.instance.setCollectionChatSessionId(collectionId, '');
+    state = const ChatThreadState();
+  }
+}
+
+final collectionChatThreadProvider =
+    StateNotifierProvider.family<CollectionChatNotifier, ChatThreadState, String>((ref, collectionId) {
+  return CollectionChatNotifier(ref, collectionId);
+});

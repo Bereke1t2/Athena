@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -51,8 +52,23 @@ type collectionDTO struct {
 	Color       string `json:"color"`
 	IsPublic    bool   `json:"is_public"`
 	PaperCount  int    `json:"paper_count"`
+	UserRole    string `json:"user_role,omitempty"`
 	CreatedAt   string `json:"created_at"`
 	UpdatedAt   string `json:"updated_at"`
+}
+
+type addCollaboratorRequestDTO struct {
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
+}
+
+type collaboratorDTO struct {
+	CollectionID string `json:"collection_id"`
+	UserID       string `json:"user_id"`
+	Email        string `json:"email,omitempty"`
+	Role         string `json:"role"`
+	InvitedBy    string `json:"invited_by,omitempty"`
+	CreatedAt    string `json:"created_at"`
 }
 
 type collectionPaperDTO struct {
@@ -86,6 +102,7 @@ func toCollectionDTO(c domaincollection.Collection) collectionDTO {
 		Color:       c.Color,
 		IsPublic:    c.IsPublic,
 		PaperCount:  c.PaperCount,
+		UserRole:    string(c.UserRole),
 		CreatedAt:   c.CreatedAt.Format(timeFormatRFC3339),
 		UpdatedAt:   c.UpdatedAt.Format(timeFormatRFC3339),
 	}
@@ -417,4 +434,145 @@ func (h *CollectionsHandlers) PaperMemberships(w http.ResponseWriter, r *http.Re
 		}
 	}
 	WriteJSON(w, http.StatusOK, map[string]any{"items": dtos})
+}
+
+// ListCollaborators: GET /api/v1/collections/{id}/collaborators
+func (h *CollectionsHandlers) ListCollaborators(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		WriteErrorWithDetails(w, r, http.StatusBadRequest, CodeInvalidRequest,
+			"id must be a UUID", []errorDetail{{Field: "id", Issue: "must be a UUID"}})
+		return
+	}
+
+	var callerID uuid.UUID
+	if user, ok := UserFromContext(r.Context()); ok {
+		callerID = user.ID
+	}
+
+	collaborators, err := h.Svc.ListCollaborators(r.Context(), callerID, id)
+	switch {
+	case errors.Is(err, domaincollection.ErrNotFound):
+		WriteError(w, r, http.StatusNotFound, CodeNotFound, "collection not found")
+	case errors.Is(err, domaincollection.ErrUnauthorized):
+		WriteError(w, r, http.StatusForbidden, CodeForbidden, "forbidden")
+	case err != nil:
+		h.Logger.Error("list collaborators failed", "error", err, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+	default:
+		dtos := make([]collaboratorDTO, len(collaborators))
+		for i, c := range collaborators {
+			var invitedByStr string
+			if c.InvitedBy != uuid.Nil {
+				invitedByStr = c.InvitedBy.String()
+			}
+			dtos[i] = collaboratorDTO{
+				CollectionID: c.CollectionID.String(),
+				UserID:       c.UserID.String(),
+				Email:        c.Email,
+				Role:         string(c.Role),
+				InvitedBy:    invitedByStr,
+				CreatedAt:    c.CreatedAt.Format(timeFormatRFC3339),
+			}
+		}
+		WriteJSON(w, http.StatusOK, map[string]any{"items": dtos})
+	}
+}
+
+// AddCollaborator: POST /api/v1/collections/{id}/collaborators
+func (h *CollectionsHandlers) AddCollaborator(w http.ResponseWriter, r *http.Request) {
+	user, ok := UserFromContext(r.Context())
+	if !ok {
+		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "authentication required")
+		return
+	}
+
+	collectionID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		WriteErrorWithDetails(w, r, http.StatusBadRequest, CodeInvalidRequest,
+			"id must be a UUID", []errorDetail{{Field: "id", Issue: "must be a UUID"}})
+		return
+	}
+
+	var req addCollaboratorRequestDTO
+	if err := decodeJSON(r, &req); err != nil {
+		WriteErrorWithDetails(w, r, http.StatusBadRequest, CodeInvalidRequest,
+			"invalid request body", []errorDetail{{Field: "body", Issue: err.Error()}})
+		return
+	}
+
+	targetUserID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		WriteErrorWithDetails(w, r, http.StatusBadRequest, CodeInvalidRequest,
+			"user_id must be a UUID", []errorDetail{{Field: "user_id", Issue: "must be a UUID"}})
+		return
+	}
+
+	input := domaincollection.AddCollaboratorInput{
+		CollectionID: collectionID,
+		UserID:       targetUserID,
+		Role:         domaincollection.Role(req.Role),
+		InvitedBy:    user.ID,
+	}
+
+	err = h.Svc.AddCollaborator(r.Context(), user.ID, input)
+	switch {
+	case errors.Is(err, domaincollection.ErrNotFound):
+		WriteError(w, r, http.StatusNotFound, CodeNotFound, "collection not found")
+	case errors.Is(err, domaincollection.ErrUnauthorized):
+		WriteError(w, r, http.StatusForbidden, CodeForbidden, "forbidden")
+	case errors.Is(err, domaincollection.ErrInvalidInput):
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, err.Error())
+	case err != nil:
+		h.Logger.Error("add collaborator failed", "error", err, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+	default:
+		WriteJSON(w, http.StatusCreated, collaboratorDTO{
+			CollectionID: collectionID.String(),
+			UserID:       targetUserID.String(),
+			Role:         req.Role,
+			InvitedBy:    user.ID.String(),
+			CreatedAt:    time.Now().UTC().Format(timeFormatRFC3339),
+		})
+	}
+}
+
+// RemoveCollaborator: DELETE /api/v1/collections/{id}/collaborators/{user_id}
+func (h *CollectionsHandlers) RemoveCollaborator(w http.ResponseWriter, r *http.Request) {
+	user, ok := UserFromContext(r.Context())
+	if !ok {
+		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "authentication required")
+		return
+	}
+
+	collectionID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		WriteErrorWithDetails(w, r, http.StatusBadRequest, CodeInvalidRequest,
+			"id must be a UUID", []errorDetail{{Field: "id", Issue: "must be a UUID"}})
+		return
+	}
+
+	targetUserID, err := uuid.Parse(r.PathValue("user_id"))
+	if err != nil {
+		WriteErrorWithDetails(w, r, http.StatusBadRequest, CodeInvalidRequest,
+			"user_id must be a UUID", []errorDetail{{Field: "user_id", Issue: "must be a UUID"}})
+		return
+	}
+
+	err = h.Svc.RemoveCollaborator(r.Context(), user.ID, collectionID, targetUserID)
+	switch {
+	case errors.Is(err, domaincollection.ErrNotFound):
+		WriteError(w, r, http.StatusNotFound, CodeNotFound, "collection not found")
+	case errors.Is(err, domaincollection.ErrCollaboratorNotFound):
+		WriteError(w, r, http.StatusNotFound, CodeNotFound, "collaborator not found")
+	case errors.Is(err, domaincollection.ErrUnauthorized):
+		WriteError(w, r, http.StatusForbidden, CodeForbidden, "forbidden")
+	case errors.Is(err, domaincollection.ErrInvalidInput):
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, err.Error())
+	case err != nil:
+		h.Logger.Error("remove collaborator failed", "error", err, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+	default:
+		w.WriteHeader(http.StatusNoContent)
+	}
 }

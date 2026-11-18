@@ -7,6 +7,8 @@ abstract interface class AiRepository {
 
   Future<String> createSession(String paperId);
 
+  Future<String> createCollectionSession(String collectionId);
+
   Future<List<ChatMessage>> messages(String sessionId);
 
   /// Streams one grounded assistant reply (SSE): deltas then a done event.

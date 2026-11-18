@@ -87,6 +87,45 @@ class SearchNotifier extends _$SearchNotifier {
     await _run(cursor: null);
   }
 
+  Future<void> setMode(SearchMode mode) async {
+    if (!_hasQuery || mode == state.filters.mode) return;
+    state = state.copyWith(
+      filters: state.filters.copyWith(mode: mode, isLive: mode == SearchMode.live),
+      page: const AsyncValue.loading(),
+    );
+    await _run(cursor: null);
+  }
+
+  Future<void> applyAdvancedFilters({
+    SearchMode? mode,
+    SearchSort? sort,
+    bool? openAccess,
+    int? minCitations,
+    DateTime? publishedAfter,
+    DateTime? publishedBefore,
+    String? source,
+    bool clearDates = false,
+    bool clearMinCitations = false,
+  }) async {
+    if (!_hasQuery) return;
+    state = state.copyWith(
+      filters: state.filters.copyWith(
+        mode: mode,
+        sort: sort,
+        openAccess: openAccess,
+        minCitations: minCitations,
+        publishedAfter: publishedAfter,
+        publishedBefore: publishedBefore,
+        source: source,
+        isLive: (mode != null) ? (mode == SearchMode.live) : null,
+        clearDates: clearDates,
+        clearMinCitations: clearMinCitations,
+      ),
+      page: const AsyncValue.loading(),
+    );
+    await _run(cursor: null);
+  }
+
   Future<void> loadMore() async {
     final pageState = state.page.valueOrNull;
     if (pageState == null ||

@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/di.dart';
 import '../../../core/error/failure.dart';
@@ -45,6 +47,10 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
   }
 
   Future<void> _checkCachedAndFetch() async {
+    if (kIsWeb) {
+      // On web environments, documents are opened via direct browser navigation.
+      return;
+    }
     final repo = ref.read(pdfRepositoryProvider);
     final cached = await repo.getCachedPath(widget.paperId);
     if (!mounted) return;
@@ -151,7 +157,43 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
             ),
         ],
       ),
-      body: _error != null
+      body: kIsWeb
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.picture_as_pdf_outlined, size: 64, color: AppTheme.coral),
+                    const SizedBox(height: 16),
+                    Text(
+                      widget.title ?? 'Research Paper PDF',
+                      style: theme.textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Web reader opens the direct open-access PDF in your browser.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      label: const Text('Open PDF in New Tab'),
+                      onPressed: () {
+                        if (widget.url.isNotEmpty) {
+                          launchUrl(Uri.parse(widget.url), mode: LaunchMode.externalApplication);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : _error != null
           ? ErrorView(
               failure: _error!,
               onRetry: () {

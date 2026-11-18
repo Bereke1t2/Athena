@@ -76,6 +76,19 @@ class AiRepositoryImpl implements AiRepository {
   }
 
   @override
+  Future<String> createCollectionSession(String collectionId) async {
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/chat/sessions',
+        data: {'collection_id': collectionId},
+      );
+      return res.data!['id'] as String;
+    } catch (e) {
+      throw failureFromDio(e);
+    }
+  }
+
+  @override
   Future<List<ChatMessage>> messages(String sessionId) async {
     try {
       final res = await _dio.get<List<dynamic>>(

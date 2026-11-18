@@ -1,5 +1,83 @@
 import '../../papers/domain/paper.dart';
 
+/// Role of a user relative to a research collection.
+enum CollectionRole {
+  owner,
+  admin,
+  editor,
+  viewer;
+
+  static CollectionRole fromString(String? val) {
+    if (val == null) return CollectionRole.viewer;
+    switch (val.toLowerCase()) {
+      case 'owner':
+        return CollectionRole.owner;
+      case 'admin':
+        return CollectionRole.admin;
+      case 'editor':
+        return CollectionRole.editor;
+      case 'viewer':
+      default:
+        return CollectionRole.viewer;
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case CollectionRole.owner:
+        return 'Owner';
+      case CollectionRole.admin:
+        return 'Admin';
+      case CollectionRole.editor:
+        return 'Editor';
+      case CollectionRole.viewer:
+        return 'Viewer';
+    }
+  }
+
+  bool get isOwner => this == CollectionRole.owner;
+  bool get canManageMembers => this == CollectionRole.owner || this == CollectionRole.admin;
+  bool get canEditPapers => this == CollectionRole.owner || this == CollectionRole.admin || this == CollectionRole.editor;
+  bool get canView => true;
+}
+
+/// A member collaborating on a research collection.
+class Collaborator {
+  const Collaborator({
+    required this.collectionId,
+    required this.userId,
+    required this.email,
+    required this.role,
+    required this.invitedBy,
+    required this.createdAt,
+  });
+
+  final String collectionId;
+  final String userId;
+  final String email;
+  final CollectionRole role;
+  final String invitedBy;
+  final DateTime createdAt;
+
+  Collaborator copyWith({
+    String? collectionId,
+    String? userId,
+    String? email,
+    CollectionRole? role,
+    String? invitedBy,
+    DateTime? createdAt,
+  }) {
+    return Collaborator(
+      collectionId: collectionId ?? this.collectionId,
+      userId: userId ?? this.userId,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      invitedBy: invitedBy ?? this.invitedBy,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+}
+
 /// A user-curated research folder or reading list.
 class Collection {
   const Collection({
@@ -10,6 +88,7 @@ class Collection {
     required this.color,
     required this.isPublic,
     required this.paperCount,
+    this.userRole = CollectionRole.owner,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -21,6 +100,7 @@ class Collection {
   final String color;
   final bool isPublic;
   final int paperCount;
+  final CollectionRole userRole;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -32,6 +112,7 @@ class Collection {
     String? color,
     bool? isPublic,
     int? paperCount,
+    CollectionRole? userRole,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -43,6 +124,7 @@ class Collection {
       color: color ?? this.color,
       isPublic: isPublic ?? this.isPublic,
       paperCount: paperCount ?? this.paperCount,
+      userRole: userRole ?? this.userRole,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

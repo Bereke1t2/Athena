@@ -13,15 +13,42 @@ import (
 
 // Domain sentinel errors.
 var (
-	ErrNotFound       = errors.New("collection: not found")
-	ErrUnauthorized   = errors.New("collection: unauthorized")
-	ErrDuplicateName  = errors.New("collection: name already exists")
-	ErrInvalidInput   = errors.New("collection: invalid input")
-	ErrPaperNotFound  = errors.New("collection: paper not found")
+	ErrNotFound             = errors.New("collection: not found")
+	ErrUnauthorized         = errors.New("collection: unauthorized")
+	ErrDuplicateName        = errors.New("collection: name already exists")
+	ErrInvalidInput         = errors.New("collection: invalid input")
+	ErrPaperNotFound        = errors.New("collection: paper not found")
+	ErrInvalidRole          = errors.New("collection: invalid collaborator role")
+	ErrCollaboratorNotFound = errors.New("collection: collaborator not found")
 )
 
 // DefaultCollectionColor is used when no color hex is provided.
 const DefaultCollectionColor = "#6366F1"
+
+// Role defines access level for collection collaborators.
+type Role string
+
+const (
+	RoleOwner  Role = "owner"
+	RoleAdmin  Role = "admin"
+	RoleEditor Role = "editor"
+	RoleViewer Role = "viewer"
+)
+
+// CanManageMembers reports whether the role can invite or remove members.
+func (r Role) CanManageMembers() bool {
+	return r == RoleOwner || r == RoleAdmin
+}
+
+// CanEditPapers reports whether the role can add or remove papers.
+func (r Role) CanEditPapers() bool {
+	return r == RoleOwner || r == RoleAdmin || r == RoleEditor
+}
+
+// CanView reports whether the role has read access.
+func (r Role) CanView() bool {
+	return r == RoleOwner || r == RoleAdmin || r == RoleEditor || r == RoleViewer
+}
 
 // Collection represents a named research paper folder or reading list.
 type Collection struct {
@@ -32,8 +59,42 @@ type Collection struct {
 	Color       string    `json:"color"`
 	IsPublic    bool      `json:"is_public"`
 	PaperCount  int       `json:"paper_count"`
+	UserRole    Role      `json:"user_role,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// Collaborator represents a user sharing access to a collection.
+type Collaborator struct {
+	CollectionID uuid.UUID `json:"collection_id"`
+	UserID       uuid.UUID `json:"user_id"`
+	Email        string    `json:"email,omitempty"`
+	Role         Role      `json:"role"`
+	InvitedBy    uuid.UUID `json:"invited_by,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// AddCollaboratorInput defines parameters for adding a collaborator.
+type AddCollaboratorInput struct {
+	CollectionID uuid.UUID
+	UserID       uuid.UUID
+	Role         Role
+	InvitedBy    uuid.UUID
+}
+
+func (a *AddCollaboratorInput) Validate() error {
+	if a.CollectionID == uuid.Nil {
+		return errors.New("collection id is required")
+	}
+	if a.UserID == uuid.Nil {
+		return errors.New("user id is required")
+	}
+	switch a.Role {
+	case RoleAdmin, RoleEditor, RoleViewer:
+		return nil
+	default:
+		return errors.New("invalid role: must be admin, editor, or viewer")
+	}
 }
 
 // CollectionPaper links a research paper to a collection with personal context.
@@ -129,4 +190,9 @@ type Store interface {
 	RemovePaper(ctx context.Context, collectionID, paperID uuid.UUID) error
 	ListPapers(ctx context.Context, collectionID uuid.UUID) ([]CollectionPaper, error)
 	GetPaperMemberships(ctx context.Context, userID, paperID uuid.UUID) ([]PaperMembership, error)
+
+	AddCollaborator(ctx context.Context, c Collaborator) error
+	RemoveCollaborator(ctx context.Context, collectionID, userID uuid.UUID) error
+	ListCollaborators(ctx context.Context, collectionID uuid.UUID) ([]Collaborator, error)
+	GetUserRole(ctx context.Context, collectionID, userID uuid.UUID) (Role, error)
 }

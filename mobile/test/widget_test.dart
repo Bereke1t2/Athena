@@ -72,6 +72,6 @@ void main() {
     expect(find.text('Topics'), findsOneWidget);
     expect(find.text('Library'), findsOneWidget);
     expect(find.text('Your Feed'), findsNothing); // legacy header, removed
-    expect(find.text('ATHENA'), findsOneWidget); // current feed header
+    expect(find.text('ATHENA'), findsAtLeastNWidgets(1)); // current feed header & adaptive rail branding
   });
 }

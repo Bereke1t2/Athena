@@ -82,19 +82,28 @@ func newMessageDTO(m domainai.Message) messageDTO {
 }
 
 type sessionDTO struct {
-	ID            uuid.UUID  `json:"id"`
-	PaperID       uuid.UUID  `json:"paper_id"`
-	Title         string     `json:"title,omitempty"`
-	MessageCount  int        `json:"message_count"`
-	LastMessageAt *time.Time `json:"last_message_at,omitempty"`
-	CreatedAt     time.Time  `json:"created_at"`
+	ID              uuid.UUID   `json:"id"`
+	SessionType     string      `json:"session_type"`
+	PaperID         uuid.UUID   `json:"paper_id,omitempty"`
+	CollectionID    uuid.UUID   `json:"collection_id,omitempty"`
+	ComparePaperIDs []uuid.UUID `json:"compare_paper_ids,omitempty"`
+	Title           string      `json:"title,omitempty"`
+	MessageCount    int         `json:"message_count"`
+	LastMessageAt   *time.Time  `json:"last_message_at,omitempty"`
+	CreatedAt       time.Time   `json:"created_at"`
 }
 
 func newSessionDTO(s domainai.Session) sessionDTO {
 	return sessionDTO{
-		ID: s.ID, PaperID: s.PaperID, Title: s.Title,
-		MessageCount: s.MessageCount, LastMessageAt: s.LastMessageAt,
-		CreatedAt: s.CreatedAt,
+		ID:              s.ID,
+		SessionType:     s.SessionType,
+		PaperID:         s.PaperID,
+		CollectionID:    s.CollectionID,
+		ComparePaperIDs: s.ComparePaperIDs,
+		Title:           s.Title,
+		MessageCount:    s.MessageCount,
+		LastMessageAt:   s.LastMessageAt,
+		CreatedAt:       s.CreatedAt,
 	}
 }
 
@@ -221,8 +230,10 @@ func (h *AIHandlers) ReaderGet(w http.ResponseWriter, r *http.Request) {
 // ---- POST /api/v1/chat/sessions ---------------------------------------------
 
 type createSessionRequestDTO struct {
-	PaperID uuid.UUID `json:"paper_id"`
-	Title   string    `json:"title"`
+	PaperID         uuid.UUID   `json:"paper_id"`
+	CollectionID    uuid.UUID   `json:"collection_id"`
+	ComparePaperIDs []uuid.UUID `json:"compare_paper_ids"`
+	Title           string      `json:"title"`
 }
 
 func (h *AIHandlers) CreateSession(w http.ResponseWriter, r *http.Request) {
@@ -232,13 +243,30 @@ func (h *AIHandlers) CreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req createSessionRequestDTO
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.PaperID == uuid.Nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteErrorWithDetails(w, r, http.StatusBadRequest, CodeInvalidRequest,
-			"paper_id is required", []errorDetail{{Field: "paper_id", Issue: "is required"}})
+			"invalid request body", []errorDetail{{Field: "body", Issue: err.Error()}})
 		return
 	}
+	if req.PaperID == uuid.Nil && req.CollectionID == uuid.Nil && len(req.ComparePaperIDs) < 2 {
+		WriteErrorWithDetails(w, r, http.StatusBadRequest, CodeInvalidRequest,
+			"paper_id or collection_id is required", []errorDetail{{Field: "paper_id", Issue: "is required"}})
+		return
+	}
+
+	sessionType := "single_paper"
+	if req.CollectionID != uuid.Nil {
+		sessionType = "collection"
+	} else if len(req.ComparePaperIDs) >= 2 {
+		sessionType = "comparison"
+	}
+
 	sess, err := h.Chat.CreateSession(r.Context(), domainai.NewSessionInput{
-		PaperID: req.PaperID, Title: req.Title,
+		SessionType:     sessionType,
+		PaperID:         req.PaperID,
+		CollectionID:    req.CollectionID,
+		ComparePaperIDs: req.ComparePaperIDs,
+		Title:           req.Title,
 	})
 	if err != nil {
 		h.fail(w, r, err)

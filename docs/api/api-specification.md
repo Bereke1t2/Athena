@@ -199,7 +199,7 @@ Topic response:
 
 ```text
 POST /research/{id}/summary        { "level": "beginner|intermediate|advanced|expert" }
-POST /chat/sessions                { "paper_id": "uuid" }
+POST /chat/sessions                { "paper_id": "uuid" } | { "collection_id": "uuid" } | { "compare_paper_ids": ["uuid", …] }
 GET  /chat/sessions/{id}/messages
 POST /chat/sessions/{id}/messages  { "content": "question" }   # SSE stream
 POST /admin/rag/index              { "paper_ids": ["uuid", …] }  # admin token
@@ -235,7 +235,7 @@ communicates reduced grounding honestly.
 Chat:
 
 ```text
-POST /chat/sessions                 { "paper_id": "…" }
+POST /chat/sessions                 { "paper_id": "…" } OR { "collection_id": "…" } OR { "compare_paper_ids": ["…", "…"] }
 GET  /chat/sessions?paper_id=
 GET  /chat/sessions/{sid}/messages?cursor=
 POST /chat/sessions/{sid}/messages  { "content": "Explain the methodology." }
@@ -349,6 +349,9 @@ POST   /collections/{id}/papers            { "paper_id": "...", "notes": "..." }
 DELETE /collections/{id}/papers/{paper_id}
 GET    /collections/{id}/export?format=bibtex|ris|apa|mla|markdown
 GET    /papers/{id}/collections            # collection memberships for paper
+GET    /collections/{id}/collaborators     # list collaborators and roles
+POST   /collections/{id}/collaborators     { "user_id": "...", "role": "admin|editor|viewer" }
+DELETE /collections/{id}/collaborators/{user_id}
 ```
 
 ### Admin / ingestion ops (Phase 1)

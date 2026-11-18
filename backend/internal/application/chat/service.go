@@ -19,6 +19,7 @@ import (
 
 	appai "athena/backend/internal/application/ai"
 	domainai "athena/backend/internal/domain/ai"
+	domaincollection "athena/backend/internal/domain/collection"
 	"athena/backend/internal/domain/research"
 )
 
@@ -39,15 +40,22 @@ type PaperSource interface {
 	GetDetailByID(ctx context.Context, id uuid.UUID) (research.PaperDetail, error)
 }
 
+// CollectionSource loads collection metadata and member papers for collection chat.
+type CollectionSource interface {
+	GetByID(ctx context.Context, id uuid.UUID) (domaincollection.Collection, error)
+	ListPapers(ctx context.Context, collectionID uuid.UUID) ([]domaincollection.CollectionPaper, error)
+}
+
 var chunkRefRe = regexp.MustCompile(`(?i)\[(?:chunk|source)\s*[:#]?\s*(\d+)\]|\[(\d{1,2})\]`)
 
-// Service orchestrates grounded single-paper conversations.
+// Service orchestrates grounded single-paper and collection conversations.
 type Service struct {
-	LLM       domainai.LLMProvider // nil ⇒ AI disabled upstream
-	Sessions  SessionStore
-	Retriever domainai.ChunkRetriever // nil ⇒ metadata-only grounding
-	Papers    PaperSource
-	Logger    *slog.Logger
+	LLM         domainai.LLMProvider // nil ⇒ AI disabled upstream
+	Sessions    SessionStore
+	Retriever   domainai.ChunkRetriever // nil ⇒ metadata-only grounding
+	Papers      PaperSource
+	Collections CollectionSource
+	Logger      *slog.Logger
 
 	// Indexer optionally builds full-text chunks on first use.
 	Indexer appai.Indexer
@@ -63,6 +71,12 @@ func NewService(llm domainai.LLMProvider, sessions SessionStore,
 	return &Service{LLM: llm, Sessions: sessions, Retriever: retriever,
 		Papers: papers, Logger: log, HistoryTurns: 8, TopK: 8,
 		indexTimeout: 60 * time.Second}
+}
+
+// WithCollections configures collection access for collection-grounded chat.
+func (s *Service) WithCollections(collections CollectionSource) *Service {
+	s.Collections = collections
+	return s
 }
 
 // CreateSession opens a single-paper chat container and starts background indexing
@@ -110,15 +124,57 @@ func (s *Service) Ask(ctx context.Context, sessionID uuid.UUID, question string,
 		return domainai.Message{}, fmt.Errorf("%w: empty question", domainai.ErrInvalidQuery)
 	}
 
-	detail, err := s.Papers.GetDetailByID(ctx, session.PaperID)
-	if err != nil {
-		if errors.Is(err, research.ErrNotFound) {
-			return domainai.Message{}, domainai.ErrNotFound
-		}
-		return domainai.Message{}, err
-	}
+	var detail research.PaperDetail
+	var chunks []domainai.RetrievedChunk
 
-	chunks := s.retrieve(ctx, session.PaperID, question)
+	if session.SessionType == "collection" && session.CollectionID != uuid.Nil {
+		if s.Collections == nil {
+			return domainai.Message{}, fmt.Errorf("collection chat not supported without collection source")
+		}
+		col, colErr := s.Collections.GetByID(ctx, session.CollectionID)
+		if colErr != nil {
+			return domainai.Message{}, fmt.Errorf("get collection: %w", colErr)
+		}
+		colPapers, colPapersErr := s.Collections.ListPapers(ctx, session.CollectionID)
+		if colPapersErr != nil {
+			return domainai.Message{}, fmt.Errorf("list collection papers: %w", colPapersErr)
+		}
+
+		var summaryB strings.Builder
+		summaryB.WriteString("Collection papers: ")
+		for i, cp := range colPapers {
+			if i > 0 {
+				summaryB.WriteString("; ")
+			}
+			fmt.Fprintf(&summaryB, "\"%s\" (%d)", cp.Paper.Title, cp.Paper.Year)
+			subChunks := s.retrieve(ctx, cp.PaperID, question)
+			for _, sc := range subChunks {
+				sc.Heading = fmt.Sprintf("[%s] %s", cp.Paper.Title, sc.Heading)
+				chunks = append(chunks, sc)
+			}
+		}
+		summaryStr := summaryB.String()
+		detail = research.PaperDetail{
+			Summary: research.PaperSummary{
+				ID:       session.CollectionID,
+				Title:    "Collection: " + col.Name,
+				Abstract: &summaryStr,
+			},
+		}
+		if len(chunks) > s.TopK {
+			chunks = chunks[:s.TopK]
+		}
+	} else {
+		var detailErr error
+		detail, detailErr = s.Papers.GetDetailByID(ctx, session.PaperID)
+		if detailErr != nil {
+			if errors.Is(detailErr, research.ErrNotFound) {
+				return domainai.Message{}, domainai.ErrNotFound
+			}
+			return domainai.Message{}, detailErr
+		}
+		chunks = s.retrieve(ctx, session.PaperID, question)
+	}
 
 	if _, err := s.Sessions.AppendMessage(ctx, domainai.Message{
 		SessionID: sessionID, Role: domainai.RoleUser, Content: question,

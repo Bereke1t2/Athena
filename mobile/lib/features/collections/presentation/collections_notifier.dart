@@ -160,3 +160,58 @@ final paperMembershipsProvider =
   final repo = ref.watch(collectionRepositoryProvider);
   return repo.getPaperMemberships(paperId);
 });
+
+class CollaboratorsNotifier extends StateNotifier<AsyncValue<List<Collaborator>>> {
+  CollaboratorsNotifier(this._repo, this._collectionId)
+      : super(const AsyncValue.loading()) {
+    load();
+  }
+
+  final CollectionRepository _repo;
+  final String _collectionId;
+  bool _isLoading = false;
+
+  Future<void> load() async {
+    if (_isLoading) return;
+    _isLoading = true;
+    state = const AsyncValue.loading();
+    try {
+      final items = await _repo.listCollaborators(_collectionId);
+      state = AsyncValue.data(items);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  Future<Collaborator> addCollaborator({
+    required String userId,
+    required CollectionRole role,
+  }) async {
+    final added = await _repo.addCollaborator(
+      _collectionId,
+      userId: userId,
+      role: role,
+    );
+    final current = (state.valueOrNull ?? []).where((c) => c.userId != userId).toList();
+    state = AsyncValue.data([...current, added]);
+    return added;
+  }
+
+  Future<void> removeCollaborator(String userId) async {
+    await _repo.removeCollaborator(_collectionId, userId);
+    final current = state.valueOrNull ?? [];
+    state = AsyncValue.data(
+      current.where((c) => c.userId != userId).toList(),
+    );
+  }
+}
+
+final collectionCollaboratorsProvider = StateNotifierProvider.autoDispose.family<
+    CollaboratorsNotifier,
+    AsyncValue<List<Collaborator>>,
+    String>((ref, id) {
+  final repo = ref.watch(collectionRepositoryProvider);
+  return CollaboratorsNotifier(repo, id);
+});

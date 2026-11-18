@@ -324,6 +324,31 @@ class _CollectionsTabViewState extends ConsumerState<CollectionsTabView> {
                                       ),
                                     ),
                                   ),
+                                  if (!col.userRole.isOwner) ...[
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.coral.withAlpha(25),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.people_outline, size: 10, color: AppTheme.coral),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            col.userRole.label,
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppTheme.coral,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                  ],
                                   if (col.isPublic)
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -408,16 +433,17 @@ class _CollectionsTabViewState extends ConsumerState<CollectionsTabView> {
                             }
                           },
                           itemBuilder: (ctx) => [
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                                  SizedBox(width: 8),
-                                  Text('Delete', style: TextStyle(color: Colors.red)),
-                                ],
+                            if (col.userRole.isOwner)
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                                    SizedBox(width: 8),
+                                    Text('Delete', style: TextStyle(color: Colors.red)),
+                                  ],
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ],
