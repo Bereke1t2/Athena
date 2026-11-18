@@ -349,6 +349,9 @@ POST   /collections/{id}/papers            { "paper_id": "...", "notes": "..." }
 DELETE /collections/{id}/papers/{paper_id}
 GET    /collections/{id}/export?format=bibtex|ris|apa|mla|markdown
 GET    /papers/{id}/collections            # collection memberships for paper
+GET    /collections/{id}/collaborators     # list collaborators and roles
+POST   /collections/{id}/collaborators     { "user_id": "...", "role": "admin|editor|viewer" }
+DELETE /collections/{id}/collaborators/{user_id}
 ```
 
 ### Admin / ingestion ops (Phase 1)

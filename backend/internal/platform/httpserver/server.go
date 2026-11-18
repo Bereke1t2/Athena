@@ -239,6 +239,9 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.Handle("DELETE /api/v1/collections/{id}/papers/{paper_id}", v1.RequireAuth(deps.Collections.RemovePaper))
 		mux.HandleFunc("GET /api/v1/collections/{id}/export", deps.Collections.Export)
 		mux.Handle("GET /api/v1/papers/{id}/collections", v1.RequireAuth(deps.Collections.PaperMemberships))
+		mux.HandleFunc("GET /api/v1/collections/{id}/collaborators", deps.Collections.ListCollaborators)
+		mux.Handle("POST /api/v1/collections/{id}/collaborators", v1.RequireAuth(deps.Collections.AddCollaborator))
+		mux.Handle("DELETE /api/v1/collections/{id}/collaborators/{user_id}", v1.RequireAuth(deps.Collections.RemoveCollaborator))
 	}
 
 	if deps.Admin != nil {

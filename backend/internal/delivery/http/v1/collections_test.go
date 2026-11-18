@@ -22,15 +22,17 @@ import (
 )
 
 type fakeHttpCollectionStore struct {
-	mu          sync.Mutex
-	collections map[uuid.UUID]domaincollection.Collection
-	papers      map[uuid.UUID][]domaincollection.CollectionPaper
+	mu            sync.Mutex
+	collections   map[uuid.UUID]domaincollection.Collection
+	papers        map[uuid.UUID][]domaincollection.CollectionPaper
+	collaborators map[uuid.UUID]map[uuid.UUID]domaincollection.Collaborator
 }
 
 func newFakeHttpCollectionStore() *fakeHttpCollectionStore {
 	return &fakeHttpCollectionStore{
-		collections: make(map[uuid.UUID]domaincollection.Collection),
-		papers:      make(map[uuid.UUID][]domaincollection.CollectionPaper),
+		collections:   make(map[uuid.UUID]domaincollection.Collection),
+		papers:        make(map[uuid.UUID][]domaincollection.CollectionPaper),
+		collaborators: make(map[uuid.UUID]map[uuid.UUID]domaincollection.Collaborator),
 	}
 }
 
@@ -187,6 +189,58 @@ func (f *fakeHttpCollectionStore) GetPaperMemberships(_ context.Context, userID,
 	return list, nil
 }
 
+func (f *fakeHttpCollectionStore) AddCollaborator(_ context.Context, c domaincollection.Collaborator) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.collections[c.CollectionID]; !ok {
+		return domaincollection.ErrNotFound
+	}
+	if f.collaborators[c.CollectionID] == nil {
+		f.collaborators[c.CollectionID] = make(map[uuid.UUID]domaincollection.Collaborator)
+	}
+	c.CreatedAt = time.Now()
+	f.collaborators[c.CollectionID][c.UserID] = c
+	return nil
+}
+
+func (f *fakeHttpCollectionStore) RemoveCollaborator(_ context.Context, collectionID, userID uuid.UUID) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cols, ok := f.collaborators[collectionID]
+	if !ok {
+		return domaincollection.ErrCollaboratorNotFound
+	}
+	if _, ok := cols[userID]; !ok {
+		return domaincollection.ErrCollaboratorNotFound
+	}
+	delete(cols, userID)
+	return nil
+}
+
+func (f *fakeHttpCollectionStore) ListCollaborators(_ context.Context, collectionID uuid.UUID) ([]domaincollection.Collaborator, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var list []domaincollection.Collaborator
+	for _, c := range f.collaborators[collectionID] {
+		list = append(list, c)
+	}
+	return list, nil
+}
+
+func (f *fakeHttpCollectionStore) GetUserRole(_ context.Context, collectionID, userID uuid.UUID) (domaincollection.Role, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cols, ok := f.collaborators[collectionID]
+	if !ok {
+		return "", domaincollection.ErrCollaboratorNotFound
+	}
+	c, ok := cols[userID]
+	if !ok {
+		return "", domaincollection.ErrCollaboratorNotFound
+	}
+	return c.Role, nil
+}
+
 type fakeHttpExporter struct{}
 
 func (f *fakeHttpExporter) ExportPapersBulk(_ context.Context, paperIDs []uuid.UUID, format domainexport.Format) (string, string, error) {
@@ -337,4 +391,73 @@ func TestCollectionsLifecycleAndExport(t *testing.T) {
 	w = httptest.NewRecorder()
 	h.Delete(w, req)
 	assert.Equal(t, http.StatusNoContent, w.Code)
+}
+
+func TestCollectionsHandlers_CollaboratorsLifecycle(t *testing.T) {
+	h, _ := setupCollectionsTestHandlers()
+	ownerID := uuid.New()
+	collaboratorID := uuid.New()
+	paperID := uuid.New()
+
+	// 1. Create collection as owner
+	createBody := `{"name":"Neural Audio Lab","color":"#FF6B4A","is_public":false}`
+	req := withUserContext(httptest.NewRequest(http.MethodPost, "/api/v1/collections", strings.NewReader(createBody)), ownerID)
+	w := httptest.NewRecorder()
+	h.Create(w, req)
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	var created collectionDTO
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+	colID := created.ID
+
+	// 2. List collaborators (initially empty)
+	req = withUserContext(httptest.NewRequest(http.MethodGet, "/api/v1/collections/"+colID+"/collaborators", nil), ownerID)
+	req.SetPathValue("id", colID)
+	w = httptest.NewRecorder()
+	h.ListCollaborators(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var listResp struct {
+		Items []collaboratorDTO `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &listResp))
+	assert.Empty(t, listResp.Items)
+
+	// 3. Owner adds collaborator with editor role
+	addBody := `{"user_id":"` + collaboratorID.String() + `","role":"editor"}`
+	req = withUserContext(httptest.NewRequest(http.MethodPost, "/api/v1/collections/"+colID+"/collaborators", strings.NewReader(addBody)), ownerID)
+	req.SetPathValue("id", colID)
+	w = httptest.NewRecorder()
+	h.AddCollaborator(w, req)
+	assert.Equal(t, http.StatusCreated, w.Code)
+
+	// 4. Collaborator can add paper to the collection
+	paperBody := `{"paper_id":"` + paperID.String() + `","note":"State-of-the-art TTS architecture"}`
+	req = withUserContext(httptest.NewRequest(http.MethodPost, "/api/v1/collections/"+colID+"/papers", strings.NewReader(paperBody)), collaboratorID)
+	req.SetPathValue("id", colID)
+	w = httptest.NewRecorder()
+	h.AddPaper(w, req)
+	assert.Equal(t, http.StatusCreated, w.Code)
+
+	// 5. Collaborator cannot delete the collection (owner only)
+	req = withUserContext(httptest.NewRequest(http.MethodDelete, "/api/v1/collections/"+colID, nil), collaboratorID)
+	req.SetPathValue("id", colID)
+	w = httptest.NewRecorder()
+	h.Delete(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
+
+	// 6. Owner removes collaborator
+	req = withUserContext(httptest.NewRequest(http.MethodDelete, "/api/v1/collections/"+colID+"/collaborators/"+collaboratorID.String(), nil), ownerID)
+	req.SetPathValue("id", colID)
+	req.SetPathValue("user_id", collaboratorID.String())
+	w = httptest.NewRecorder()
+	h.RemoveCollaborator(w, req)
+	assert.Equal(t, http.StatusNoContent, w.Code)
+
+	// 7. Former collaborator can no longer add papers
+	req = withUserContext(httptest.NewRequest(http.MethodPost, "/api/v1/collections/"+colID+"/papers", strings.NewReader(paperBody)), collaboratorID)
+	req.SetPathValue("id", colID)
+	w = httptest.NewRecorder()
+	h.AddPaper(w, req)
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }
