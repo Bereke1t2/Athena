@@ -22,11 +22,15 @@ class ChatScreen extends ConsumerStatefulWidget {
     super.key,
     this.paperId,
     this.paperTitle,
+    this.collectionId,
+    this.collectionTitle,
     this.initialQuery,
   });
 
   final String? paperId;
   final String? paperTitle;
+  final String? collectionId;
+  final String? collectionTitle;
   final String? initialQuery;
 
   @override
@@ -38,6 +42,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scroll = ScrollController();
   String? _overridePaperId;
   String? _overridePaperTitle;
+
+  bool get _isCollectionChat => widget.collectionId != null && widget.collectionId!.isNotEmpty;
 
   @override
   void initState() {
@@ -92,9 +98,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return '';
   }
 
+  String _resolveActiveTitle() {
+    if (_isCollectionChat) {
+      return widget.collectionTitle?.isNotEmpty == true
+          ? widget.collectionTitle!
+          : 'Research Collection';
+    }
+    return _resolveActivePaperTitle();
+  }
+
   void _handleSend([String? explicitText]) {
     final text = (explicitText ?? _input.text).trim();
     if (text.isEmpty) return;
+
+    if (_isCollectionChat) {
+      _input.clear();
+      ref.read(collectionChatThreadProvider(widget.collectionId!).notifier).send(text);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd());
+      return;
+    }
 
     final activePaperId = _resolveActivePaperId();
     if (activePaperId.isEmpty) {
@@ -131,13 +153,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final activePaperId = _resolveActivePaperId();
-    final activePaperTitle = _resolveActivePaperTitle();
-    final state = activePaperId.isNotEmpty
-        ? ref.watch(chatThreadProvider(activePaperId))
-        : const ChatThreadState();
+    final activeTitle = _resolveActiveTitle();
+    final state = _isCollectionChat
+        ? ref.watch(collectionChatThreadProvider(widget.collectionId!))
+        : (activePaperId.isNotEmpty
+            ? ref.watch(chatThreadProvider(activePaperId))
+            : const ChatThreadState());
 
-    final targetSuggestedTitle = activePaperTitle.isNotEmpty
-        ? activePaperTitle
+    final targetSuggestedTitle = activeTitle.isNotEmpty
+        ? activeTitle
         : 'Exploring the Use of Technology in Elementary School Classrooms';
 
     return Scaffold(
@@ -202,7 +226,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         child: const Icon(Icons.refresh_rounded, size: 18),
                       ),
                       onPressed: () async {
-                        if (activePaperId.isNotEmpty) {
+                        if (_isCollectionChat) {
+                          ref.read(collectionChatThreadProvider(widget.collectionId!).notifier).reset();
+                        } else if (activePaperId.isNotEmpty) {
                           await UserPreferences.instance.setChatSessionId(activePaperId, '');
                           ref.invalidate(chatThreadProvider(activePaperId));
                         }
@@ -227,15 +253,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(12),
-                    onTap: () => _showPaperSelectorModal(context),
+                    onTap: _isCollectionChat ? null : () => _showPaperSelectorModal(context),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.verified_rounded,
+                          Icon(
+                            _isCollectionChat ? Icons.folder_special_rounded : Icons.verified_rounded,
                             size: 16,
-                            color: Color(0xFF10B981), // Emerald green verification dot
+                            color: _isCollectionChat ? AppTheme.coral : const Color(0xFF10B981),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -246,7 +272,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      'ACTIVE GROUNDING',
+                                      _isCollectionChat ? 'COLLECTION GROUNDING' : 'ACTIVE GROUNDING',
                                       style: TextStyle(
                                         fontSize: 9.5,
                                         fontWeight: FontWeight.w800,
@@ -258,13 +284,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                        color: (_isCollectionChat ? AppTheme.coral : const Color(0xFF10B981)).withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
-                                      child: const Text(
-                                        'RAG',
+                                      child: Text(
+                                        _isCollectionChat ? 'MULTI-PAPER RAG' : 'RAG',
                                         style: TextStyle(
-                                          color: Color(0xFF10B981),
+                                          color: _isCollectionChat ? AppTheme.coral : const Color(0xFF10B981),
                                           fontSize: 8.5,
                                           fontWeight: FontWeight.w800,
                                           letterSpacing: 0.4,
@@ -275,15 +301,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  activePaperTitle.isNotEmpty
-                                      ? activePaperTitle
+                                  activeTitle.isNotEmpty
+                                      ? activeTitle
                                       : 'Tap to select paper from library or feed',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
-                                    color: activePaperTitle.isNotEmpty
+                                    color: activeTitle.isNotEmpty
                                         ? (isDark ? Colors.white : const Color(0xFF111827))
                                         : AppTheme.coral,
                                   ),
@@ -305,13 +331,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  Icons.swap_horiz_rounded,
+                                  _isCollectionChat ? Icons.collections_bookmark_rounded : Icons.swap_horiz_rounded,
                                   size: 13,
                                   color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF374151),
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Switch',
+                                  _isCollectionChat ? 'Collection' : 'Switch',
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
@@ -360,11 +386,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
                             // Suggested Prompt Card
                             SuggestedPromptCard(
-                              actionLead: 'Summarize the methodology',
+                              actionLead: _isCollectionChat ? 'Synthesize insights across' : 'Summarize the methodology',
                               targetTitle: targetSuggestedTitle,
                               onTap: () {
                                 _handleSend(
-                                  'Summarize the methodology used in the paper "$targetSuggestedTitle"',
+                                  _isCollectionChat
+                                      ? 'Synthesize the core breakthroughs and shared themes across the papers in "$targetSuggestedTitle"'
+                                      : 'Summarize the methodology used in the paper "$targetSuggestedTitle"',
                                 );
                               },
                             ),
@@ -385,12 +413,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               spacing: 8,
                               runSpacing: 10,
                               children: [
-                                for (final q in [
-                                  'What is the core breakthrough?',
-                                  'Explain the methodology simply',
-                                  'What are the key limitations?',
-                                  'Compare findings with consensus',
-                                ])
+                                for (final q in _isCollectionChat
+                                    ? [
+                                        'Compare the core methodologies across these papers',
+                                        'What are the conflicting findings or open debates?',
+                                        'Summarize the key breakthroughs in this collection',
+                                        'Which paper is most relevant for practical deployment?',
+                                      ]
+                                    : [
+                                        'What is the core breakthrough?',
+                                        'Explain the methodology simply',
+                                        'What are the key limitations?',
+                                        'Compare findings with consensus',
+                                      ])
                                   ActionChip(
                                     label: Text(
                                       q,

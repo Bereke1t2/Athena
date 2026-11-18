@@ -115,12 +115,23 @@ GoRouter buildAppRouter() {
         ),
       ),
       GoRoute(
+        path: '/collections/:id/chat',
+        name: 'collection-chat',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => ChatScreen(
+          collectionId: state.pathParameters['id']!,
+          collectionTitle: state.uri.queryParameters['title'],
+        ),
+      ),
+      GoRoute(
         path: '/chat',
         name: 'chat',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => ChatScreen(
           paperId: state.uri.queryParameters['paperId'],
           paperTitle: state.uri.queryParameters['title'],
+          collectionId: state.uri.queryParameters['collectionId'],
+          collectionTitle: state.uri.queryParameters['collectionTitle'],
           initialQuery: state.uri.queryParameters['q'],
         ),
       ),

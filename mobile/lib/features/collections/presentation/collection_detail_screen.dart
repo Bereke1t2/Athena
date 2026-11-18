@@ -255,6 +255,13 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
             showLeading: true,
             actions: [
               IconButton(
+                icon: const Icon(Icons.auto_awesome_rounded, size: 20, color: AppTheme.coral),
+                tooltip: 'Ask Collection',
+                onPressed: () => context.push(
+                  '/collections/${col.id}/chat?title=${Uri.encodeComponent(col.name)}',
+                ),
+              ),
+              IconButton(
                 icon: const Icon(Icons.group_outlined, size: 20),
                 tooltip: 'Reading Group Members',
                 onPressed: () => _showCollaboratorsSheet(context, col),
@@ -367,6 +374,18 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                             ),
                           ),
                           const Spacer(),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              foregroundColor: AppTheme.coral,
+                            ),
+                            icon: const Icon(Icons.auto_awesome_rounded, size: 14),
+                            label: const Text('Ask AI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                            onPressed: () => context.push(
+                              '/collections/${col.id}/chat?title=${Uri.encodeComponent(col.name)}',
+                            ),
+                          ),
+                          const SizedBox(width: 4),
                           TextButton.icon(
                             style: TextButton.styleFrom(
                               visualDensity: VisualDensity.compact,
