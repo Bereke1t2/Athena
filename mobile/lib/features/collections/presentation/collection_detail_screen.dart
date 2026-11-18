@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
+import '../domain/collection.dart';
 import 'collections_notifier.dart';
+import 'widgets/collaborators_sheet.dart';
 
 class CollectionDetailScreen extends ConsumerStatefulWidget {
   const CollectionDetailScreen({
@@ -28,6 +30,15 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
     } catch (_) {
       return const Color(0xFF6366F1);
     }
+  }
+
+  void _showCollaboratorsSheet(BuildContext context, Collection collection) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CollaboratorsSheet(collection: collection),
+    );
   }
 
   void _showExportSheet(BuildContext context, String collectionName) {
@@ -244,6 +255,11 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
             showLeading: true,
             actions: [
               IconButton(
+                icon: const Icon(Icons.group_outlined, size: 20),
+                tooltip: 'Reading Group Members',
+                onPressed: () => _showCollaboratorsSheet(context, col),
+              ),
+              IconButton(
                 icon: const Icon(Icons.ios_share_rounded, size: 20),
                 tooltip: 'Export Citations',
                 onPressed: () => _showExportSheet(context, col.name),
@@ -286,6 +302,25 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                             ),
                           ),
                           const Spacer(),
+                          if (!col.userRole.isOwner) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppTheme.coral.withAlpha(20),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: AppTheme.coral.withAlpha(60)),
+                              ),
+                              child: Text(
+                                col.userRole.label,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.coral,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
                           if (col.isPublic)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -332,6 +367,16 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                             ),
                           ),
                           const Spacer(),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              foregroundColor: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563),
+                            ),
+                            icon: const Icon(Icons.group_outlined, size: 14),
+                            label: const Text('Members', style: TextStyle(fontSize: 12)),
+                            onPressed: () => _showCollaboratorsSheet(context, col),
+                          ),
+                          const SizedBox(width: 4),
                           TextButton.icon(
                             style: TextButton.styleFrom(
                               visualDensity: VisualDensity.compact,
@@ -433,17 +478,18 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                                         ),
                                       ),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.remove_circle_outline, size: 18),
-                                      color: Colors.red.withAlpha(200),
-                                      tooltip: 'Remove from collection',
-                                      onPressed: () async {
-                                        await ref
-                                            .read(collectionDetailProvider(widget.collectionId).notifier)
-                                            .removePaper(paper.id);
-                                        await ref.read(collectionsProvider.notifier).load();
-                                      },
-                                    ),
+                                    if (col.userRole.canEditPapers)
+                                      IconButton(
+                                        icon: const Icon(Icons.remove_circle_outline, size: 18),
+                                        color: Colors.red.withAlpha(200),
+                                        tooltip: 'Remove from collection',
+                                        onPressed: () async {
+                                          await ref
+                                              .read(collectionDetailProvider(widget.collectionId).notifier)
+                                              .removePaper(paper.id);
+                                          await ref.read(collectionsProvider.notifier).load();
+                                        },
+                                      ),
                                   ],
                                 ),
                                 const SizedBox(height: 4),
