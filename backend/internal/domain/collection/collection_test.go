@@ -144,3 +144,81 @@ func TestUpdateInput_Validate(t *testing.T) {
 		}
 	})
 }
+
+func TestRole_Permissions(t *testing.T) {
+	tests := []struct {
+		role             domaincollection.Role
+		canManageMembers bool
+		canEditPapers    bool
+		canView          bool
+	}{
+		{domaincollection.RoleOwner, true, true, true},
+		{domaincollection.RoleAdmin, true, true, true},
+		{domaincollection.RoleEditor, false, true, true},
+		{domaincollection.RoleViewer, false, false, true},
+		{domaincollection.Role("unknown"), false, false, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.role), func(t *testing.T) {
+			if got := tt.role.CanManageMembers(); got != tt.canManageMembers {
+				t.Errorf("CanManageMembers() = %v, want %v", got, tt.canManageMembers)
+			}
+			if got := tt.role.CanEditPapers(); got != tt.canEditPapers {
+				t.Errorf("CanEditPapers() = %v, want %v", got, tt.canEditPapers)
+			}
+			if got := tt.role.CanView(); got != tt.canView {
+				t.Errorf("CanView() = %v, want %v", got, tt.canView)
+			}
+		})
+	}
+}
+
+func TestAddCollaboratorInput_Validate(t *testing.T) {
+	colID := uuid.New()
+	userID := uuid.New()
+
+	t.Run("valid input", func(t *testing.T) {
+		input := domaincollection.AddCollaboratorInput{
+			CollectionID: colID,
+			UserID:       userID,
+			Role:         domaincollection.RoleEditor,
+		}
+		if err := input.Validate(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("missing collection id", func(t *testing.T) {
+		input := domaincollection.AddCollaboratorInput{
+			CollectionID: uuid.Nil,
+			UserID:       userID,
+			Role:         domaincollection.RoleEditor,
+		}
+		if err := input.Validate(); err == nil {
+			t.Fatal("expected error for nil collection_id")
+		}
+	})
+
+	t.Run("missing user id", func(t *testing.T) {
+		input := domaincollection.AddCollaboratorInput{
+			CollectionID: colID,
+			UserID:       uuid.Nil,
+			Role:         domaincollection.RoleViewer,
+		}
+		if err := input.Validate(); err == nil {
+			t.Fatal("expected error for nil user_id")
+		}
+	})
+
+	t.Run("invalid role", func(t *testing.T) {
+		input := domaincollection.AddCollaboratorInput{
+			CollectionID: colID,
+			UserID:       userID,
+			Role:         "superadmin",
+		}
+		if err := input.Validate(); err == nil {
+			t.Fatal("expected error for invalid role")
+		}
+	})
+}
