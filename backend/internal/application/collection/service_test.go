@@ -25,14 +25,16 @@ func (m *mockExporter) ExportPapersBulk(ctx context.Context, paperIDs []uuid.UUI
 
 // mockCollectionStore implements domaincollection.Store in memory.
 type mockCollectionStore struct {
-	collections map[uuid.UUID]domaincollection.Collection
-	papers      map[uuid.UUID][]domaincollection.CollectionPaper
+	collections   map[uuid.UUID]domaincollection.Collection
+	papers        map[uuid.UUID][]domaincollection.CollectionPaper
+	collaborators map[uuid.UUID]map[uuid.UUID]domaincollection.Collaborator
 }
 
 func newMockStore() *mockCollectionStore {
 	return &mockCollectionStore{
-		collections: make(map[uuid.UUID]domaincollection.Collection),
-		papers:      make(map[uuid.UUID][]domaincollection.CollectionPaper),
+		collections:   make(map[uuid.UUID]domaincollection.Collection),
+		papers:        make(map[uuid.UUID][]domaincollection.CollectionPaper),
+		collaborators: make(map[uuid.UUID]map[uuid.UUID]domaincollection.Collaborator),
 	}
 }
 
@@ -171,6 +173,50 @@ func (m *mockCollectionStore) GetPaperMemberships(ctx context.Context, userID, p
 		}
 	}
 	return memberships, nil
+}
+
+func (m *mockCollectionStore) AddCollaborator(ctx context.Context, c domaincollection.Collaborator) error {
+	if _, ok := m.collections[c.CollectionID]; !ok {
+		return domaincollection.ErrNotFound
+	}
+	if m.collaborators[c.CollectionID] == nil {
+		m.collaborators[c.CollectionID] = make(map[uuid.UUID]domaincollection.Collaborator)
+	}
+	c.CreatedAt = time.Now()
+	m.collaborators[c.CollectionID][c.UserID] = c
+	return nil
+}
+
+func (m *mockCollectionStore) RemoveCollaborator(ctx context.Context, collectionID, userID uuid.UUID) error {
+	cols, ok := m.collaborators[collectionID]
+	if !ok {
+		return domaincollection.ErrCollaboratorNotFound
+	}
+	if _, ok := cols[userID]; !ok {
+		return domaincollection.ErrCollaboratorNotFound
+	}
+	delete(cols, userID)
+	return nil
+}
+
+func (m *mockCollectionStore) ListCollaborators(ctx context.Context, collectionID uuid.UUID) ([]domaincollection.Collaborator, error) {
+	var list []domaincollection.Collaborator
+	for _, c := range m.collaborators[collectionID] {
+		list = append(list, c)
+	}
+	return list, nil
+}
+
+func (m *mockCollectionStore) GetUserRole(ctx context.Context, collectionID, userID uuid.UUID) (domaincollection.Role, error) {
+	cols, ok := m.collaborators[collectionID]
+	if !ok {
+		return "", domaincollection.ErrCollaboratorNotFound
+	}
+	c, ok := cols[userID]
+	if !ok {
+		return "", domaincollection.ErrCollaboratorNotFound
+	}
+	return c.Role, nil
 }
 
 func TestCollectionService_Lifecycle(t *testing.T) {
