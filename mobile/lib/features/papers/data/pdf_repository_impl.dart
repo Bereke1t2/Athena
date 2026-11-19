@@ -109,4 +109,66 @@ class PdfRepositoryImpl implements PdfRepository {
     final tempFile = await _temporaryFile(paperId);
     if (await tempFile.exists()) await tempFile.delete();
   }
+
+  @override
+  Future<List<CachedPdfInfo>> listCachedPdfs() async {
+    final Map<String, CachedPdfInfo> items = {};
+
+    Future<void> scanDir(Directory dir) async {
+      if (!await dir.exists()) return;
+      await for (final entity in dir.list()) {
+        if (entity is File && entity.path.endsWith('.pdf')) {
+          final filename = entity.uri.pathSegments.last;
+          final paperId = filename.replaceAll('.pdf', '');
+          final stat = await entity.stat();
+          if (stat.size > 0) {
+            items[paperId] = CachedPdfInfo(
+              paperId: paperId,
+              filePath: entity.path,
+              sizeBytes: stat.size,
+              modifiedAt: stat.modified,
+            );
+          }
+        }
+      }
+    }
+
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      await scanDir(Directory('${docDir.path}/pdfs'));
+    } catch (_) {}
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      await scanDir(Directory('${tempDir.path}/pdfs'));
+    } catch (_) {}
+
+    final list = items.values.toList();
+    list.sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
+    return list;
+  }
+
+  @override
+  Future<void> clearAllPdfs() async {
+    Future<void> clearDir(Directory dir) async {
+      if (!await dir.exists()) return;
+      await for (final entity in dir.list()) {
+        if (entity is File && entity.path.endsWith('.pdf')) {
+          try {
+            await entity.delete();
+          } catch (_) {}
+        }
+      }
+    }
+
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      await clearDir(Directory('${docDir.path}/pdfs'));
+    } catch (_) {}
+
+    try {
+      final tempDir = await getTemporaryDirectory();
+      await clearDir(Directory('${tempDir.path}/pdfs'));
+    } catch (_) {}
+  }
 }
