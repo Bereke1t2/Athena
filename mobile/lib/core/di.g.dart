@@ -257,5 +257,24 @@ final collectionRepositoryProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef CollectionRepositoryRef = AutoDisposeProviderRef<CollectionRepository>;
+String _$annotationRepositoryHash() =>
+    r'839df30a84e2671239bf028163f58a719c927311';
+
+/// See also [annotationRepository].
+@ProviderFor(annotationRepository)
+final annotationRepositoryProvider =
+    AutoDisposeProvider<AnnotationRepository>.internal(
+  annotationRepository,
+  name: r'annotationRepositoryProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$annotationRepositoryHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef AnnotationRepositoryRef = AutoDisposeProviderRef<AnnotationRepository>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

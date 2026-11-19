@@ -178,6 +178,23 @@ class UserPreferences {
     await _prefs!.remove(_kSearchHistory);
   }
 
+  String? getPaperAnnotations(String paperId) {
+    if (!_ready || paperId.isEmpty) return null;
+    return _prefs!.getString('athena.annotations.$paperId');
+  }
+
+  Future<void> setPaperAnnotations(String paperId, String jsonString) async {
+    if (paperId.isEmpty) return;
+    await load();
+    if (_prefs != null) {
+      if (jsonString.isEmpty) {
+        await _prefs!.remove('athena.annotations.$paperId');
+      } else {
+        await _prefs!.setString('athena.annotations.$paperId', jsonString);
+      }
+    }
+  }
+
   Future<void> reset() async {
     if (!_ready) return;
     await _prefs!.remove(_kTopics);
