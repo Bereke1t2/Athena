@@ -46,8 +46,7 @@ import (
 	discover "athena/backend/internal/application/discover"
 	domainai "athena/backend/internal/domain/ai"
 	domainaudio "athena/backend/internal/domain/audio"
-	"athena/backend/internal/infrastructure/ai/openaicompat"
-	stubai "athena/backend/internal/infrastructure/ai/stub"
+	aigateway "athena/backend/internal/infrastructure/ai/gateway"
 	"athena/backend/internal/infrastructure/ai/tts"
 	authinfra "athena/backend/internal/infrastructure/auth"
 	"athena/backend/internal/infrastructure/textextract"
@@ -193,30 +192,34 @@ func run() error {
 		aiStore := database.NewAIStore(pool)
 		paperStore := database.NewPaperStore(pool, log)
 
-		switch cfg.LLMProvider {
-		case "stub":
-			llm = stubai.New()
-		default:
-			base := cfg.LLMBaseURL
-			if cfg.LLMOverrideBaseURL != "" {
-				base = cfg.LLMOverrideBaseURL
-			}
-			llm = openaicompat.NewClient(openaicompat.Config{
-				BaseURL: base, APIKey: cfg.LLMAPIKey, Model: cfg.LLMModel,
-				Timeout: 90 * time.Second,
-			})
+		base := cfg.LLMBaseURL
+		if cfg.LLMOverrideBaseURL != "" {
+			base = cfg.LLMOverrideBaseURL
+		}
+		var err error
+		llm, err = aigateway.NewLLMProvider(aigateway.Config{
+			Provider: cfg.LLMProvider,
+			BaseURL:  base,
+			APIKey:   cfg.LLMAPIKey,
+			Model:    cfg.LLMModel,
+			Timeout:  90 * time.Second,
+		})
+		if err != nil {
+			log.Error("failed to initialize LLM provider", "error", err, "provider", cfg.LLMProvider)
+			return err
 		}
 
-		var embedder domainai.EmbeddingProvider
-		if cfg.EmbeddingProviderName == "openai_compatible" || cfg.EmbeddingProviderName == "gemini" {
-			embedder = openaicompat.NewEmbedder(openaicompat.Config{
-				BaseURL:    cfg.LLMBaseURL,
-				APIKey:     cfg.LLMAPIKey,
-				Model:      cfg.EmbeddingModel,
-				Dimensions: cfg.EmbeddingDim,
-			})
-		} else {
-			embedder = stubai.NewEmbedder(cfg.EmbeddingDim)
+		embedder, err := aigateway.NewEmbeddingProvider(aigateway.Config{
+			BaseURL:        base,
+			APIKey:         cfg.LLMAPIKey,
+			EmbeddingName:  cfg.EmbeddingProviderName,
+			EmbeddingModel: cfg.EmbeddingModel,
+			EmbeddingDim:   cfg.EmbeddingDim,
+			Timeout:        90 * time.Second,
+		})
+		if err != nil {
+			log.Error("failed to initialize embedding provider", "error", err, "provider", cfg.EmbeddingProviderName)
+			return err
 		}
 
 		extractor := textextract.New()
