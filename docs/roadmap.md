@@ -233,6 +233,15 @@ Acceptance:
       featuring offline-first SharedPreferences caching, `PaperAnnotationsNotifier`, `AddAnnotationDialog`
       color picker and quote preview, `AnnotationsSheet` with "Ask AI about this" contextual shortcut,
       and seamless integration into both `ArticleReaderScreen` and `PdfViewerScreen` with live count badges.
+- [x] Offline Research Manager & Storage Dashboard (2026-11-19):
+      Complete offline device storage and flight pack pre-caching management for academic papers.
+      Extended PDF repository interface and implementation (`mobile/lib/features/papers/data/pdf_repository_impl.dart`)
+      with cached PDF metadata enumeration (`CachedPdfInfo`), size calculations, and granular/bulk purge operations.
+      Pure domain storage architecture (`StorageBreakdown`, `OfflineFlightBatchResult`, `StorageRepository`) and
+      implementation integrating file system caches with user preferences. Riverpod `StorageNotifier` state controller.
+      Executive `StorageScreen` (`/storage`) with storage breakdown cards, quick purge actions, cached paper catalog with
+      1-tap reader opening, collection "Save for Offline Flight" batch downloader in `CollectionDetailScreen`, and
+      "Downloads & Storage" navigation tile in `ProfileScreen`.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · alternative engines
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.

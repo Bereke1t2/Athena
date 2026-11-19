@@ -102,5 +102,23 @@ void main() {
       expect(path, contains(docsDir.path));
       expect(await File(path).exists(), isTrue);
     });
+
+    test('listCachedPdfs and clearAllPdfs manage multiple cached PDFs', () async {
+      final pdfsDir = Directory('${docsDir.path}/pdfs');
+      await pdfsDir.create(recursive: true);
+      final file1 = File('${pdfsDir.path}/paper-a.pdf');
+      await file1.writeAsBytes([0x25, 0x50, 0x44, 0x46, 0x31]);
+      final file2 = File('${pdfsDir.path}/paper-b.pdf');
+      await file2.writeAsBytes([0x25, 0x50, 0x44, 0x46, 0x32, 0x33]);
+
+      final cachedList = await repository.listCachedPdfs();
+      expect(cachedList.length, equals(2));
+      expect(cachedList.any((p) => p.paperId == 'paper-a'), isTrue);
+      expect(cachedList.any((p) => p.paperId == 'paper-b'), isTrue);
+
+      await repository.clearAllPdfs();
+      final afterClear = await repository.listCachedPdfs();
+      expect(afterClear, isEmpty);
+    });
   });
 }

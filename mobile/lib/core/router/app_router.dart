@@ -19,6 +19,7 @@ import '../../features/papers/presentation/pdf_viewer_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
+import '../../features/storage/presentation/storage_screen.dart';
 import '../../features/topics/presentation/topic_detail_screen.dart';
 import '../../features/topics/presentation/topics_screen.dart';
 import '../prefs/user_preferences.dart';
@@ -187,6 +188,12 @@ GoRouter buildAppRouter() {
         name: 'profile',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/storage',
+        name: 'storage',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const StorageScreen(),
       ),
       GoRoute(
         path: '/login',

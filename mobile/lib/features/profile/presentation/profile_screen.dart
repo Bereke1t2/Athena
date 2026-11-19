@@ -158,6 +158,13 @@ class ProfileScreen extends ConsumerWidget {
             isDark: isDark,
           ),
           _Tile(
+            icon: Icons.sd_storage_rounded,
+            title: 'Downloads & Storage',
+            subtitle: 'Manage cached PDFs, offline flight mode, and disk space',
+            onTap: () => context.push('/storage'),
+            isDark: isDark,
+          ),
+          _Tile(
             icon: Icons.auto_stories_rounded,
             title: 'Research Digest',
             subtitle: 'Personalized executive briefing and topic velocity',

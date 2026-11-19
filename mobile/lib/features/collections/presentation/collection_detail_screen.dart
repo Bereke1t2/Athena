@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/di.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
+import '../../papers/domain/pdf_repository.dart';
+import '../../storage/presentation/storage_notifier.dart';
 import '../domain/collection.dart';
 import 'collections_notifier.dart';
 import 'widgets/collaborators_sheet.dart';
@@ -29,6 +32,56 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
       return Color(int.parse('FF$clean', radix: 16));
     } catch (_) {
       return const Color(0xFF6366F1);
+    }
+  }
+
+  Future<void> _downloadForFlight(BuildContext context, List<CollectionPaper> papers) async {
+    if (papers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No papers in this collection to download')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Preparing flight pack for ${papers.length} papers…'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    final repo = ref.read(paperRepositoryProvider);
+    final targets = <(String, String)>[];
+    for (final p in papers) {
+      try {
+        final detail = await repo.getById(p.paperId);
+        final url = resolvePdfUrl(detail);
+        if (url != null && url.isNotEmpty) {
+          targets.add((p.paperId, url));
+        }
+      } catch (_) {}
+    }
+
+    if (targets.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No open-access direct PDFs found for papers in this collection')),
+        );
+      }
+      return;
+    }
+
+    final result = await ref.read(storageNotifierProvider.notifier).downloadFlightPack(targets);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Flight Pack Ready: ${result.downloaded} downloaded, ${result.skipped} ready offline${result.failed > 0 ? ", ${result.failed} unavailable" : ""}',
+          ),
+          backgroundColor: AppTheme.coral,
+          duration: const Duration(seconds: 4),
+        ),
+      );
     }
   }
 
@@ -265,6 +318,11 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                 icon: const Icon(Icons.group_outlined, size: 20),
                 tooltip: 'Reading Group Members',
                 onPressed: () => _showCollaboratorsSheet(context, col),
+              ),
+              IconButton(
+                icon: const Icon(Icons.flight_takeoff_rounded, size: 20),
+                tooltip: 'Save for Offline Flight',
+                onPressed: () => _downloadForFlight(context, papers),
               ),
               IconButton(
                 icon: const Icon(Icons.ios_share_rounded, size: 20),

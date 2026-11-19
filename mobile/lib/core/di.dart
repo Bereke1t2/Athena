@@ -28,6 +28,8 @@ import '../features/papers/data/pdf_repository_impl.dart';
 import '../features/papers/domain/paper_repository.dart';
 import '../features/search/data/search_repository_impl.dart';
 import '../features/search/domain/search_repository.dart';
+import '../features/storage/data/storage_repository_impl.dart';
+import '../features/storage/domain/storage_repository.dart';
 import '../features/topics/data/topics_repository_impl.dart';
 import '../features/topics/domain/topics_repository.dart';
 import 'network/api_client.dart';
@@ -95,6 +97,11 @@ CollectionRepository collectionRepository(Ref ref) =>
 @riverpod
 AnnotationRepository annotationRepository(Ref ref) =>
     AnnotationRepositoryImpl(ref.watch(apiClientProvider));
+
+@riverpod
+StorageRepository storageRepository(Ref ref) =>
+    StorageRepositoryImpl(ref.watch(pdfRepositoryProvider));
+
 
 
 

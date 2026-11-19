@@ -16,6 +16,27 @@ abstract interface class PdfRepository {
 
   /// Returns the local file path if cached, or null.
   Future<String?> getCachedPath(String paperId);
+
+  /// Lists all locally cached PDF files on the device.
+  Future<List<CachedPdfInfo>> listCachedPdfs();
+
+  /// Deletes all cached PDF files from persistent and temporary storage.
+  Future<void> clearAllPdfs();
+}
+
+/// Metadata for a locally cached PDF file.
+class CachedPdfInfo {
+  const CachedPdfInfo({
+    required this.paperId,
+    required this.filePath,
+    required this.sizeBytes,
+    required this.modifiedAt,
+  });
+
+  final String paperId;
+  final String filePath;
+  final int sizeBytes;
+  final DateTime modifiedAt;
 }
 
 /// Checks whether a URL points directly to a PDF resource.
