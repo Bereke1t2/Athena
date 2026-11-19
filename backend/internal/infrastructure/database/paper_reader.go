@@ -17,13 +17,14 @@ import (
 
 const summaryCols = `p.id, p.title, p.abstract, p.publication_date, p.publication_year,
 	COALESCE(p.venue_name, ''), p.publication_type::text, p.oa_status::text, p.is_open_access,
-	p.cited_by_count`
+	p.cited_by_count, COALESCE(p.authority_score, 0.0), COALESCE(p.is_seminal, false)`
 
 func scanSummary(row pgx.Row) (research.PaperSummary, error) {
 	var s research.PaperSummary
 	var pubType, oaStatus string
 	err := row.Scan(&s.ID, &s.Title, &s.Abstract, &s.PublishedOn, &s.Year,
-		&s.VenueName, &pubType, &oaStatus, &s.IsOpenAccess, &s.CitedByCount)
+		&s.VenueName, &pubType, &oaStatus, &s.IsOpenAccess, &s.CitedByCount,
+		&s.AuthorityScore, &s.IsSeminal)
 	if err != nil {
 		return s, err
 	}
