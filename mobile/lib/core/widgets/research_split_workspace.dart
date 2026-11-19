@@ -138,79 +138,81 @@ class _ResearchSplitWorkspaceState
     final annotationsAsync = ref.watch(paperAnnotationsProvider(widget.paperId));
     final count = annotationsAsync.valueOrNull?.length ?? 0;
 
-    return Container(
-      width: 48,
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF161922) : const Color(0xFFF9FAFB),
-        border: Border(
-          left: BorderSide(
-            color: isDark ? const Color(0xFF2E3444) : const Color(0xFFE5E7EB),
+    return Material(
+      color: isDark ? const Color(0xFF161922) : const Color(0xFFF9FAFB),
+      child: Container(
+        width: 48,
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: isDark ? const Color(0xFF2E3444) : const Color(0xFFE5E7EB),
+            ),
           ),
         ),
-      ),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          IconButton(
-            icon: const Icon(Icons.chevron_left_rounded),
-            tooltip: 'Expand Productivity Sidebar',
-            onPressed: () {
-              setState(() {
-                _isSidebarVisible = true;
-              });
-            },
-          ),
-          const Divider(height: 20),
-          IconButton(
-            icon: const Icon(Icons.auto_awesome, color: AppTheme.coral, size: 20),
-            tooltip: 'Open AI Assistant',
-            onPressed: () {
-              setState(() {
-                _isSidebarVisible = true;
-                _activeTab = ResearchSidebarTab.chat;
-              });
-            },
-          ),
-          const SizedBox(height: 8),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit_note_rounded, size: 22),
-                tooltip: 'Open Annotations',
-                onPressed: () {
-                  setState(() {
-                    _isSidebarVisible = true;
-                    _activeTab = ResearchSidebarTab.annotations;
-                  });
-                },
-              ),
-              if (count > 0)
-                Positioned(
-                  right: 4,
-                  top: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: AppTheme.coral,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                    child: Center(
-                      child: Text(
-                        '$count',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            IconButton(
+              icon: const Icon(Icons.chevron_left_rounded),
+              tooltip: 'Expand Productivity Sidebar',
+              onPressed: () {
+                setState(() {
+                  _isSidebarVisible = true;
+                });
+              },
+            ),
+            const Divider(height: 20),
+            IconButton(
+              icon: const Icon(Icons.auto_awesome, color: AppTheme.coral, size: 20),
+              tooltip: 'Open AI Assistant',
+              onPressed: () {
+                setState(() {
+                  _isSidebarVisible = true;
+                  _activeTab = ResearchSidebarTab.chat;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit_note_rounded, size: 22),
+                  tooltip: 'Open Annotations',
+                  onPressed: () {
+                    setState(() {
+                      _isSidebarVisible = true;
+                      _activeTab = ResearchSidebarTab.annotations;
+                    });
+                  },
+                ),
+                if (count > 0)
+                  Positioned(
+                    right: 4,
+                    top: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppTheme.coral,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Center(
+                        child: Text(
+                          '$count',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -341,7 +343,7 @@ class _ResearchSplitWorkspaceState
   }
 
   Widget _buildProductivitySidebar(BuildContext context, bool isDark) {
-    return Container(
+    return Material(
       color: isDark ? const Color(0xFF0F1117) : Colors.white,
       child: Column(
         children: [

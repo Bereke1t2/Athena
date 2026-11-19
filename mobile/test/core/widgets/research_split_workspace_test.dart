@@ -75,9 +75,11 @@ void main() {
         annotationRepositoryProvider.overrideWithValue(_FakeAnnotationRepository()),
       ],
       child: MaterialApp(
-        home: MediaQuery(
-          data: MediaQueryData(size: screenSize),
-          child: child,
+        home: Scaffold(
+          body: MediaQuery(
+            data: MediaQueryData(size: screenSize),
+            child: child,
+          ),
         ),
       ),
     );
