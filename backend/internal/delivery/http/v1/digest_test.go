@@ -10,7 +10,9 @@ import (
 
 	"github.com/google/uuid"
 
+	appai "athena/backend/internal/application/ai"
 	appdigest "athena/backend/internal/application/digest"
+	domainaudio "athena/backend/internal/domain/audio"
 	domainfollow "athena/backend/internal/domain/follow"
 	"athena/backend/internal/domain/research"
 	domainuser "athena/backend/internal/domain/user"
@@ -169,6 +171,55 @@ func TestDigestHandlers(t *testing.T) {
 
 		if rec.Code != http.StatusServiceUnavailable {
 			t.Fatalf("expected 503, got %d", rec.Code)
+		}
+	})
+
+	t.Run("synthesize audio generates structured podcast episode with chapters", func(t *testing.T) {
+		audioSvc := appai.NewAudioService(nil, nil, discardLogger())
+		hWithAudio := NewDigestHandlers(svc, discardLogger()).WithAudio(audioSvc)
+
+		body := []byte(`{"voice":"Alloy","topics":["ai"]}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/research/digest/audio", bytes.NewReader(body)).WithContext(userCtx)
+		rec := httptest.NewRecorder()
+		hWithAudio.SynthesizeAudio(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var narration domainaudio.AudioNarration
+		if err := json.Unmarshal(rec.Body.Bytes(), &narration); err != nil {
+			t.Fatalf("failed to decode narration response: %v", err)
+		}
+		if narration.Kind != "digest" {
+			t.Errorf("expected kind digest, got %s", narration.Kind)
+		}
+		if len(narration.Chapters) == 0 {
+			t.Fatalf("expected chapters in audio narration")
+		}
+		if narration.AudioURL == "" {
+			t.Errorf("expected non-empty audio_url")
+		}
+	})
+
+	t.Run("stream audio serves partial content byte range MP3", func(t *testing.T) {
+		audioSvc := appai.NewAudioService(nil, nil, discardLogger())
+		hWithAudio := NewDigestHandlers(svc, discardLogger()).WithAudio(audioSvc)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/research/digest/audio/stream", nil)
+		rec := httptest.NewRecorder()
+		hWithAudio.StreamAudio(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+		if ct := rec.Header().Get("Content-Type"); ct != "audio/mpeg" {
+			t.Errorf("expected Content-Type audio/mpeg, got %s", ct)
+		}
+		if ar := rec.Header().Get("Accept-Ranges"); ar != "bytes" {
+			t.Errorf("expected Accept-Ranges bytes, got %s", ar)
+		}
+		if rec.Body.Len() == 0 {
+			t.Errorf("expected audio body bytes")
 		}
 	})
 }

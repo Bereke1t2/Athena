@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
 	domainai "athena/backend/internal/domain/ai"
 	domainaudio "athena/backend/internal/domain/audio"
+	domaindigest "athena/backend/internal/domain/digest"
 	"athena/backend/internal/domain/research"
 )
 
@@ -201,5 +203,74 @@ func TestAudioService_WithTTSAndStreaming(t *testing.T) {
 	}
 	if len(streamBytes) != 6 || streamBytes[0] != 0xFF {
 		t.Errorf("unexpected stream audio bytes: %v", streamBytes)
+	}
+}
+
+func TestAudioService_SynthesizeDigestAudio(t *testing.T) {
+	digestID := uuid.New()
+	userDigest := domaindigest.UserDigest{
+		ID:          digestID,
+		UserID:      uuid.New(),
+		GeneratedAt: time.Now().UTC(),
+		Frequency:   domaindigest.FrequencyWeekly,
+		AISummary:   "This week witnessed major advances in transformer compression and quantum error correction.",
+		Pulses: []domaindigest.TopicPulse{
+			{TopicSlug: "cs.ai", TopicName: "Artificial Intelligence", PaperCount: 5},
+			{TopicSlug: "quant-ph", TopicName: "Quantum Physics", PaperCount: 3},
+		},
+		Sections: []domaindigest.DigestSection{
+			{
+				Title:       "Highlights in Artificial Intelligence",
+				Description: "Curated papers on neural attention and model scaling.",
+				Papers: []research.PaperSummary{
+					{
+						ID:        uuid.New(),
+						Title:     "Efficient Linear Attention",
+						VenueName: "ICLR",
+						Year:      2025,
+					},
+				},
+			},
+		},
+		TopTakeaways: []string{
+			"Sub-quadratic attention mechanisms achieve parity with softmax on long-context benchmarks.",
+			"Fault-tolerant logical qubits demonstrate error suppression below physical thresholds.",
+		},
+	}
+
+	synth := &mockSynth{}
+	media := &mockMedia{}
+	svc := NewAudioService(nil, nil, nil).WithTTS(synth, media)
+
+	ctx := context.Background()
+	narration, err := svc.SynthesizeDigestAudio(ctx, userDigest, "Nova")
+	if err != nil {
+		t.Fatalf("SynthesizeDigestAudio failed: %v", err)
+	}
+
+	if narration.Kind != "digest" {
+		t.Errorf("expected kind digest, got %s", narration.Kind)
+	}
+	if narration.DigestID == nil || *narration.DigestID != digestID {
+		t.Errorf("expected digest id %s, got %v", digestID, narration.DigestID)
+	}
+	if len(narration.Chapters) < 3 {
+		t.Errorf("expected at least 3 chapters in weekly digest audio, got %d", len(narration.Chapters))
+	}
+	if narration.Chapters[0].Title != "01 Executive Summary & Scientific Pulse" {
+		t.Errorf("unexpected first chapter title: %s", narration.Chapters[0].Title)
+	}
+	expectedURL := fmt.Sprintf("/api/v1/research/digest/%s/audio/stream", digestID.String())
+	if narration.AudioURL != expectedURL {
+		t.Errorf("expected audio URL %s, got %s", expectedURL, narration.AudioURL)
+	}
+
+	// Verify audio stream retrieval
+	audioBytes, err := svc.GetDigestAudioStream(ctx, digestID)
+	if err != nil {
+		t.Fatalf("GetDigestAudioStream failed: %v", err)
+	}
+	if len(audioBytes) == 0 {
+		t.Fatal("expected non-empty audio stream bytes")
 	}
 }
