@@ -17,6 +17,7 @@ import (
 	riverpgxv5 "github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	appauth "athena/backend/internal/application/auth"
+	appannotation "athena/backend/internal/application/annotation"
 	appbookmark "athena/backend/internal/application/bookmark"
 	appcollection "athena/backend/internal/application/collection"
 	appdigest "athena/backend/internal/application/digest"
@@ -268,6 +269,11 @@ func run() error {
 	collectionHandlers := v1.NewCollectionsHandlers(
 		appcollection.NewService(collectionStore, store).WithExporter(exportSvc), log)
 
+	// Paper Annotations & Margin Notes
+	annotationStore := database.NewAnnotationStore(pool)
+	annotationHandlers := v1.NewAnnotationsHandlers(
+		appannotation.NewService(annotationStore), log)
+
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
 		Handler: httpserver.New(httpserver.Deps{
@@ -285,6 +291,7 @@ func run() error {
 			Export:        exportHandlers,
 			Digest:        digestHandlers,
 			Collections:   collectionHandlers,
+			Annotations:   annotationHandlers,
 			Limiter: func() v1.RateLimiter {
 				if rawCache != nil {
 					return rawCache.RateLimiter()

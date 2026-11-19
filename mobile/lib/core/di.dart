@@ -3,6 +3,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../features/ai/data/ai_repository_impl.dart';
 import '../features/ai/domain/ai_repository.dart';
+import '../features/annotations/data/annotation_repository_impl.dart';
+import '../features/annotations/domain/annotation_repository.dart';
 import '../features/auth/data/auth_repository_impl.dart';
 import '../features/auth/domain/auth_repository.dart';
 import '../features/bookmarks/data/bookmarks_repository_impl.dart';
@@ -89,6 +91,11 @@ BookmarksRepository bookmarksRepository(Ref ref) =>
 @riverpod
 CollectionRepository collectionRepository(Ref ref) =>
     CollectionRepositoryImpl(ref.watch(apiClientProvider));
+
+@riverpod
+AnnotationRepository annotationRepository(Ref ref) =>
+    AnnotationRepositoryImpl(ref.watch(apiClientProvider));
+
 
 
 

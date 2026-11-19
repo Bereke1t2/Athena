@@ -354,6 +354,15 @@ POST   /collections/{id}/collaborators     { "user_id": "...", "role": "admin|ed
 DELETE /collections/{id}/collaborators/{user_id}
 ```
 
+### Paper Annotations & Highlights
+
+```text
+GET    /papers/{id}/annotations           # list annotations (guest gets [], auth gets personal)
+POST   /papers/{id}/annotations          { "page_number": 1, "section_index": 0, "selected_text": "...", "note": "...", "color": "yellow|coral|emerald|cyan|purple" }
+PATCH  /annotations/{id}                  { "note": "...", "color": "..." }
+DELETE /annotations/{id}                  # deletes annotation owned by user
+```
+
 ### Admin / ingestion ops (Phase 1)
 
 Guarded by `Authorization: Bearer $ATHENA_ADMIN_TOKEN`.

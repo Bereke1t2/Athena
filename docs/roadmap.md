@@ -223,6 +223,16 @@ Acceptance:
       mobile repository and Riverpod state architecture (`collectionChatThreadProvider`), adaptive
       `ChatScreen` with Collection Grounding badge and comparative synthesis suggested prompts,
       and 1-tap "Ask AI" navigation from collection detail screen.
+- [x] Persistent Text Highlights, Color Annotations & Margin Notes (2026-11-19):
+      Multi-color reader highlights and persistent margin notes for academic research synthesis.
+      Database migration (`000024_paper_annotations.up.sql`) supporting 5 resonant palette colors
+      (`yellow`, `coral`, `emerald`, `cyan`, `purple`), page and section targeting, compound indexes,
+      domain model, database store, and application service (`internal/application/annotation/service.go`)
+      with guest mode degradation. REST HTTP endpoints (`GET|POST /api/v1/papers/{id}/annotations`,
+      `PATCH /api/v1/annotations/{id}`, `DELETE /api/v1/annotations/{id}`). Mobile Flutter architecture
+      featuring offline-first SharedPreferences caching, `PaperAnnotationsNotifier`, `AddAnnotationDialog`
+      color picker and quote preview, `AnnotationsSheet` with "Ask AI about this" contextual shortcut,
+      and seamless integration into both `ArticleReaderScreen` and `PdfViewerScreen` with live count badges.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · alternative engines
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.
