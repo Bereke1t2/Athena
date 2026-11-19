@@ -251,6 +251,15 @@ Acceptance:
       batch launch into `/compare?ids=id1,id2...`. Dynamic "Compare" action integration on `PaperDetailScreen` (tray toggle,
       active state feedback, contextual "Compare (+N)" labels, and SnackBar shortcuts) and automated tray pre-population and
       quick-add drawers in `ComparisonScreen`.
+- [x] Desktop & Web Two-Pane Productivity Workspace & Global Command Palette (2026-11-19):
+      Comprehensive large-screen research productivity architecture. Spotlight `CommandPaletteDialog` (`mobile/lib/core/widgets/command_palette_dialog.dart`)
+      accessible via global keyboard shortcuts (`Cmd+K` / `Ctrl+K`) and wide `NavigationRail` chip (`⌘K`), providing instant keyboard-driven
+      navigation across all workspaces, search dispatch, and recent search history recall.
+      Responsive `ResearchSplitWorkspace` (`mobile/lib/core/widgets/research_split_workspace.dart`) triggering at `>= 1024px` breakpoint (`kDesktopSplitBreakpoint`),
+      delivering a split-pane layout: primary reading canvas on the left (60%) and interactive productivity workbench on the right (40%) with
+      Tab 1: Grounded AI Assistant (real-time chat grounded in paper chunks) and Tab 2: Annotations & Highlights Inspector (color filtering, margin note
+      creation, deletion, and contextual "Ask AI about this" shortcuts), collapsible into a slim icon rail.
+      Seamlessly integrated into both `PaperDetailScreen` and `ArticleReaderScreen`.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · alternative engines
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.

@@ -1,6 +1,6 @@
 # AGENTS.md — working notes for AI agents on Athena
 
-Last updated: 2026-11-19 (Multi-Paper Comparison Tray & Basket Experience, Offline Research Manager & Storage Dashboard, Persistent Text Highlights, Color Annotations & Margin Notes, Collection-Grounded Multi-Paper Chat, Collaborative Research Collections Mobile Experience, Advanced Search Filter Engine, and Multi-Paper Comparison Enhancements). Read this first.
+Last updated: 2026-11-19 (Desktop & Web Two-Pane Productivity Workspace & Global Command Palette, Multi-Paper Comparison Tray & Basket Experience, Offline Research Manager & Storage Dashboard, Persistent Text Highlights, Color Annotations & Margin Notes, Collection-Grounded Multi-Paper Chat, Collaborative Research Collections Mobile Experience, Advanced Search Filter Engine, and Multi-Paper Comparison Enhancements). Read this first.
 
 ## Stack & layout
 
@@ -44,7 +44,16 @@ Last updated: 2026-11-19 (Multi-Paper Comparison Tray & Basket Experience, Offli
 
 ## Unfinished / verify next session
 
-1. **Multi-Paper Comparison Tray & Basket Experience (2026-11-19)**:
+1. **Desktop & Web Two-Pane Productivity Workspace & Global Command Palette (2026-11-19)**:
+   - **Scope**: Large-screen desktop and web research productivity interface including Spotlight modal command palette with quick navigation and recent search history, plus responsive split-pane reading and synthesis workspace.
+   - **Core Deliverables**:
+     - *Command Palette Dialog* ([`command_palette_dialog.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/command_palette_dialog.dart)): Global spotlight modal triggered via `Cmd+K` / `Ctrl+K` and wide `NavigationRail` chip. Provides instant keyboard-driven navigation across 7 core destinations, direct search execution with query preview, recent search queries from `UserPreferences`, and footer keyboard shortcuts.
+     - *Research Split Workspace* ([`research_split_workspace.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/research_split_workspace.dart)): Responsive split layout activating at `>= 1024px` (`kDesktopSplitBreakpoint`). Left pane (60%) hosts document reader or paper detail content; right pane (40%) hosts interactive productivity sidebar with Tab 1: **Grounded AI Assistant** (live chat grounded in paper chunks) and Tab 2: **Notes & Highlights Inspector** (color filtering, margin note creation, deletion, and "Ask AI about this" contextual shortcut). Supports collapsible slim rail.
+     - *Screen & Shell Integrations* ([`adaptive_app_shell.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/adaptive_app_shell.dart), [`paper_detail_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/paper_detail_screen.dart), [`article_reader_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/article_reader_screen.dart)): Bound global keyboard shortcuts (`Cmd+K`, `Ctrl+K`) and added `⌘K` launcher chip to wide navigation rail. Wrapped paper detail and reader screens in `ResearchSplitWorkspace`.
+     - *Test Coverage* ([`command_palette_dialog_test.dart`](file:///home/bereket/startup/Athena/mobile/test/core/widgets/command_palette_dialog_test.dart), [`research_split_workspace_test.dart`](file:///home/bereket/startup/Athena/mobile/test/core/widgets/research_split_workspace_test.dart)): Full unit and widget tests covering spotlight rendering, text filtering, recent searches, single pane under 1024px, two-pane layout at >= 1024px, and sidebar collapsing/expanding.
+   - **Verification**: Go backend tests 100% green; Mobile tests 100% green (153 passing, 1 skipped); `dart analyze` 0 issues.
+
+2. **Multi-Paper Comparison Tray & Basket Experience (2026-11-19)**:
    - **Scope**: Persistent multi-paper comparison basket flow eliminating single-paper dead ends across Feed, Search, Topics, and Library.
    - **Core Deliverables**:
      - *Domain & Persistence* ([`comparison_tray_models.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/comparison/domain/comparison_tray_models.dart), [`user_preferences.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/prefs/user_preferences.dart)): Framework-free models `ComparisonTrayItem` and `ComparisonTrayState` with serialization, `UserPreferences` caching (`athena.comparison.tray`) preserving comparison basket across app sessions.
