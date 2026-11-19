@@ -71,6 +71,41 @@ class PaperCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  if (paper.isSeminal) ...[
+                    Container(
+                      key: const Key('seminal-paper-badge'),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.45),
+                          width: 1,
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.auto_awesome,
+                            size: 11,
+                            color: Color(0xFFD97706),
+                          ),
+                          SizedBox(width: 3.5),
+                          Text(
+                            'Seminal',
+                            style: TextStyle(
+                              color: Color(0xFFD97706),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 9.5,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   if (paper.isOpenAccess) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
