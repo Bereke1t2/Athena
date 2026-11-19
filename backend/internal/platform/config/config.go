@@ -133,6 +133,7 @@ func FromEnv() (Config, error) {
 		LLMBaseURL:            strings.TrimSpace(os.Getenv("LLM_BASE_URL")),
 		LLMAPIKey: firstNonEmpty(
 			strings.TrimSpace(os.Getenv("LLM_API_KEY")),
+			strings.TrimSpace(os.Getenv("ANTHROPIC_API_KEY")),
 			strings.TrimSpace(os.Getenv("GEMINI_API_KEY")),
 			strings.TrimSpace(os.Getenv("OPENAI_API_KEY")),
 		),
@@ -194,10 +195,20 @@ func FromEnv() (Config, error) {
 	default:
 		problems = append(problems, fmt.Sprintf("ATHENA_LOG_FORMAT invalid %q", cfg.LogFormat))
 	}
-	switch cfg.LLMProvider {
-	case "", "openai_compatible", "gemini", "stub":
+	switch strings.ToLower(cfg.LLMProvider) {
+	case "", "openai_compatible", "openai", "claude", "anthropic", "gemini", "google", "ollama", "stub":
+		switch strings.ToLower(cfg.LLMProvider) {
+		case "anthropic":
+			cfg.LLMProvider = "claude"
+		case "google":
+			cfg.LLMProvider = "gemini"
+		case "openai":
+			cfg.LLMProvider = "openai_compatible"
+		case "claude", "gemini", "ollama", "openai_compatible", "stub":
+			cfg.LLMProvider = strings.ToLower(cfg.LLMProvider)
+		}
 	default:
-		problems = append(problems, fmt.Sprintf("LLM_PROVIDER invalid %q (want gemini|openai_compatible|stub)", cfg.LLMProvider))
+		problems = append(problems, fmt.Sprintf("LLM_PROVIDER invalid %q (want claude|gemini|ollama|openai_compatible|stub)", cfg.LLMProvider))
 	}
 	switch cfg.PushProvider {
 	case "", "noop", "logging", "mock", "fcm", "apns", "composite":
@@ -210,32 +221,61 @@ func FromEnv() (Config, error) {
 		problems = append(problems, fmt.Sprintf("TTS_PROVIDER invalid %q (want mock|openai|noop)", cfg.TTSProvider))
 	}
 	if cfg.LLMProvider != "" {
-		if cfg.LLMProvider == "gemini" {
+		switch cfg.LLMProvider {
+		case "gemini":
 			if cfg.LLMBaseURL == "" {
 				cfg.LLMBaseURL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 			}
 			if cfg.LLMModel == "" {
 				cfg.LLMModel = "gemini-3.5-flash-lite"
 			}
-		} else if cfg.LLMModel == "" {
-			cfg.LLMModel = "gpt-4o-mini"
+		case "claude":
+			if cfg.LLMBaseURL == "" {
+				cfg.LLMBaseURL = "https://api.anthropic.com/v1"
+			}
+			if cfg.LLMModel == "" {
+				cfg.LLMModel = "claude-3-5-sonnet-20241022"
+			}
+		case "ollama":
+			if cfg.LLMBaseURL == "" {
+				cfg.LLMBaseURL = "http://localhost:11434"
+			}
+			if cfg.LLMModel == "" {
+				cfg.LLMModel = "llama3.2"
+			}
+		default:
+			if cfg.LLMModel == "" {
+				cfg.LLMModel = "gpt-4o-mini"
+			}
 		}
-		switch cfg.EmbeddingProviderName {
-		case "openai_compatible", "gemini":
+
+		switch strings.ToLower(cfg.EmbeddingProviderName) {
+		case "openai_compatible", "openai", "gemini", "google", "ollama":
+			switch strings.ToLower(cfg.EmbeddingProviderName) {
+			case "google":
+				cfg.EmbeddingProviderName = "gemini"
+			case "openai":
+				cfg.EmbeddingProviderName = "openai_compatible"
+			default:
+				cfg.EmbeddingProviderName = strings.ToLower(cfg.EmbeddingProviderName)
+			}
 			if cfg.EmbeddingModel == "" || (cfg.EmbeddingProviderName == "gemini" && cfg.EmbeddingModel == "text-embedding-004") {
-				if cfg.EmbeddingProviderName == "gemini" {
+				switch cfg.EmbeddingProviderName {
+				case "gemini":
 					cfg.EmbeddingModel = "gemini-embedding-001"
-				} else {
+				case "ollama":
+					cfg.EmbeddingModel = "nomic-embed-text"
+				default:
 					cfg.EmbeddingModel = "text-embedding-3-small"
 				}
 			}
-			if cfg.EmbeddingProviderName == "gemini" && os.Getenv("EMBEDDING_DIM") == "" {
+			if (cfg.EmbeddingProviderName == "gemini" || cfg.EmbeddingProviderName == "ollama") && os.Getenv("EMBEDDING_DIM") == "" {
 				cfg.EmbeddingDim = 768
 			}
 		case "", "none":
 			cfg.EmbeddingProviderName = ""
 		default:
-			problems = append(problems, fmt.Sprintf("EMBEDDING_PROVIDER invalid %q (want openai_compatible|gemini|none)", cfg.EmbeddingProviderName))
+			problems = append(problems, fmt.Sprintf("EMBEDDING_PROVIDER invalid %q (want claude|gemini|ollama|openai_compatible|none)", cfg.EmbeddingProviderName))
 		}
 		if cfg.EmbeddingDim <= 0 || cfg.EmbeddingDim > 4096 {
 			problems = append(problems, fmt.Sprintf("EMBEDDING_DIM invalid %d", cfg.EmbeddingDim))
