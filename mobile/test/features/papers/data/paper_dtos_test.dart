@@ -74,4 +74,22 @@ void main() {
     expect(dto.name, 'Some Journal');
     expect(dto.type, isNull);
   });
+
+  test('summary DTO parses authority_score and is_seminal when present', () {
+    final dto = PaperSummaryDto.fromJson({
+      ...summaryJson,
+      'authority_score': 87.5,
+      'is_seminal': true,
+    });
+    final paper = dto.toDomain();
+    expect(paper.authorityScore, 87.5);
+    expect(paper.isSeminal, isTrue);
+  });
+
+  test('summary DTO defaults authority_score to 0.0 and is_seminal to false', () {
+    final dto = PaperSummaryDto.fromJson(summaryJson);
+    final paper = dto.toDomain();
+    expect(paper.authorityScore, 0.0);
+    expect(paper.isSeminal, isFalse);
+  });
 }

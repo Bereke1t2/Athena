@@ -216,7 +216,8 @@ func (s *CollectionStore) ListPapers(ctx context.Context, collectionID uuid.UUID
 		SELECT cp.collection_id, cp.paper_id, cp.note, cp.position, cp.added_at,
 		       p.id, p.title, p.abstract, p.publication_date, p.publication_year,
 		       COALESCE(p.venue_name,''), p.publication_type::text, p.oa_status::text,
-		       p.is_open_access, p.cited_by_count
+		       p.is_open_access, p.cited_by_count,
+		       COALESCE(p.authority_score, 0.0), COALESCE(p.is_seminal, false)
 		FROM collection_papers cp
 		JOIN papers p ON p.id = cp.paper_id AND p.deleted_at IS NULL
 		WHERE cp.collection_id = $1
@@ -234,6 +235,7 @@ func (s *CollectionStore) ListPapers(ctx context.Context, collectionID uuid.UUID
 			&cp.CollectionID, &cp.PaperID, &cp.Note, &cp.Position, &cp.AddedAt,
 			&cp.Paper.ID, &cp.Paper.Title, &cp.Paper.Abstract, &cp.Paper.PublishedOn, &cp.Paper.Year,
 			&cp.Paper.VenueName, &pubType, &oaStatus, &cp.Paper.IsOpenAccess, &cp.Paper.CitedByCount,
+			&cp.Paper.AuthorityScore, &cp.Paper.IsSeminal,
 		)
 		if err != nil {
 			return nil, err

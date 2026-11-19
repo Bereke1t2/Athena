@@ -99,6 +99,7 @@ func (s *BookmarkStore) List(ctx context.Context, userID uuid.UUID, cursor strin
 		SELECT p.id, p.title, p.abstract, p.publication_date, p.publication_year,
 			COALESCE(p.venue_name,''), p.publication_type::text, p.oa_status::text,
 			p.is_open_access, p.cited_by_count,
+			COALESCE(p.authority_score, 0.0), COALESCE(p.is_seminal, false),
 			b.created_at, b.paper_id
 		FROM bookmarks b JOIN papers p ON p.id = b.paper_id AND p.deleted_at IS NULL
 		WHERE `+where+`
@@ -139,6 +140,7 @@ func scanBookmarkRow(row pgx.Row) (research.PaperSummary, time.Time, uuid.UUID, 
 	var paperID uuid.UUID
 	err := row.Scan(&s.ID, &s.Title, &s.Abstract, &s.PublishedOn, &s.Year,
 		&s.VenueName, &pubType, &oaStatus, &s.IsOpenAccess, &s.CitedByCount,
+		&s.AuthorityScore, &s.IsSeminal,
 		&created, &paperID)
 	if err != nil {
 		return s, time.Time{}, uuid.Nil, err

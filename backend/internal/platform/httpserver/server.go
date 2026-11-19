@@ -261,5 +261,6 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.HandleFunc("POST /api/v1/admin/ingestion/jobs", deps.Admin.CreateIngestionJob)
 		mux.HandleFunc("GET /api/v1/admin/ingestion/jobs", deps.Admin.ListIngestionJobs)
 		mux.HandleFunc("POST /api/v1/admin/rag/index", deps.Admin.CreateRagIndexJobs)
+		mux.HandleFunc("POST /api/v1/admin/graph/compute-authority", deps.Admin.ComputeAuthority)
 	}
 }
