@@ -42,10 +42,12 @@ type AudioQuote struct {
 	TimestampSeconds int    `json:"timestamp_seconds"`
 }
 
-// AudioNarration is a complete structured audio episode generated for a paper.
+// AudioNarration is a complete structured audio episode generated for a paper or research digest.
 type AudioNarration struct {
 	ID                   string         `json:"id"`
-	PaperID              uuid.UUID      `json:"paper_id"`
+	PaperID              uuid.UUID      `json:"paper_id,omitempty"`
+	DigestID             *uuid.UUID     `json:"digest_id,omitempty"`
+	Kind                 string         `json:"kind,omitempty"`
 	Title                string         `json:"title"`
 	AuthorVenue          string         `json:"author_venue"`
 	TotalDurationSeconds int            `json:"total_duration_seconds"`
