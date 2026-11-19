@@ -20,6 +20,7 @@ import (
 	appai "athena/backend/internal/application/ai"
 	appdigest "athena/backend/internal/application/digest"
 	"athena/backend/internal/application/ingestion"
+	appresearch "athena/backend/internal/application/research"
 	domainai "athena/backend/internal/domain/ai"
 	"athena/backend/internal/infrastructure/ai/openaicompat"
 	stubai "athena/backend/internal/infrastructure/ai/stub"
@@ -107,6 +108,8 @@ func main() {
 	workers.AddAll(riverWorkers, service, log)
 	workers.AddNotificationsWithPush(riverWorkers, pool, pushSender, log)
 	workers.AddHousekeeping(riverWorkers, pool, log)
+	authoritySvc := appresearch.NewAuthorityService(store, nil, log)
+	workers.AddGraphAuthority(riverWorkers, authoritySvc, log)
 
 	var llm domainai.LLMProvider
 	if cfg.AIEnabled() {
@@ -178,6 +181,7 @@ func main() {
 			workers.PeriodicSyncWindow(s2adapter.Slug, 12*time.Hour),
 			workers.PeriodicWeeklyDigest(7 * 24 * time.Hour),
 			workers.PeriodicHousekeeping(24 * time.Hour),
+			workers.PeriodicGraphAuthority(12 * time.Hour),
 		}
 	}
 
