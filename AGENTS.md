@@ -1,6 +1,6 @@
 # AGENTS.md — working notes for AI agents on Athena
 
-Last updated: 2026-11-19 (Offline Research Manager & Storage Dashboard, Persistent Text Highlights, Color Annotations & Margin Notes, Collection-Grounded Multi-Paper Chat, Collaborative Research Collections Mobile Experience, Advanced Search Filter Engine, and Multi-Paper Comparison Enhancements). Read this first.
+Last updated: 2026-11-19 (Multi-Paper Comparison Tray & Basket Experience, Offline Research Manager & Storage Dashboard, Persistent Text Highlights, Color Annotations & Margin Notes, Collection-Grounded Multi-Paper Chat, Collaborative Research Collections Mobile Experience, Advanced Search Filter Engine, and Multi-Paper Comparison Enhancements). Read this first.
 
 ## Stack & layout
 
@@ -44,7 +44,17 @@ Last updated: 2026-11-19 (Offline Research Manager & Storage Dashboard, Persiste
 
 ## Unfinished / verify next session
 
-1. **Offline Research Manager & Storage Dashboard (2026-11-19)**:
+1. **Multi-Paper Comparison Tray & Basket Experience (2026-11-19)**:
+   - **Scope**: Persistent multi-paper comparison basket flow eliminating single-paper dead ends across Feed, Search, Topics, and Library.
+   - **Core Deliverables**:
+     - *Domain & Persistence* ([`comparison_tray_models.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/comparison/domain/comparison_tray_models.dart), [`user_preferences.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/prefs/user_preferences.dart)): Framework-free models `ComparisonTrayItem` and `ComparisonTrayState` with serialization, `UserPreferences` caching (`athena.comparison.tray`) preserving comparison basket across app sessions.
+     - *State Management* ([`comparison_tray_notifier.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/comparison/presentation/comparison_tray_notifier.dart)): Built `ComparisonTrayNotifier` and `comparisonTrayProvider` managing paper addition (up to 4 papers, duplicate protection), removal, toggling, clearing, and expansion state.
+     - *Docked UI & Shell Integration* ([`comparison_tray_bar.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/comparison/presentation/widgets/comparison_tray_bar.dart), [`adaptive_app_shell.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/widgets/adaptive_app_shell.dart)): Built floating docked `ComparisonTrayBar` in `AdaptiveAppShell` (both mobile and wide viewports) with collapsed indicator pill, expandable horizontal paper carousel, 1-tap paper removal, and direct "Compare Now" launcher.
+     - *Paper Detail & Comparison Integration* ([`paper_detail_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/presentation/paper_detail_screen.dart), [`comparison_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/comparison/presentation/comparison_screen.dart)): Contextual "Compare" action on paper detail with active highlight when paper is in tray, SnackBar action shortcuts ("Compare Now"), automated tray pre-population and "From Comparison Tray" section in `ComparisonScreen`.
+     - *Test Coverage* ([`comparison_tray_models_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/comparison/comparison_tray_models_test.dart), [`comparison_tray_notifier_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/comparison/comparison_tray_notifier_test.dart), [`comparison_tray_bar_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/comparison/widgets/comparison_tray_bar_test.dart)): Unit tests covering model serialization/state, notifier lifecycle/storage persistence, and widget tests verifying collapsed pill, expansion, paper removal, and clear all.
+   - **Verification**: Go backend tests 100% green; Mobile tests 100% green (147 passing, 1 skipped); `dart analyze` 0 issues.
+
+2. **Offline Research Manager & Storage Dashboard (2026-11-19)**:
    - **Scope**: Comprehensive offline device storage management, cached research paper catalog, granular and bulk cache purging, and batch flight pack pre-caching for collections.
    - **Core Deliverables**:
      - *PDF Repository Extension* ([`pdf_repository.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/domain/pdf_repository.dart), [`pdf_repository_impl.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/data/pdf_repository_impl.dart)): Added `CachedPdfInfo` (`paperId`, `filePath`, `sizeBytes`, `modifiedAt`), `listCachedPdfs()`, and `clearAllPdfs()` across application documents and temporary directories.

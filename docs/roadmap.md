@@ -242,6 +242,15 @@ Acceptance:
       Executive `StorageScreen` (`/storage`) with storage breakdown cards, quick purge actions, cached paper catalog with
       1-tap reader opening, collection "Save for Offline Flight" batch downloader in `CollectionDetailScreen`, and
       "Downloads & Storage" navigation tile in `ProfileScreen`.
+- [x] Multi-Paper Comparison Tray & Basket Experience (2026-11-19):
+      Persistent floating multi-paper comparison tray and basket flow eliminating single-paper dead ends across
+      the research journey. Pure framework-free domain models (`ComparisonTrayItem`, `ComparisonTrayState`),
+      `UserPreferences` local caching, `ComparisonTrayNotifier` state controller with 4-paper capacity and duplicate guards.
+      Interactive floating docked `ComparisonTrayBar` in `AdaptiveAppShell` (both mobile and wide layouts) supporting
+      collapsed pill indicator with live counters, expandable horizontal paper carousel with 1-tap removals, and "Compare Now"
+      batch launch into `/compare?ids=id1,id2...`. Dynamic "Compare" action integration on `PaperDetailScreen` (tray toggle,
+      active state feedback, contextual "Compare (+N)" labels, and SnackBar shortcuts) and automated tray pre-population and
+      quick-add drawers in `ComparisonScreen`.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · alternative engines
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.
