@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../papers/data/paper.dtos.dart';
+import '../../papers/domain/audio_playback.dart';
 import '../../papers/domain/paper.dart';
 import '../domain/digest_models.dart';
 import '../domain/digest_repository.dart';
@@ -40,6 +41,26 @@ class DigestRepositoryImpl implements DigestRepository {
         data: payload,
       );
       return _parseDigest(res.data!);
+    } catch (e) {
+      throw failureFromDio(e);
+    }
+  }
+
+  @override
+  Future<AudioTrack> synthesizeDigestAudio({String? voice, List<String>? topics}) async {
+    try {
+      final payload = <String, dynamic>{};
+      if (voice != null && voice.isNotEmpty) {
+        payload['voice'] = voice;
+      }
+      if (topics != null && topics.isNotEmpty) {
+        payload['topics'] = topics;
+      }
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/research/digest/audio',
+        data: payload.isNotEmpty ? payload : null,
+      );
+      return AudioTrack.fromJson(res.data!);
     } catch (e) {
       throw failureFromDio(e);
     }
