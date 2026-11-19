@@ -11,6 +11,7 @@ import '../../../core/error/failure.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../annotations/presentation/widgets/annotations_sheet.dart';
 import '../../history/presentation/history_notifier.dart';
 
 /// In-app PDF reader: downloads (with progress) then renders the paper
@@ -125,6 +126,17 @@ class _PdfViewerScreenState extends ConsumerState<PdfViewerScreen> {
       appBar: AthenaTopBar(
         title: widget.title ?? 'PDF',
         actions: [
+          AthenaCircularIconButton(
+            icon: Icons.edit_note_rounded,
+            tooltip: 'Highlights & Margin Notes',
+            onPressed: () {
+              AnnotationsSheet.show(
+                context,
+                paperId: widget.paperId,
+                paperTitle: widget.title,
+              );
+            },
+          ),
           if (_isOfflineCached)
             AthenaCircularIconButton(
               icon: Icons.offline_pin_rounded,

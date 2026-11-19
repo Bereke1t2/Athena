@@ -13,6 +13,7 @@ import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../ai/presentation/paper_summary_card.dart';
+import '../../annotations/presentation/widgets/annotations_sheet.dart';
 import '../../collections/presentation/widgets/add_to_collection_sheet.dart';
 import '../../follows/presentation/follows_notifier.dart';
 import '../../history/presentation/history_notifier.dart';
@@ -101,6 +102,13 @@ class PaperDetailScreen extends ConsumerWidget {
                   case 'compare':
                     context.push('/compare?ids=${paper.summary.id}');
                     break;
+                  case 'annotations':
+                    AnnotationsSheet.show(
+                      context,
+                      paperId: paper.summary.id,
+                      paperTitle: paper.summary.title,
+                    );
+                    break;
                   case 'read':
                     final pdf = _pdfUrl(paper);
                     if (pdf != null) {
@@ -139,6 +147,16 @@ class PaperDetailScreen extends ConsumerWidget {
                       Icon(Icons.compare_arrows_rounded, size: 18),
                       SizedBox(width: 10),
                       Text('Compare Papers'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'annotations',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_note_rounded, size: 18, color: AppTheme.coral),
+                      SizedBox(width: 10),
+                      Text('Highlights & Notes'),
                     ],
                   ),
                 ),

@@ -8,6 +8,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ai_formatted_text.dart';
 import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/floating_research_prompt_bar.dart';
+import '../../annotations/presentation/annotations_notifier.dart';
+import '../../annotations/presentation/widgets/annotations_sheet.dart';
 import '../../history/presentation/history_notifier.dart';
 import '../domain/article_content.dart';
 
@@ -81,6 +83,18 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
                       _showTableOfContents(context, article);
                     },
                   ),
+                ListTile(
+                  leading: const Icon(Icons.edit_note_rounded, color: AppTheme.coral),
+                  title: const Text('Highlights & Margin Notes', style: TextStyle(fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    AnnotationsSheet.show(
+                      context,
+                      paperId: widget.paperId,
+                      paperTitle: widget.title ?? article?.title,
+                    );
+                  },
+                ),
                 ListTile(
                   leading: const Icon(Icons.headphones_outlined),
                   title: const Text('Audio Studio Brief', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -347,6 +361,57 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
           ),
         ),
         actions: [
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final annotationsAsync = ref.watch(paperAnnotationsProvider(widget.paperId));
+                  final count = annotationsAsync.valueOrNull?.length ?? 0;
+                  return InkWell(
+                    onTap: () => AnnotationsSheet.show(
+                      context,
+                      paperId: widget.paperId,
+                      paperTitle: widget.title ?? articleAsync.valueOrNull?.title,
+                    ),
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      height: 34,
+                      padding: EdgeInsets.symmetric(horizontal: count > 0 ? 10 : 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: count > 0 ? AppTheme.coral : borderColor,
+                        ),
+                        color: count > 0 ? AppTheme.coral.withValues(alpha: 0.12) : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            count > 0 ? Icons.edit_note_rounded : Icons.edit_note_outlined,
+                            size: 19,
+                            color: count > 0 ? AppTheme.coral : (isDark ? Colors.white : const Color(0xFF111827)),
+                          ),
+                          if (count > 0) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              '$count',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.coral,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 14),
