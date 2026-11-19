@@ -17,6 +17,7 @@ class UserPreferences {
   static const _kUserEmail = 'athena.auth.user_email';
   static const _kUserDisplayName = 'athena.auth.user_display_name';
   static const _kSearchHistory = 'athena.search.history';
+  static const _kComparisonTray = 'athena.comparison.tray';
 
   SharedPreferences? _prefs;
   FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
@@ -195,12 +196,34 @@ class UserPreferences {
     }
   }
 
+  String? get comparisonTrayJson =>
+      _ready ? _prefs!.getString(_kComparisonTray) : null;
+
+  Future<void> setComparisonTrayJson(String jsonString) async {
+    await load();
+    if (_prefs != null) {
+      if (jsonString.isEmpty) {
+        await _prefs!.remove(_kComparisonTray);
+      } else {
+        await _prefs!.setString(_kComparisonTray, jsonString);
+      }
+    }
+  }
+
+  Future<void> clearComparisonTray() async {
+    await load();
+    if (_prefs != null) {
+      await _prefs!.remove(_kComparisonTray);
+    }
+  }
+
   Future<void> reset() async {
     if (!_ready) return;
     await _prefs!.remove(_kTopics);
     await _prefs!.remove(_kOnboarded);
     await _prefs!.remove(_kThemeMode);
     await _prefs!.remove(_kSearchHistory);
+    await _prefs!.remove(_kComparisonTray);
     await clearAuthSession();
   }
 
