@@ -20,9 +20,9 @@ import (
 	appai "athena/backend/internal/application/ai"
 	appdigest "athena/backend/internal/application/digest"
 	"athena/backend/internal/application/ingestion"
+	appresearch "athena/backend/internal/application/research"
 	domainai "athena/backend/internal/domain/ai"
-	"athena/backend/internal/infrastructure/ai/openaicompat"
-	stubai "athena/backend/internal/infrastructure/ai/stub"
+	aigateway "athena/backend/internal/infrastructure/ai/gateway"
 	"athena/backend/internal/infrastructure/cache"
 	"athena/backend/internal/infrastructure/database"
 	"athena/backend/internal/infrastructure/mail"
@@ -107,21 +107,26 @@ func main() {
 	workers.AddAll(riverWorkers, service, log)
 	workers.AddNotificationsWithPush(riverWorkers, pool, pushSender, log)
 	workers.AddHousekeeping(riverWorkers, pool, log)
+	authoritySvc := appresearch.NewAuthorityService(store, nil, log)
+	workers.AddGraphAuthority(riverWorkers, authoritySvc, log)
 
 	var llm domainai.LLMProvider
 	if cfg.AIEnabled() {
-		switch cfg.LLMProvider {
-		case "stub":
-			llm = stubai.New()
-		default:
-			base := cfg.LLMBaseURL
-			if cfg.LLMOverrideBaseURL != "" {
-				base = cfg.LLMOverrideBaseURL
-			}
-			llm = openaicompat.NewClient(openaicompat.Config{
-				BaseURL: base, APIKey: cfg.LLMAPIKey, Model: cfg.LLMModel,
-				Timeout: 90 * time.Second,
-			})
+		base := cfg.LLMBaseURL
+		if cfg.LLMOverrideBaseURL != "" {
+			base = cfg.LLMOverrideBaseURL
+		}
+		var err error
+		llm, err = aigateway.NewLLMProvider(aigateway.Config{
+			Provider: cfg.LLMProvider,
+			BaseURL:  base,
+			APIKey:   cfg.LLMAPIKey,
+			Model:    cfg.LLMModel,
+			Timeout:  90 * time.Second,
+		})
+		if err != nil {
+			log.Error("failed to initialize LLM provider in worker", "error", err, "provider", cfg.LLMProvider)
+			os.Exit(1)
 		}
 	}
 
@@ -140,16 +145,21 @@ func main() {
 	// Phase 4: full-text RAG indexing when an LLM/embedding stack is set.
 	var ragService *appai.RAGService
 	if cfg.AIEnabled() {
-		var embedder domainai.EmbeddingProvider
-		if cfg.EmbeddingProviderName == "openai_compatible" || cfg.EmbeddingProviderName == "gemini" {
-			embedder = openaicompat.NewEmbedder(openaicompat.Config{
-				BaseURL:    cfg.LLMBaseURL,
-				APIKey:     cfg.LLMAPIKey,
-				Model:      cfg.EmbeddingModel,
-				Dimensions: cfg.EmbeddingDim,
-			})
-		} else {
-			embedder = stubai.NewEmbedder(cfg.EmbeddingDim)
+		base := cfg.LLMBaseURL
+		if cfg.LLMOverrideBaseURL != "" {
+			base = cfg.LLMOverrideBaseURL
+		}
+		embedder, err := aigateway.NewEmbeddingProvider(aigateway.Config{
+			BaseURL:        base,
+			APIKey:         cfg.LLMAPIKey,
+			EmbeddingName:  cfg.EmbeddingProviderName,
+			EmbeddingModel: cfg.EmbeddingModel,
+			EmbeddingDim:   cfg.EmbeddingDim,
+			Timeout:        90 * time.Second,
+		})
+		if err != nil {
+			log.Error("failed to initialize embedding provider in worker", "error", err, "provider", cfg.EmbeddingProviderName)
+			os.Exit(1)
 		}
 		paperStore := database.NewPaperStore(pool, log)
 		ragService = appai.NewRAGService(paperStore, database.NewAIStore(pool),
@@ -178,6 +188,7 @@ func main() {
 			workers.PeriodicSyncWindow(s2adapter.Slug, 12*time.Hour),
 			workers.PeriodicWeeklyDigest(7 * 24 * time.Hour),
 			workers.PeriodicHousekeeping(24 * time.Hour),
+			workers.PeriodicGraphAuthority(12 * time.Hour),
 		}
 	}
 

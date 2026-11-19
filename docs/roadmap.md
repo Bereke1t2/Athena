@@ -268,6 +268,25 @@ Acceptance:
       Mobile Flutter experience with `DigestPodcastCard` in `DigestScreen` featuring live playback controls,
       custom voice selector, expandable chapter timeline with 1-tap seeking, and seamless transition to the
       full-screen audio player (`/player`).
+- [x] Citation Network Graph Authority & Seminal Paper Scoring (2026-11-19):
+      PageRank citation graph analytics calculating foundational authority scores across the academic citation
+      network (`citations` table). Database schema migration (`000025_seminal_paper_authority.up.sql`) adding
+      `authority_score` and `is_seminal` with compound indexes. Application service (`AuthorityService`)
+      implementing weighted PageRank with damping factor d = 0.85, convergence tolerance, edge weighting for
+      influential citations and stances (supports vs contradicts vs mentions), and dynamic seminal paper thresholding.
+      Scheduled periodic River background worker (`compute_citation_authority`) and admin trigger (`POST /api/v1/admin/graph/compute-authority`).
+      Mobile Flutter experience with `PaperSummary` and DTO serialization, resonant amber "Seminal" badges on `PaperCard`,
+      and dedicated "Seminal Work" badge and authority metrics on `PaperDetailScreen`.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · alternative engines
+- [x] Multi-Model LLM Gateway (Claude, Gemini, Local Ollama) (2026-11-19):
+      Production-grade multi-model LLM and vector embedding gateway providing native adapter integrations
+      for Anthropic Claude (Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus via Messages API with SSE streaming
+      and token tracking), Google Gemini (native Generative Language REST API `:generateContent` and `:streamGenerateContent?alt=sse`
+      plus `:batchEmbedContents`), local offline Ollama (`http://localhost:11434` supporting `/api/chat` NDJSON streaming
+      and `/api/embed` / `/api/embeddings` offline vector embeddings for air-gapped deployments), OpenAI-compatible gateways
+      (vLLM, Groq, Together, Azure, DeepSeek), and deterministic test stubs.
+      Unified gateway factory (`internal/infrastructure/ai/gateway`) wiring both API server and background River workers
+      with typed configuration, provider normalization, exponential backoff retries, and comprehensive unit test coverage.
+
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · Seminal Paper Authority Scoring ✅ · Multi-Model LLM Gateway ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.

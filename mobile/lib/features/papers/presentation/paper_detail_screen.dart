@@ -315,6 +315,40 @@ class PaperDetailScreen extends ConsumerWidget {
                       runSpacing: 6,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
+                        if (paper.summary.isSeminal) ...[
+                          Container(
+                            key: const Key('detail-seminal-badge'),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.45),
+                                width: 1,
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome,
+                                  size: 12,
+                                  color: Color(0xFFD97706),
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Seminal Work',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFFD97706),
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -374,6 +408,18 @@ class PaperDetailScreen extends ConsumerWidget {
                             label: 'references',
                             isDark: isDark,
                           ),
+                          if (paper.summary.authorityScore > 0) ...[
+                            Container(
+                              width: 1,
+                              height: 28,
+                              color: isDark ? const Color(0xFF2F3544) : const Color(0xFFE5E7EB),
+                            ),
+                            _StatItem(
+                              value: paper.summary.authorityScore.toStringAsFixed(1),
+                              label: 'authority',
+                              isDark: isDark,
+                            ),
+                          ],
                           Container(
                             width: 1,
                             height: 28,

@@ -376,6 +376,7 @@ POST /admin/ingestion/jobs    { "provider": "openalex",
                                 "from": "...", "to": "..." }
 GET  /admin/ingestion/jobs?status=&provider=&cursor=
 GET  /admin/sources                        # sync cursors, freshness, stats
+POST /admin/graph/compute-authority        # triggers PageRank citation authority scoring
 ```
 
 ## 3. Cross-cutting behaviors

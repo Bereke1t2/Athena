@@ -29,6 +29,8 @@ class PaperSummaryDto {
     required this.oaStatus,
     required this.isOpenAccess,
     required this.citedByCount,
+    this.authorityScore = 0.0,
+    this.isSeminal = false,
   });
 
   final String id;
@@ -41,6 +43,8 @@ class PaperSummaryDto {
   final String oaStatus;
   final bool isOpenAccess;
   final int citedByCount;
+  final double authorityScore;
+  final bool isSeminal;
 
   factory PaperSummaryDto.fromJson(Map<String, dynamic> json) => _$PaperSummaryDtoFromJson(json);
 
@@ -55,6 +59,8 @@ class PaperSummaryDto {
         oaStatus: oaStatus,
         isOpenAccess: isOpenAccess,
         citedByCount: citedByCount,
+        authorityScore: authorityScore,
+        isSeminal: isSeminal,
       );
 }
 
