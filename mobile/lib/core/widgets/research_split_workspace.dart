@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/ai/domain/ai_models.dart';
+import '../../features/ai/presentation/chat_notifier.dart';
 import '../../features/annotations/domain/annotation.dart';
 import '../../features/annotations/presentation/annotations_notifier.dart';
 import '../theme/app_theme.dart';
+import 'ai_formatted_text.dart';
 
 /// Screen width breakpoint for switching to the productivity two-pane split workspace.
 const double kDesktopSplitBreakpoint = 1024.0;
@@ -43,11 +46,48 @@ class _ResearchSplitWorkspaceState
   late ResearchSidebarTab _activeTab;
   bool _isSidebarVisible = true;
   AnnotationColor? _selectedColorFilter;
+  final _chatInputController = TextEditingController();
+  final _chatScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _activeTab = widget.initialTab;
+  }
+
+  @override
+  void dispose() {
+    _chatInputController.dispose();
+    _chatScrollController.dispose();
+    super.dispose();
+  }
+
+  void _sendChatPrompt(String query) {
+    final text = query.trim();
+    if (text.isEmpty) return;
+    _chatInputController.clear();
+    ref.read(chatThreadProvider(widget.paperId).notifier).send(text);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_chatScrollController.hasClients) {
+        _chatScrollController.animateTo(
+          _chatScrollController.position.maxScrollExtent + 120,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _askAiAboutAnnotation(Annotation annotation) {
+    setState(() {
+      _activeTab = ResearchSidebarTab.chat;
+      _isSidebarVisible = true;
+    });
+    final prompt =
+        'Explain this highlighted passage in detail: "${annotation.selectedText}". '
+        '${annotation.note.isNotEmpty ? "Context note: ${annotation.note}" : ""}';
+    _sendChatPrompt(prompt);
   }
 
   @override
@@ -316,7 +356,239 @@ class _ResearchSplitWorkspaceState
   }
 
   Widget _buildChatPane(BuildContext context, bool isDark) {
-    return const SizedBox.shrink();
+    final chatState = ref.watch(chatThreadProvider(widget.paperId));
+
+    return Column(
+      children: [
+        // Messages list
+        Expanded(
+          child: chatState.messages.isEmpty && chatState.streaming.isEmpty
+              ? _buildChatEmptyState(isDark)
+              : ListView.builder(
+                  controller: _chatScrollController,
+                  padding: const EdgeInsets.all(14),
+                  itemCount: chatState.messages.length + (chatState.streaming.isNotEmpty ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index < chatState.messages.length) {
+                      final msg = chatState.messages[index];
+                      return _buildMessageBubble(msg, isDark);
+                    } else {
+                      return _buildStreamingBubble(chatState.streaming, isDark);
+                    }
+                  },
+                ),
+        ),
+
+        // Quick suggested prompt chips
+        Container(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildPromptChip('Synthesize breakthrough', isDark),
+              _buildPromptChip('Key methodology', isDark),
+              _buildPromptChip('Limitations & caveats', isDark),
+            ],
+          ),
+        ),
+
+        // Chat Input Bar
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF161922) : Colors.white,
+            border: Border(
+              top: BorderSide(
+                color: isDark ? const Color(0xFF262C3A) : const Color(0xFFE5E7EB),
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _chatInputController,
+                  onSubmitted: _sendChatPrompt,
+                  decoration: InputDecoration(
+                    hintText: 'Ask AI grounded on this paper...',
+                    hintStyle: TextStyle(
+                      fontSize: 12.5,
+                      color: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color: isDark ? const Color(0xFF373D4E) : const Color(0xFFD1D5DB),
+                      ),
+                    ),
+                  ),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                style: IconButton.styleFrom(
+                  backgroundColor: AppTheme.coral,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: chatState.sending
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.arrow_upward_rounded, size: 18),
+                onPressed: chatState.sending
+                    ? null
+                    : () => _sendChatPrompt(_chatInputController.text),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChatEmptyState(bool isDark) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.coral.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.auto_awesome, size: 28, color: AppTheme.coral),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Grounded Research Assistant',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.white : const Color(0xFF141416),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Ask deep questions grounded strictly in the full text and methodology of "${widget.paperTitle}".',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                height: 1.35,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPromptChip(String prompt, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: ActionChip(
+        label: Text(prompt, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        visualDensity: VisualDensity.compact,
+        backgroundColor: isDark ? const Color(0xFF1E2330) : const Color(0xFFF3F4F6),
+        side: BorderSide(
+          color: isDark ? const Color(0xFF2E3444) : const Color(0xFFE5E7EB),
+        ),
+        onPressed: () => _sendChatPrompt(prompt),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(ChatMessage message, bool isDark) {
+    final isUser = message.role == 'user';
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        constraints: const BoxConstraints(maxWidth: 380),
+        decoration: BoxDecoration(
+          color: isUser
+              ? AppTheme.coral
+              : (isDark ? const Color(0xFF1E2330) : const Color(0xFFF3F4F6)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: isUser
+            ? Text(
+                message.content,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              )
+            : AiFormattedText(
+                text: message.content,
+                baseStyle: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.4,
+                  color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF1F2937),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildStreamingBubble(String text, bool isDark) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E2330) : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AiFormattedText(
+              text: text,
+              baseStyle: TextStyle(
+                fontSize: 12.5,
+                height: 1.4,
+                color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 8,
+                  height: 8,
+                  child: CircularProgressIndicator(strokeWidth: 1.5, color: AppTheme.coral),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Synthesizing...',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildAnnotationsPane(BuildContext context, bool isDark) {
