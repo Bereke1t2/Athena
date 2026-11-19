@@ -5,6 +5,7 @@ import '../../features/ai/domain/ai_models.dart';
 import '../../features/ai/presentation/chat_notifier.dart';
 import '../../features/annotations/domain/annotation.dart';
 import '../../features/annotations/presentation/annotations_notifier.dart';
+import '../../features/annotations/presentation/widgets/add_annotation_dialog.dart';
 import '../theme/app_theme.dart';
 import 'ai_formatted_text.dart';
 
@@ -592,6 +593,228 @@ class _ResearchSplitWorkspaceState
   }
 
   Widget _buildAnnotationsPane(BuildContext context, bool isDark) {
-    return const SizedBox.shrink();
+    final annotationsAsync = ref.watch(paperAnnotationsProvider(widget.paperId));
+
+    return annotationsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.coral)),
+      error: (err, _) => Center(child: Text('Failed to load notes: $err')),
+      data: (items) {
+        final filtered = _selectedColorFilter == null
+            ? items
+            : items.where((a) => a.color == _selectedColorFilter).toList();
+
+        return Column(
+          children: [
+            // Filter Bar & Add Note Button
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDark ? const Color(0xFF262C3A) : const Color(0xFFE5E7EB),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          ChoiceChip(
+                            label: const Text('All', style: TextStyle(fontSize: 11)),
+                            selected: _selectedColorFilter == null,
+                            visualDensity: VisualDensity.compact,
+                            onSelected: (_) {
+                              setState(() {
+                                _selectedColorFilter = null;
+                              });
+                            },
+                          ),
+                          const SizedBox(width: 4),
+                          for (final c in AnnotationColor.values)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: ChoiceChip(
+                                avatar: CircleAvatar(backgroundColor: Color(c.colorHex), radius: 5),
+                                label: Text(c.code, style: const TextStyle(fontSize: 11)),
+                                selected: _selectedColorFilter == c,
+                                visualDensity: VisualDensity.compact,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _selectedColorFilter = selected ? c : null;
+                                  });
+                                },
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.coral,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.add, size: 14),
+                    label: const Text('Note', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                    onPressed: () async {
+                      final res = await showDialog<Map<String, dynamic>>(
+                        context: context,
+                        builder: (ctx) => AddAnnotationDialog(
+                          paperId: widget.paperId,
+                          selectedText: 'Custom margin note on ${widget.paperTitle}',
+                          pageNumber: 1,
+                        ),
+                      );
+                      if (res != null) {
+                        final note = res['note'] as String? ?? '';
+                        final color = res['color'] as AnnotationColor? ?? AnnotationColor.yellow;
+                        await ref.read(paperAnnotationsProvider(widget.paperId).notifier).createAnnotation(
+                              selectedText: 'Margin note: ${note.isNotEmpty ? note : "Key takeaway"}',
+                              note: note,
+                              color: color,
+                              pageNumber: 1,
+                            );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // Annotations List
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          'No highlights or margin notes yet.\nHighlight any text in the reader to pin insights here.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final a = filtered[index];
+                        return _buildAnnotationCard(context, a, isDark);
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAnnotationCard(BuildContext context, Annotation a, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E2330) : const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2E3444) : const Color(0xFFE5E7EB),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: Color(a.color.colorHex), shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Page ${a.pageNumber}',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.delete_outline_rounded, size: 15),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                tooltip: 'Delete annotation',
+                onPressed: () {
+                  ref.read(paperAnnotationsProvider(widget.paperId).notifier).deleteAnnotation(a.id);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '"${a.selectedText}"',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontStyle: FontStyle.italic,
+              height: 1.3,
+              color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF374151),
+            ),
+          ),
+          if (a.note.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Color(a.color.tintHex),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                a.note,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF141416),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => _askAiAboutAnnotation(a),
+            borderRadius: BorderRadius.circular(6),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.auto_awesome, size: 13, color: AppTheme.coral),
+                  SizedBox(width: 4),
+                  Text(
+                    'Ask AI about this',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.coral,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
