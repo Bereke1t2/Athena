@@ -27,6 +27,7 @@ import (
 	apphistory "athena/backend/internal/application/history"
 	appnotif "athena/backend/internal/application/notification"
 	apprec "athena/backend/internal/application/recommendation"
+	appresearch "athena/backend/internal/application/research"
 	appsearch "athena/backend/internal/application/search"
 	v1 "athena/backend/internal/delivery/http/v1"
 	"athena/backend/internal/infrastructure/cache"
@@ -106,7 +107,8 @@ func run() error {
 	}
 
 	research := v1.NewResearchHandlers(store, log)
-	admin := v1.NewAdminHandlers(cfg.AdminToken, log)
+	authoritySvc := appresearch.NewAuthorityService(store, nil, log)
+	admin := v1.NewAdminHandlers(cfg.AdminToken, log).WithAuthority(authoritySvc)
 	admin.Queue = workers.NewQueueAdmin(riverClient)
 	if cfg.AIEnabled() {
 		admin.RagQueue = ragQueueAdapter{client: riverClient}
