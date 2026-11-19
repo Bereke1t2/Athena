@@ -10,6 +10,7 @@ import '../../../core/widgets/state_views.dart';
 import '../../auth/presentation/auth_notifier.dart';
 import '../domain/digest_models.dart';
 import 'digest_notifier.dart';
+import 'widgets/digest_podcast_card.dart';
 
 class DigestScreen extends ConsumerWidget {
   const DigestScreen({super.key});
@@ -222,6 +223,9 @@ class DigestScreen extends ConsumerWidget {
                   ),
 
                   const SizedBox(height: 16),
+
+                  // Weekly Audio Podcast & Narration Briefing Card
+                  const DigestPodcastCard(),
 
                   // AI Weekly Executive Synthesis Card
                   if (digest.aiSummary.isNotEmpty) ...[
