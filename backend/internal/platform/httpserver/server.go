@@ -30,6 +30,7 @@ type Deps struct {
 	Export        *v1.ExportHandlers
 	Digest        *v1.DigestHandlers
 	Collections   *v1.CollectionsHandlers
+	Annotations   *v1.AnnotationsHandlers
 	Logger        *slog.Logger
 
 	// Limiter enforces inbound rate limiting per API spec (MemoryRateLimiter if nil).
@@ -242,6 +243,13 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.HandleFunc("GET /api/v1/collections/{id}/collaborators", deps.Collections.ListCollaborators)
 		mux.Handle("POST /api/v1/collections/{id}/collaborators", v1.RequireAuth(deps.Collections.AddCollaborator))
 		mux.Handle("DELETE /api/v1/collections/{id}/collaborators/{user_id}", v1.RequireAuth(deps.Collections.RemoveCollaborator))
+	}
+
+	if deps.Annotations != nil {
+		mux.HandleFunc("GET /api/v1/papers/{id}/annotations", deps.Annotations.List)
+		mux.Handle("POST /api/v1/papers/{id}/annotations", v1.RequireAuth(deps.Annotations.Create))
+		mux.Handle("PATCH /api/v1/annotations/{id}", v1.RequireAuth(deps.Annotations.Update))
+		mux.Handle("DELETE /api/v1/annotations/{id}", v1.RequireAuth(deps.Annotations.Delete))
 	}
 
 	if deps.Admin != nil {
