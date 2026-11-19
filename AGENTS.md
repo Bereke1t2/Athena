@@ -1,6 +1,6 @@
 # AGENTS.md — working notes for AI agents on Athena
 
-Last updated: 2026-11-19 (Persistent Text Highlights, Color Annotations & Margin Notes, Collection-Grounded Multi-Paper Chat, Collaborative Research Collections Mobile Experience, Advanced Search Filter Engine, and Multi-Paper Comparison Enhancements). Read this first.
+Last updated: 2026-11-19 (Offline Research Manager & Storage Dashboard, Persistent Text Highlights, Color Annotations & Margin Notes, Collection-Grounded Multi-Paper Chat, Collaborative Research Collections Mobile Experience, Advanced Search Filter Engine, and Multi-Paper Comparison Enhancements). Read this first.
 
 ## Stack & layout
 
@@ -44,7 +44,17 @@ Last updated: 2026-11-19 (Persistent Text Highlights, Color Annotations & Margin
 
 ## Unfinished / verify next session
 
-1. **Persistent Text Highlights, Color Annotations & Margin Notes (2026-11-19)**:
+1. **Offline Research Manager & Storage Dashboard (2026-11-19)**:
+   - **Scope**: Comprehensive offline device storage management, cached research paper catalog, granular and bulk cache purging, and batch flight pack pre-caching for collections.
+   - **Core Deliverables**:
+     - *PDF Repository Extension* ([`pdf_repository.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/domain/pdf_repository.dart), [`pdf_repository_impl.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/papers/data/pdf_repository_impl.dart)): Added `CachedPdfInfo` (`paperId`, `filePath`, `sizeBytes`, `modifiedAt`), `listCachedPdfs()`, and `clearAllPdfs()` across application documents and temporary directories.
+     - *Storage Domain & Data Layer* ([`storage_models.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/storage/domain/storage_models.dart), [`storage_repository.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/storage/domain/storage_repository.dart), [`storage_repository_impl.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/storage/data/storage_repository_impl.dart), [`di.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/di.dart)): Framework-free storage models (`StorageBreakdown`, `OfflineFlightBatchResult`, `formatStorageBytes`), pure domain repository interface, and implementation combining file system caches and `UserPreferences`.
+     - *State Management* ([`storage_notifier.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/storage/presentation/storage_notifier.dart)): Built `StorageNotifier` state machine computing live breakdown, cached papers, flight download progress, single-file deletion, and maintenance purges.
+     - *User Interface & Integration* ([`storage_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/storage/presentation/storage_screen.dart), [`app_router.dart`](file:///home/bereket/startup/Athena/mobile/lib/core/router/app_router.dart), [`profile_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/profile/presentation/profile_screen.dart), [`collection_detail_screen.dart`](file:///home/bereket/startup/Athena/mobile/lib/features/collections/presentation/collection_detail_screen.dart)): Built `/storage` executive dashboard, navigation entry in Profile screen, and "Save for Offline Flight" action button and batch pre-fetcher in collection detail view.
+     - *Test Coverage* ([`pdf_repository_impl_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/papers/data/pdf_repository_impl_test.dart), [`storage_notifier_test.dart`](file:///home/bereket/startup/Athena/mobile/test/features/storage/storage_notifier_test.dart)): Unit tests for PDF caching, storage breakdown calculation, single deletion, full PDF clearing, and batch flight pre-downloads.
+   - **Verification**: Go backend tests 100% green; Mobile tests 100% green (130 passing, 1 skipped); `dart analyze` 0 issues.
+
+2. **Persistent Text Highlights, Color Annotations & Margin Notes (2026-11-19)**:
    - **Scope**: Multi-color reader text highlights and persistent margin notes across academic research papers with offline-first local storage and backend synchronization.
    - **Core Deliverables**:
      - *PostgreSQL Migration* ([`000024_paper_annotations.up.sql`](file:///home/bereket/startup/Athena/backend/migrations/000024_paper_annotations.up.sql), [`000024_paper_annotations.down.sql`](file:///home/bereket/startup/Athena/backend/migrations/000024_paper_annotations.down.sql)): Added `paper_annotations` table (`id`, `user_id`, `paper_id`, `page_number`, `section_index`, `selected_text`, `note`, `color`, `created_at`, `updated_at`) with foreign key cascade, color constraint (`yellow`, `coral`, `emerald`, `cyan`, `purple`), and compound indexes on `(user_id, paper_id)` and `(paper_id)`.
