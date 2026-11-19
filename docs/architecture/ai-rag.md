@@ -12,23 +12,27 @@
 | Chat with a paper | 4 | RAG-grounded, cited, streaming (SSE) |
 | Paper comparison | 6 | map-reduce over per-paper structured extraction |
 
-## 2. Ports
+## 2. Ports & Multi-Model Gateway
 
 ```go
 // domain/ai
 type LLMProvider interface {
-    Generate(ctx, GenerateRequest) (GenerateResponse, error)
-    GenerateStream(ctx, GenerateRequest) (StreamReader, error)
-    GenerateJSON(ctx, GenerateRequest, SchemaHint) (json.RawMessage, error)
+    Model() string
+    Generate(ctx context.Context, req GenerateRequest) (GenerateResponse, error)
+    GenerateStream(ctx context.Context, req GenerateRequest) (StreamReader, error)
 }
 type EmbeddingProvider interface {
-    Embed(ctx context.Context, texts []string) ([]Embedding, error)
+    Embed(ctx context.Context, texts []string) ([][]float32, error)
+    Model() string
 }
 ```
 
-First adapter: OpenAI-compatible HTTP (`openaicompat`) — covers OpenAI, Azure,
-vLLM, Ollama, Groq, Together via config. Every call persists
-`model_id`, `prompt_template_version`, `token_usage`.
+Athena provides a unified Multi-Model LLM & Embeddings Gateway (`internal/infrastructure/ai/gateway`):
+- **Anthropic Claude** (`claude`): Direct Messages API integration (`https://api.anthropic.com/v1/messages`) supporting Claude 3.5 Sonnet, Claude 3.5 Haiku, and Claude 3 Opus with SSE streaming and token tracking.
+- **Google Gemini** (`gemini`): Native Generative Language REST API (`/models/{model}:generateContent` and `:streamGenerateContent?alt=sse`) plus batch vector embeddings (`:batchEmbedContents`) supporting Gemini 1.5 Flash, Gemini 1.5 Pro, and `text-embedding-004`.
+- **Local Ollama** (`ollama`): Offline air-gapped local deployment (`http://localhost:11434`) supporting `/api/chat` NDJSON streaming and `/api/embed` / `/api/embeddings` offline vector embeddings.
+- **OpenAI-Compatible** (`openai_compatible`): Standard chat completions and embeddings for OpenAI, Azure, vLLM, Groq, Together, and DeepSeek.
+- **Deterministic Stub** (`stub`): Zero-token deterministic mock for fast local development and CI testing.
 
 ## 3. Full-text acquisition (legal gate first)
 
