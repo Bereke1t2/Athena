@@ -8,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/ai_formatted_text.dart';
 import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/floating_research_prompt_bar.dart';
+import '../../../core/widgets/research_split_workspace.dart';
 import '../../annotations/presentation/annotations_notifier.dart';
 import '../../annotations/presentation/widgets/annotations_sheet.dart';
 import '../../history/presentation/history_notifier.dart';
@@ -436,8 +437,11 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
           ),
         ],
       ),
-      body: DotGridBackground(
-        child: articleAsync.when(
+      body: ResearchSplitWorkspace(
+        paperId: widget.paperId,
+        paperTitle: widget.title ?? 'Research Article',
+        mainPane: DotGridBackground(
+          child: articleAsync.when(
           loading: () => const Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -703,6 +707,7 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
             );
           },
         ),
+      ),
       ),
     );
   }

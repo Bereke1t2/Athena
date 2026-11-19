@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/comparison/presentation/widgets/comparison_tray_bar.dart';
 import '../../features/papers/presentation/widgets/mini_audio_player.dart';
 import '../theme/app_theme.dart';
+import 'command_palette_dialog.dart';
 
 /// Breakpoint for switching between mobile bottom navigation and wide-screen navigation rail.
 const double kTabletBreakpoint = 720.0;
@@ -27,7 +29,22 @@ class AdaptiveAppShell extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
     final isWide = width >= kTabletBreakpoint;
 
-    return isWide ? _buildWideLayout(context) : _buildMobileLayout(context);
+    final content = isWide ? _buildWideLayout(context) : _buildMobileLayout(context);
+
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () {
+          CommandPaletteDialog.show(context);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () {
+          CommandPaletteDialog.show(context);
+        },
+      },
+      child: Focus(
+        autofocus: true,
+        child: content,
+      ),
+    );
   }
 
   Widget _buildWideLayout(BuildContext context) {
@@ -84,6 +101,40 @@ class AdaptiveAppShell extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.2,
                           color: AppTheme.coral,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: () => CommandPaletteDialog.show(context),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E2330) : const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF2E3444) : const Color(0xFFE5E7EB),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.search_rounded,
+                                size: 14,
+                                color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '⌘K',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF374151),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
