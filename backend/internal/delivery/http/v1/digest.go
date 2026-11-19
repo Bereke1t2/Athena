@@ -1,12 +1,16 @@
 package v1
 
 import (
+	"bytes"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
+	appai "athena/backend/internal/application/ai"
 	appdigest "athena/backend/internal/application/digest"
 	domaindigest "athena/backend/internal/domain/digest"
 )
@@ -14,6 +18,7 @@ import (
 // DigestHandlers handle research digest delivery.
 type DigestHandlers struct {
 	Svc    *appdigest.Service
+	Audio  *appai.AudioService
 	Logger *slog.Logger
 }
 
@@ -28,9 +33,20 @@ func NewDigestHandlers(svc *appdigest.Service, log *slog.Logger) *DigestHandlers
 	}
 }
 
+// WithAudio connects the research audio synthesis service.
+func (h *DigestHandlers) WithAudio(audio *appai.AudioService) *DigestHandlers {
+	h.Audio = audio
+	return h
+}
+
 type generateDigestRequestDTO struct {
 	Frequency string   `json:"frequency,omitempty"`
 	Topics    []string `json:"topics,omitempty"`
+}
+
+type synthesizeDigestAudioRequestDTO struct {
+	Voice  string   `json:"voice,omitempty"`
+	Topics []string `json:"topics,omitempty"`
 }
 
 type digestSectionDTO struct {
@@ -138,4 +154,94 @@ func (h *DigestHandlers) Generate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJSON(w, http.StatusCreated, newDigestDTO(d))
+}
+
+// SynthesizeAudio: POST /api/v1/research/digest/audio
+// Generates a continuous, speech-ready weekly narrative podcast episode with chapter markers.
+func (h *DigestHandlers) SynthesizeAudio(w http.ResponseWriter, r *http.Request) {
+	if h.Svc == nil || h.Audio == nil {
+		WriteError(w, r, http.StatusServiceUnavailable, CodeNotImplemented, "audio synthesis not configured")
+		return
+	}
+
+	var userID uuid.UUID
+	if user, ok := UserFromContext(r.Context()); ok {
+		userID = user.ID
+	}
+
+	var req synthesizeDigestAudioRequestDTO
+	if r.Body != nil && r.ContentLength > 0 {
+		_ = decodeJSON(r, &req)
+	}
+
+	topics := req.Topics
+	if len(topics) == 0 {
+		if topicsParam := r.URL.Query().Get("topics"); topicsParam != "" {
+			for _, t := range strings.Split(topicsParam, ",") {
+				if trimmed := strings.TrimSpace(t); trimmed != "" {
+					topics = append(topics, trimmed)
+				}
+			}
+		}
+	}
+
+	d, err := h.Svc.GetLatestDigest(r.Context(), userID, topics...)
+	if err != nil {
+		h.Logger.Error("failed to get digest for audio synthesis", "error", err, "user_id", userID)
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "failed to get research digest for audio")
+		return
+	}
+
+	narration, err := h.Audio.SynthesizeDigestAudio(r.Context(), d, req.Voice)
+	if err != nil {
+		h.Logger.Error("failed to synthesize digest audio", "error", err, "digest_id", d.ID)
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "failed to synthesize weekly audio briefing")
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, narration)
+}
+
+// StreamAudio: GET /api/v1/research/digest/audio/stream
+// Streams the latest generated weekly research podcast with RFC-7233 partial content range support.
+func (h *DigestHandlers) StreamAudio(w http.ResponseWriter, r *http.Request) {
+	if h.Audio == nil {
+		WriteError(w, r, http.StatusServiceUnavailable, CodeNotImplemented, "audio synthesis not configured")
+		return
+	}
+
+	audioBytes, err := h.Audio.GetDigestAudioStream(r.Context(), uuid.Nil)
+	if err != nil {
+		WriteError(w, r, http.StatusNotFound, CodeNotFound, "digest audio not found")
+		return
+	}
+
+	w.Header().Set("Content-Type", "audio/mpeg")
+	w.Header().Set("Accept-Ranges", "bytes")
+	http.ServeContent(w, r, "weekly-digest.mp3", time.Time{}, bytes.NewReader(audioBytes))
+}
+
+// StreamAudioByID: GET /api/v1/research/digest/{id}/audio/stream
+// Streams a specific weekly research podcast by digest UUID.
+func (h *DigestHandlers) StreamAudioByID(w http.ResponseWriter, r *http.Request) {
+	if h.Audio == nil {
+		WriteError(w, r, http.StatusServiceUnavailable, CodeNotImplemented, "audio synthesis not configured")
+		return
+	}
+
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid digest id")
+		return
+	}
+
+	audioBytes, err := h.Audio.GetDigestAudioStream(r.Context(), id)
+	if err != nil {
+		WriteError(w, r, http.StatusNotFound, CodeNotFound, "digest audio not found")
+		return
+	}
+
+	w.Header().Set("Content-Type", "audio/mpeg")
+	w.Header().Set("Accept-Ranges", "bytes")
+	http.ServeContent(w, r, fmt.Sprintf("%s.mp3", id.String()), time.Time{}, bytes.NewReader(audioBytes))
 }
