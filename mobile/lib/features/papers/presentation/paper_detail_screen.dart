@@ -15,6 +15,8 @@ import '../../../core/widgets/state_views.dart';
 import '../../ai/presentation/paper_summary_card.dart';
 import '../../annotations/presentation/widgets/annotations_sheet.dart';
 import '../../collections/presentation/widgets/add_to_collection_sheet.dart';
+import '../../comparison/domain/comparison_tray_models.dart';
+import '../../comparison/presentation/comparison_tray_notifier.dart';
 import '../../follows/presentation/follows_notifier.dart';
 import '../../history/presentation/history_notifier.dart';
 import '../domain/paper.dart';
@@ -42,9 +44,11 @@ class PaperDetailScreen extends ConsumerWidget {
     });
 
     final async = ref.watch(paperDetailControllerProvider(id));
+    final tray = ref.watch(comparisonTrayProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final paper = async.valueOrNull;
+    final isInTray = paper != null && tray.containsPaper(paper.summary.id);
 
     return Scaffold(
       backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
@@ -100,7 +104,36 @@ class PaperDetailScreen extends ConsumerWidget {
                     showPaperExportModal(context, paper);
                     break;
                   case 'compare':
-                    context.push('/compare?ids=${paper.summary.id}');
+                    final trayItem = ComparisonTrayItem(
+                      paperId: paper.summary.id,
+                      title: paper.summary.title,
+                      authors: paper.authors.map((a) => a.name).toList(),
+                      year: paper.summary.year,
+                      venue: paper.summary.venueName,
+                    );
+                    final notifier = ref.read(comparisonTrayProvider.notifier);
+                    final isNowIn = notifier.togglePaper(trayItem);
+                    final currentTray = ref.read(comparisonTrayProvider);
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isNowIn
+                              ? 'Added to comparison tray (${currentTray.count}/4)'
+                              : 'Removed from comparison tray',
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        action: isNowIn && currentTray.canCompare
+                            ? SnackBarAction(
+                                label: 'Compare (${currentTray.count})',
+                                textColor: AppTheme.coral,
+                                onPressed: () {
+                                  context.push('/compare?ids=${currentTray.paperIds.join(',')}');
+                                },
+                              )
+                            : null,
+                      ),
+                    );
                     break;
                   case 'annotations':
                     AnnotationsSheet.show(
@@ -140,13 +173,17 @@ class PaperDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'compare',
                   child: Row(
                     children: [
-                      Icon(Icons.compare_arrows_rounded, size: 18),
-                      SizedBox(width: 10),
-                      Text('Compare Papers'),
+                      Icon(
+                        isInTray ? Icons.check_circle_rounded : Icons.compare_arrows_rounded,
+                        size: 18,
+                        color: isInTray ? AppTheme.coral : null,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(isInTray ? 'In Comparison Tray' : 'Add to Compare Tray'),
                     ],
                   ),
                 ),
@@ -447,20 +484,68 @@ class PaperDetailScreen extends ConsumerWidget {
                             Expanded(
                               child: OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: isDark ? Colors.white : const Color(0xFF141416),
+                                  backgroundColor: isInTray
+                                      ? AppTheme.coral.withValues(alpha: 0.12)
+                                      : null,
+                                  foregroundColor: isInTray
+                                      ? AppTheme.coral
+                                      : (isDark ? Colors.white : const Color(0xFF141416)),
                                   side: BorderSide(
-                                    color: isDark ? const Color(0xFF373D4E) : const Color(0xFFD1D5DB),
+                                    color: isInTray
+                                        ? AppTheme.coral
+                                        : (isDark ? const Color(0xFF373D4E) : const Color(0xFFD1D5DB)),
                                   ),
                                   padding: const EdgeInsets.symmetric(vertical: 10),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
-                                onPressed: () => context.push('/compare?ids=${paper.summary.id}'),
-                                icon: const Icon(Icons.compare_arrows_rounded, size: 16),
-                                label: const Text(
-                                  'Compare',
+                                onPressed: () {
+                                  final trayItem = ComparisonTrayItem(
+                                    paperId: paper.summary.id,
+                                    title: paper.summary.title,
+                                    authors: paper.authors.map((a) => a.name).toList(),
+                                    year: paper.summary.year,
+                                    venue: paper.summary.venueName,
+                                  );
+                                  final notifier = ref.read(comparisonTrayProvider.notifier);
+                                  final isNowIn = notifier.togglePaper(trayItem);
+                                  final currentTray = ref.read(comparisonTrayProvider);
+                                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        isNowIn
+                                            ? 'Added to comparison tray (${currentTray.count}/4)'
+                                            : 'Removed from comparison tray',
+                                      ),
+                                      behavior: SnackBarBehavior.floating,
+                                      action: isNowIn && currentTray.canCompare
+                                          ? SnackBarAction(
+                                              label: 'Compare (${currentTray.count})',
+                                              textColor: AppTheme.coral,
+                                              onPressed: () {
+                                                context.push('/compare?ids=${currentTray.paperIds.join(',')}');
+                                              },
+                                            )
+                                          : null,
+                                    ),
+                                  );
+                                },
+                                icon: Icon(
+                                  isInTray ? Icons.check_circle_rounded : Icons.compare_arrows_rounded,
+                                  size: 16,
+                                  color: isInTray ? AppTheme.coral : null,
+                                ),
+                                label: Text(
+                                  isInTray
+                                      ? 'In Tray (${tray.count}/4)'
+                                      : (tray.count > 0 ? 'Compare (+${tray.count})' : 'Compare'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: isInTray ? AppTheme.coral : null,
+                                  ),
                                 ),
                               ),
                             ),

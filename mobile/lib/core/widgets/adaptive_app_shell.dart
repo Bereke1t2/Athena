@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/comparison/presentation/widgets/comparison_tray_bar.dart';
 import '../../features/papers/presentation/widgets/mini_audio_player.dart';
 import '../theme/app_theme.dart';
 
@@ -129,6 +130,7 @@ class AdaptiveAppShell extends StatelessWidget {
                     ),
                   ),
                 ),
+                const ComparisonTrayBar(),
                 const MiniAudioPlayer(),
               ],
             ),
@@ -146,6 +148,7 @@ class AdaptiveAppShell extends StatelessWidget {
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const ComparisonTrayBar(),
           const MiniAudioPlayer(),
           Container(
             decoration: BoxDecoration(

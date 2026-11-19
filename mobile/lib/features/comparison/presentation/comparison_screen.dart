@@ -9,6 +9,7 @@ import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/state_views.dart';
 import '../domain/comparison_models.dart';
+import 'comparison_tray_notifier.dart';
 
 class ComparisonScreen extends ConsumerStatefulWidget {
   const ComparisonScreen({super.key, this.initialPaperIds = const []});
@@ -28,6 +29,12 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
   void initState() {
     super.initState();
     _paperIds = List.from(widget.initialPaperIds);
+    if (_paperIds.isEmpty) {
+      final trayIds = ref.read(comparisonTrayProvider).paperIds;
+      if (trayIds.isNotEmpty) {
+        _paperIds = List.from(trayIds);
+      }
+    }
     _triggerComparison();
   }
 
@@ -145,6 +152,7 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
   Widget _buildInsufficientPapersView(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final saved = ref.watch(savedPapersProvider);
+    final tray = ref.watch(comparisonTrayProvider);
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -232,6 +240,88 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
           ),
         ),
         const SizedBox(height: 24),
+        if (tray.items.isNotEmpty) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'PAPERS IN COMPARISON TRAY',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                ),
+              ),
+              if (tray.items.any((it) => !_paperIds.contains(it.paperId)))
+                TextButton(
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  onPressed: () {
+                    for (final it in tray.items) {
+                      if (!_paperIds.contains(it.paperId) && _paperIds.length < 4) {
+                        _paperIds.add(it.paperId);
+                      }
+                    }
+                    setState(() {});
+                    _triggerComparison();
+                  },
+                  child: const Text('Add All from Tray', style: TextStyle(fontSize: 11, color: AppTheme.coral, fontWeight: FontWeight.w700)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (final item in tray.items) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF161922) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _paperIds.contains(item.paperId)
+                      ? AppTheme.coral
+                      : (isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB)),
+                  width: _paperIds.contains(item.paperId) ? 1.5 : 1.0,
+                ),
+              ),
+              child: ListTile(
+                title: Text(
+                  item.title.isEmpty ? 'Untitled Paper' : item.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  [
+                    if (item.venue.isNotEmpty) item.venue,
+                    if (item.year > 0) '${item.year}',
+                  ].join(' · '),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                  ),
+                ),
+                trailing: IconButton(
+                  icon: Icon(
+                    _paperIds.contains(item.paperId)
+                        ? Icons.check_circle_rounded
+                        : Icons.add_circle_outline_rounded,
+                    color: _paperIds.contains(item.paperId)
+                        ? AppTheme.coral
+                        : (isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+                  ),
+                  onPressed: () {
+                    if (_paperIds.contains(item.paperId)) {
+                      _removePaperId(item.paperId);
+                    } else {
+                      _addPaperId(item.paperId);
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 24),
+        ],
         if (saved.isNotEmpty) ...[
           Text(
             'SAVED PAPERS FOR COMPARISON',
@@ -417,7 +507,9 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
   void _showAddPaperDialog(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final saved = ref.read(savedPapersProvider);
+    final tray = ref.read(comparisonTrayProvider);
     final available = saved.where((p) => !_paperIds.contains(p.id)).toList();
+    final availableTray = tray.items.where((p) => !_paperIds.contains(p.paperId)).toList();
     final inputCtrl = TextEditingController();
 
     showModalBottomSheet(
@@ -488,6 +580,48 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
                 const SizedBox(height: 14),
                 const Divider(height: 1),
                 const SizedBox(height: 10),
+                if (availableTray.isNotEmpty) ...[
+                  Text(
+                    'FROM COMPARISON TRAY',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                      color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final p in availableTray)
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                      tileColor: isDark ? const Color(0xFF101216) : const Color(0xFFF3F4F6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      title: Text(
+                        p.title.isEmpty ? 'Untitled Paper' : p.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        [
+                          if (p.venue.isNotEmpty) p.venue,
+                          if (p.year > 0) '${p.year}',
+                        ].join(' · '),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                        ),
+                      ),
+                      trailing: const Icon(Icons.add_circle_outline_rounded, size: 20, color: AppTheme.coral),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _addPaperId(p.paperId);
+                      },
+                    ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 10),
+                ],
                 if (available.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 24),
