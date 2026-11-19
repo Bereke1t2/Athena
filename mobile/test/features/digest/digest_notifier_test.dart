@@ -5,6 +5,7 @@ import 'package:athena/features/digest/domain/digest_models.dart';
 import 'package:athena/features/digest/domain/digest_repository.dart';
 import 'package:athena/features/digest/presentation/digest_notifier.dart';
 import 'package:athena/features/digest/presentation/digest_screen.dart';
+import 'package:athena/features/papers/domain/audio_playback.dart';
 import 'package:athena/features/papers/domain/paper.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +56,40 @@ class FakeDigestRepository implements DigestRepository {
     );
     digest = fresh;
     return fresh;
+  }
+
+  @override
+  Future<AudioTrack> synthesizeDigestAudio({String? voice, List<String>? topics}) async {
+    if (shouldThrow) {
+      throw const Failure.server(statusCode: 500, message: 'Server error');
+    }
+    return const AudioTrack(
+      id: 'digest-audio-1',
+      title: 'Athena Weekly Podcast · October 20, 2026',
+      authorVenue: 'Athena AI Intelligence',
+      totalDuration: Duration(minutes: 8),
+      chapters: [
+        AudioChapter(
+          index: 1,
+          title: '01 Executive Summary & Scientific Pulse',
+          startOffset: Duration.zero,
+          duration: Duration(minutes: 2),
+        ),
+        AudioChapter(
+          index: 2,
+          title: '02 Topic Highlights',
+          startOffset: Duration(minutes: 2),
+          duration: Duration(minutes: 4),
+        ),
+        AudioChapter(
+          index: 3,
+          title: '03 Top Takeaways',
+          startOffset: Duration(minutes: 6),
+          duration: Duration(minutes: 2),
+        ),
+      ],
+      takeaways: ['Takeaway 1', 'Takeaway 2'],
+    );
   }
 }
 
@@ -290,6 +325,92 @@ void main() {
       expect(md, contains('- 4x speedup on mobile hardware'));
       expect(md, contains('**Artificial Intelligence**: 14 recent papers (Sparse Attention, Quantization)'));
       expect(md, contains('- **Efficient Transformers** (2026) — ICLR'));
+    });
+
+    test('synthesizeAudio generates weekly podcast track with chapters', () async {
+      final fake = FakeDigestRepository();
+      final container = ProviderContainer(
+        overrides: [
+          digestRepositoryProvider.overrideWithValue(fake),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(digestNotifierProvider.notifier);
+      final track = await notifier.synthesizeAudio(voice: 'Nova');
+
+      expect(track, isNotNull);
+      expect(track!.id, 'digest-audio-1');
+      expect(track.title, contains('Athena Weekly Podcast'));
+      expect(track.chapters.length, 3);
+      expect(track.chapters.first.title, '01 Executive Summary & Scientific Pulse');
+
+      final state = container.read(digestNotifierProvider);
+      expect(state.audioTrack, isNotNull);
+      expect(state.isSynthesizingAudio, isFalse);
+      expect(state.audioError, isNull);
+    });
+
+    test('synthesizeAudio captures failure gracefully', () async {
+      final fake = FakeDigestRepository()..shouldThrow = true;
+      final container = ProviderContainer(
+        overrides: [
+          digestRepositoryProvider.overrideWithValue(fake),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(digestNotifierProvider.notifier);
+      final track = await notifier.synthesizeAudio();
+
+      expect(track, isNull);
+      final state = container.read(digestNotifierProvider);
+      expect(state.isSynthesizingAudio, isFalse);
+      expect(state.audioError, isA<Failure>());
+    });
+
+    test('DigestRepositoryImpl.synthesizeDigestAudio deserializes track', () async {
+      final dio = Dio();
+      dio.interceptors.add(InterceptorsWrapper(
+        onRequest: (options, handler) {
+          handler.resolve(Response(
+            requestOptions: options,
+            statusCode: 200,
+            data: {
+              'id': 'digest-audio-101',
+              'title': 'Athena Weekly Podcast · November 2026',
+              'author_venue': 'Athena AI Synthesis',
+              'total_duration_seconds': 480,
+              'audio_url': '/api/v1/research/digest/audio/stream',
+              'chapters': [
+                {
+                  'index': 1,
+                  'title': '01 Executive Summary',
+                  'start_offset_seconds': 0,
+                  'duration_seconds': 120,
+                },
+                {
+                  'index': 2,
+                  'title': '02 Key Findings',
+                  'start_offset_seconds': 120,
+                  'duration_seconds': 360,
+                },
+              ],
+              'takeaways': ['Takeaway 1'],
+            },
+          ));
+        },
+      ));
+
+      final repo = DigestRepositoryImpl(dio);
+      final track = await repo.synthesizeDigestAudio(voice: 'Echo');
+
+      expect(track.id, 'digest-audio-101');
+      expect(track.title, contains('Athena Weekly Podcast'));
+      expect(track.totalDuration.inSeconds, 480);
+      expect(track.chapters.length, 2);
+      expect(track.chapters.first.title, '01 Executive Summary');
+      expect(track.audioUrl, '/api/v1/research/digest/audio/stream');
     });
   });
 }

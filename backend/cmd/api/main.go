@@ -264,6 +264,9 @@ func run() error {
 	exportHandlers := v1.NewExportHandlers(exportSvc, log)
 	digestStore := database.NewDigestStore(pool)
 	digestHandlers := v1.NewDigestHandlers(appdigest.NewService(store, followStore, digestStore, llm, log), log)
+	if aiHandlers != nil && aiHandlers.Audio != nil {
+		digestHandlers.WithAudio(aiHandlers.Audio)
+	}
 
 	// Research Collections & Reading Lists
 	collectionHandlers := v1.NewCollectionsHandlers(

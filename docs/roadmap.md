@@ -260,6 +260,14 @@ Acceptance:
       Tab 1: Grounded AI Assistant (real-time chat grounded in paper chunks) and Tab 2: Annotations & Highlights Inspector (color filtering, margin note
       creation, deletion, and contextual "Ask AI about this" shortcuts), collapsible into a slim icon rail.
       Seamlessly integrated into both `PaperDetailScreen` and `ArticleReaderScreen`.
+- [x] Personalized Weekly Audio Briefing Podcast ("Athena Digest Podcast") (2026-11-19):
+      Continuous 8–10 minute narrative audio research briefing synthesized directly from the personalized
+      weekly digest (`GET /api/v1/research/digest/latest`). Structured multi-chapter audio generation
+      (`Executive Summary`, `Topic Highlights`, `Takeaways & Outlook`) with RFC-7233 partial content HTTP byte-range
+      streaming (`GET /api/v1/research/digest/audio/stream` and `GET /api/v1/research/digest/{id}/audio/stream`).
+      Mobile Flutter experience with `DigestPodcastCard` in `DigestScreen` featuring live playback controls,
+      custom voice selector, expandable chapter timeline with 1-tap seeking, and seamless transition to the
+      full-screen audio player (`/player`).
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · alternative engines
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.

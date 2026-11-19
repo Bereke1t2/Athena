@@ -292,11 +292,14 @@ GET  /research/papers/{id}/graph?depth=1|2&limit=25
 GET  /research/trends?window_days=30
 ```
 
-### Weekly Editorial AI Digest
+### Weekly Editorial AI Digest & Audio Podcast
 
 ```text
 GET  /research/digest/latest
-POST /research/digest/generate             # generates personalized digest for authenticated user
+POST /research/digest/generate                 # generates personalized digest for authenticated user
+POST /research/digest/audio                    { "voice": "Alloy", "topics": ["cs.ai"] } -> structured AudioNarration
+GET  /research/digest/audio/stream             # RFC-7233 partial content HTTP byte-range MP3 streaming
+GET  /research/digest/{id}/audio/stream        # RFC-7233 partial content HTTP byte-range MP3 streaming by digest UUID
 ```
 
 ### Personalization & User Account

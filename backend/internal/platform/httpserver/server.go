@@ -225,9 +225,14 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.Handle("DELETE /api/v1/me/history", v1.RequireAuth(deps.History.Clear))
 	}
 
-	if deps.Auth != nil && deps.Digest != nil {
+	if deps.Digest != nil {
 		mux.HandleFunc("GET /api/v1/research/digest/latest", deps.Digest.Latest)
-		mux.Handle("POST /api/v1/research/digest/generate", v1.RequireAuth(deps.Digest.Generate))
+		mux.HandleFunc("POST /api/v1/research/digest/audio", deps.Digest.SynthesizeAudio)
+		mux.HandleFunc("GET /api/v1/research/digest/audio/stream", deps.Digest.StreamAudio)
+		mux.HandleFunc("GET /api/v1/research/digest/{id}/audio/stream", deps.Digest.StreamAudioByID)
+		if deps.Auth != nil {
+			mux.Handle("POST /api/v1/research/digest/generate", v1.RequireAuth(deps.Digest.Generate))
+		}
 	}
 
 	if deps.Collections != nil {

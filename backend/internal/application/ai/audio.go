@@ -13,6 +13,7 @@ import (
 
 	domainai "athena/backend/internal/domain/ai"
 	domainaudio "athena/backend/internal/domain/audio"
+	domaindigest "athena/backend/internal/domain/digest"
 	"athena/backend/internal/domain/research"
 )
 
@@ -350,5 +351,178 @@ func (s *AudioService) populateFallbackNarration(n *domainaudio.AudioNarration, 
 		Quote:            quoteText,
 		Context:          "Core thesis · Chapter 1",
 		TimestampSeconds: int(float64(totalDur) * 0.15),
+	}
+}
+
+// SynthesizeDigestAudio produces a structured, speech-ready weekly narrative podcast episode from a research digest.
+func (s *AudioService) SynthesizeDigestAudio(ctx context.Context, d domaindigest.UserDigest, voice string) (domainaudio.AudioNarration, error) {
+	if voice == "" {
+		voice = "Alloy"
+	}
+	targetDuration := 480 // 8 minutes standard digest podcast
+
+	tags := make([]string, 0, len(d.Pulses)+2)
+	tags = append(tags, "Weekly Research Digest", "Athena Podcast")
+	for _, p := range d.Pulses {
+		if p.TopicName != "" {
+			tags = append(tags, p.TopicName)
+		}
+	}
+
+	dateStr := d.GeneratedAt.UTC().Format("January 2, 2006")
+	title := fmt.Sprintf("Athena Weekly Podcast · %s", dateStr)
+	authorVenue := "Athena AI Intelligence · Weekly Synthesis"
+
+	narration := domainaudio.AudioNarration{
+		ID:                   fmt.Sprintf("digest-audio-%s", d.ID.String()),
+		DigestID:             &d.ID,
+		Kind:                 "digest",
+		Title:                title,
+		AuthorVenue:          authorVenue,
+		TotalDurationSeconds: targetDuration,
+		Voice:                voice,
+		Tags:                 tags,
+		CreatedAt:            time.Now().UTC(),
+	}
+
+	s.populateDigestFallbackNarration(&narration, d, targetDuration)
+	s.renderDigestAudioMedia(ctx, &narration, d.ID, voice)
+	return narration, nil
+}
+
+// GetDigestAudioStream returns the binary MP3 audio for a research digest.
+func (s *AudioService) GetDigestAudioStream(ctx context.Context, digestID uuid.UUID) ([]byte, error) {
+	if s.media != nil {
+		if digestID != uuid.Nil {
+			if data, err := s.media.GetAudio(ctx, digestID.String()); err == nil && len(data) > 0 {
+				return data, nil
+			}
+		}
+		if data, err := s.media.GetAudio(ctx, "latest-digest"); err == nil && len(data) > 0 {
+			return data, nil
+		}
+	}
+	return fallbackMP3Audio("Athena Weekly Podcast"), nil
+}
+
+func (s *AudioService) populateDigestFallbackNarration(n *domainaudio.AudioNarration, d domaindigest.UserDigest, totalDur int) {
+	var chapters []domainaudio.AudioChapter
+	currentOffset := 0
+
+	// Chapter 1: Executive Summary & Scientific Pulse
+	ch1Dur := 120
+	ch1Script := fmt.Sprintf("Welcome to the Athena Weekly Research Podcast, bringing you a concise, speech-ready briefing on the most significant scientific breakthroughs of the past week. %s", d.AISummary)
+	chapters = append(chapters, domainaudio.AudioChapter{
+		Index:              1,
+		Title:              "01 Executive Summary & Scientific Pulse",
+		StartOffsetSeconds: currentOffset,
+		DurationSeconds:    ch1Dur,
+		Script:             ch1Script,
+	})
+	currentOffset += ch1Dur
+
+	// Chapters 2..N: Highlights per section
+	for i, sec := range d.Sections {
+		if i >= 3 {
+			break
+		}
+		secDur := 110
+		var sb strings.Builder
+		sb.WriteString(sec.Title)
+		sb.WriteString(". ")
+		if sec.Description != "" {
+			sb.WriteString(sec.Description)
+			sb.WriteString(" ")
+		}
+		if len(sec.Papers) > 0 {
+			sb.WriteString("Key papers highlighted this week include: ")
+			for j, p := range sec.Papers {
+				if j >= 2 {
+					break
+				}
+				sb.WriteString(fmt.Sprintf("%s, published in %s. ", p.Title, p.VenueName))
+			}
+		}
+		chapters = append(chapters, domainaudio.AudioChapter{
+			Index:              len(chapters) + 1,
+			Title:              fmt.Sprintf("0%d %s", len(chapters)+1, sec.Title),
+			StartOffsetSeconds: currentOffset,
+			DurationSeconds:    secDur,
+			Script:             sb.String(),
+		})
+		currentOffset += secDur
+	}
+
+	// Final Chapter: Takeaways & Scientific Outlook
+	finalDur := 90
+	var finalScript strings.Builder
+	finalScript.WriteString("To close out this week's research briefing, here are the top empirical takeaways: ")
+	if len(d.TopTakeaways) > 0 {
+		finalScript.WriteString(strings.Join(d.TopTakeaways, " "))
+	} else {
+		finalScript.WriteString("Cross-disciplinary synthesis continues to accelerate empirical verification across research teams.")
+	}
+	finalScript.WriteString(" Thank you for listening to the Athena Weekly Research Briefing.")
+
+	chapters = append(chapters, domainaudio.AudioChapter{
+		Index:              len(chapters) + 1,
+		Title:              fmt.Sprintf("0%d Top Takeaways & Scientific Outlook", len(chapters)+1),
+		StartOffsetSeconds: currentOffset,
+		DurationSeconds:    finalDur,
+		Script:             finalScript.String(),
+	})
+	currentOffset += finalDur
+
+	n.Chapters = chapters
+	n.TotalDurationSeconds = currentOffset
+	n.Takeaways = d.TopTakeaways
+	if len(n.Takeaways) == 0 {
+		n.Takeaways = []string{
+			"Weekly synthesis demonstrates increased velocity in empirical evaluation.",
+			"Cross-model verification mitigates benchmark leakage across foundation architectures.",
+			"Open-access dissemination continues to expand reproducibility across domains.",
+		}
+	}
+
+	quote := "Scientific progress accelerates when weekly synthesis bridges cross-disciplinary discoveries."
+	if len(d.TopTakeaways) > 0 {
+		quote = d.TopTakeaways[0]
+	}
+	n.PullQuote = domainaudio.AudioQuote{
+		Quote:            quote,
+		Context:          "Executive Synthesis · Chapter 1",
+		TimestampSeconds: 45,
+	}
+}
+
+func (s *AudioService) renderDigestAudioMedia(ctx context.Context, narration *domainaudio.AudioNarration, digestID uuid.UUID, voice string) {
+	narration.AudioURL = fmt.Sprintf("/api/v1/research/digest/%s/audio/stream", digestID.String())
+
+	var audioBytes []byte
+	var err error
+	if s.tts != nil {
+		var scriptBuilder strings.Builder
+		for _, ch := range narration.Chapters {
+			if ch.Script != "" {
+				scriptBuilder.WriteString(ch.Title)
+				scriptBuilder.WriteString(".\n")
+				scriptBuilder.WriteString(ch.Script)
+				scriptBuilder.WriteString("\n\n")
+			}
+		}
+		fullScript := strings.TrimSpace(scriptBuilder.String())
+		audioBytes, err = s.tts.SynthesizeSpeech(ctx, fullScript, voice)
+		if err != nil {
+			s.log.Warn("tts speech rendering for digest failed, using synthetic audio", "error", err, "digest_id", digestID)
+			audioBytes = fallbackMP3Audio(narration.Title)
+		}
+	} else {
+		audioBytes = fallbackMP3Audio(narration.Title)
+	}
+
+	if len(audioBytes) > 0 && s.media != nil {
+		_ = s.media.SaveAudio(ctx, narration.ID, audioBytes)
+		_ = s.media.SaveAudio(ctx, digestID.String(), audioBytes)
+		_ = s.media.SaveAudio(ctx, "latest-digest", audioBytes)
 	}
 }
