@@ -11,6 +11,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
 import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
+import '../../../core/widgets/research_split_workspace.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../ai/presentation/paper_summary_card.dart';
 import '../../annotations/presentation/widgets/annotations_sheet.dart';
@@ -226,18 +227,21 @@ class PaperDetailScreen extends ConsumerWidget {
         ],
       ),
 
-      body: DotGridBackground(
-        child: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorView(
-          failure: e,
-          onRetry: () => ref.invalidate(paperDetailControllerProvider(id)),
-        ),
-        data: (paper) {
-          final pdfUrl = _pdfUrl(paper);
-          final webUrl = _webUrl(paper);
+      body: ResearchSplitWorkspace(
+        paperId: paper?.summary.id ?? id,
+        paperTitle: paper?.title ?? 'Research Paper',
+        mainPane: DotGridBackground(
+          child: async.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => ErrorView(
+              failure: e,
+              onRetry: () => ref.invalidate(paperDetailControllerProvider(id)),
+            ),
+            data: (paper) {
+              final pdfUrl = _pdfUrl(paper);
+              final webUrl = _webUrl(paper);
 
-          return Stack(
+              return Stack(
             children: [
               ListView(
                 padding: const EdgeInsets.fromLTRB(20, 10, 20, 110),
@@ -795,6 +799,7 @@ class PaperDetailScreen extends ConsumerWidget {
         },
       ),
     ),
+  ),
   );
 }
 
