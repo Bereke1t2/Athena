@@ -268,6 +268,15 @@ Acceptance:
       Mobile Flutter experience with `DigestPodcastCard` in `DigestScreen` featuring live playback controls,
       custom voice selector, expandable chapter timeline with 1-tap seeking, and seamless transition to the
       full-screen audio player (`/player`).
+- [x] Citation Network Graph Authority & Seminal Paper Scoring (2026-11-19):
+      PageRank citation graph analytics calculating foundational authority scores across the academic citation
+      network (`citations` table). Database schema migration (`000025_seminal_paper_authority.up.sql`) adding
+      `authority_score` and `is_seminal` with compound indexes. Application service (`AuthorityService`)
+      implementing weighted PageRank with damping factor d = 0.85, convergence tolerance, edge weighting for
+      influential citations and stances (supports vs contradicts vs mentions), and dynamic seminal paper thresholding.
+      Scheduled periodic River background worker (`compute_citation_authority`) and admin trigger (`POST /api/v1/admin/graph/compute-authority`).
+      Mobile Flutter experience with `PaperSummary` and DTO serialization, resonant amber "Seminal" badges on `PaperCard`,
+      and dedicated "Seminal Work" badge and authority metrics on `PaperDetailScreen`.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · alternative engines
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · Seminal Paper Authority Scoring ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.
