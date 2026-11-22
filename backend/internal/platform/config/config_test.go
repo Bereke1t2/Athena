@@ -83,6 +83,36 @@ func TestFromEnvGeminiProviderDefaults(t *testing.T) {
 	assert.Equal(t, "AIzaSyFakeKey123", cfg.LLMAPIKey)
 }
 
+func TestFromEnvClaudeProviderDefaults(t *testing.T) {
+	setEnv(t, map[string]string{
+		"ATHENA_DATABASE_URL": "postgres://localhost/test",
+		"LLM_PROVIDER":        "claude",
+		"ANTHROPIC_API_KEY":   "sk-ant-fakeKey123",
+	})
+	cfg, err := FromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, "claude", cfg.LLMProvider)
+	assert.Equal(t, "https://api.anthropic.com/v1", cfg.LLMBaseURL)
+	assert.Equal(t, "claude-3-5-sonnet-20241022", cfg.LLMModel)
+	assert.Equal(t, "sk-ant-fakeKey123", cfg.LLMAPIKey)
+}
+
+func TestFromEnvOllamaProviderDefaults(t *testing.T) {
+	setEnv(t, map[string]string{
+		"ATHENA_DATABASE_URL": "postgres://localhost/test",
+		"LLM_PROVIDER":        "ollama",
+		"EMBEDDING_PROVIDER":  "ollama",
+	})
+	cfg, err := FromEnv()
+	require.NoError(t, err)
+	assert.Equal(t, "ollama", cfg.LLMProvider)
+	assert.Equal(t, "http://localhost:11434", cfg.LLMBaseURL)
+	assert.Equal(t, "llama3.2", cfg.LLMModel)
+	assert.Equal(t, "ollama", cfg.EmbeddingProviderName)
+	assert.Equal(t, "nomic-embed-text", cfg.EmbeddingModel)
+	assert.Equal(t, 768, cfg.EmbeddingDim)
+}
+
 func TestFromEnvGeminiEmbeddingDefaults(t *testing.T) {
 	setEnv(t, map[string]string{
 		"ATHENA_DATABASE_URL": "postgres://localhost/test",

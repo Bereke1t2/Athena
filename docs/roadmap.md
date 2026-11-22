@@ -278,5 +278,15 @@ Acceptance:
       Mobile Flutter experience with `PaperSummary` and DTO serialization, resonant amber "Seminal" badges on `PaperCard`,
       and dedicated "Seminal Work" badge and authority metrics on `PaperDetailScreen`.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · Seminal Paper Authority Scoring ✅ · alternative engines
+- [x] Multi-Model LLM Gateway (Claude, Gemini, Local Ollama) (2026-11-19):
+      Production-grade multi-model LLM and vector embedding gateway providing native adapter integrations
+      for Anthropic Claude (Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus via Messages API with SSE streaming
+      and token tracking), Google Gemini (native Generative Language REST API `:generateContent` and `:streamGenerateContent?alt=sse`
+      plus `:batchEmbedContents`), local offline Ollama (`http://localhost:11434` supporting `/api/chat` NDJSON streaming
+      and `/api/embed` / `/api/embeddings` offline vector embeddings for air-gapped deployments), OpenAI-compatible gateways
+      (vLLM, Groq, Together, Azure, DeepSeek), and deterministic test stubs.
+      Unified gateway factory (`internal/infrastructure/ai/gateway`) wiring both API server and background River workers
+      with typed configuration, provider normalization, exponential backoff retries, and comprehensive unit test coverage.
+
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · Seminal Paper Authority Scoring ✅ · Multi-Model LLM Gateway ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.
