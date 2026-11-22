@@ -34,6 +34,12 @@ type fakeReader struct {
 	graph     research.CitationGraph
 	graphErr  error
 
+	author          research.AuthorDetail
+	authorErr       error
+	authorPapers    []research.PaperSummary
+	authorTotal     int
+	authorPapersErr error
+
 	lastQuery     research.ListQuery
 	lastDirection research.CitationDirection
 }
@@ -98,6 +104,27 @@ func (f *fakeReader) GetResearchTrends(_ context.Context, windowDays int, limit 
 	}, nil
 }
 
+func (f *fakeReader) GetAuthorByID(_ context.Context, id uuid.UUID) (research.AuthorDetail, error) {
+	if f.authorErr != nil {
+		return research.AuthorDetail{}, f.authorErr
+	}
+	if f.author.ID == uuid.Nil {
+		f.author.ID = id
+	}
+	return f.author, nil
+}
+
+func (f *fakeReader) ListPapersByAuthor(_ context.Context, _ uuid.UUID, _ string, _ int, _ int) ([]research.PaperSummary, int, error) {
+	if f.authorPapersErr != nil {
+		return nil, 0, f.authorPapersErr
+	}
+	total := f.authorTotal
+	if total == 0 && len(f.authorPapers) > 0 {
+		total = len(f.authorPapers)
+	}
+	return f.authorPapers, total, nil
+}
+
 func summary(id string) research.PaperSummary {
 	return research.PaperSummary{
 		ID:              uuid.MustParse(id),
@@ -120,6 +147,8 @@ func newResearchServer(r *fakeReader) http.Handler {
 	mux.HandleFunc("GET /api/v1/research/papers/{id}/related", h.Related)
 	mux.HandleFunc("GET /api/v1/research/papers/{id}/graph", h.Graph)
 	mux.HandleFunc("GET /api/v1/research/trends", h.Trends)
+	mux.HandleFunc("GET /api/v1/authors/{id}", h.GetAuthor)
+	mux.HandleFunc("GET /api/v1/authors/{id}/papers", h.ListAuthorPapers)
 	return WithRequestID(mux)
 }
 
@@ -665,6 +694,89 @@ func TestCitationDetailsWithStance(t *testing.T) {
 	}
 	if res.Items[0].Stance != research.StanceSupports {
 		t.Errorf("expected supports stance, got %s", res.Items[0].Stance)
+	}
+}
+
+func TestGetAuthor(t *testing.T) {
+	authorID := uuid.MustParse("01918a20-0000-7000-8000-000000000010")
+	hIndex := 42
+	r := &fakeReader{
+		author: research.AuthorDetail{
+			ID:             authorID,
+			DisplayName:    "Geoffrey Hinton",
+			NameNormalized: "geoffrey hinton",
+			ORCID:          "0000-0001-2345-6789",
+			HIndex:         &hIndex,
+			Affiliations:   []string{"University of Toronto", "Google"},
+			PaperCount:     150,
+			CitationCount:  450000,
+			CreatedAt:      time.Now().UTC(),
+			UpdatedAt:      time.Now().UTC(),
+		},
+	}
+	srv := newResearchServer(r)
+
+	// 1. Success case
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/authors/"+authorID.String(), nil)
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+	}
+
+	var res authorDetailDTO
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.DisplayName != "Geoffrey Hinton" {
+		t.Errorf("expected Geoffrey Hinton, got %s", res.DisplayName)
+	}
+	if res.PaperCount != 150 || res.CitationCount != 450000 {
+		t.Errorf("unexpected counts: %+v", res)
+	}
+	if len(res.Affiliations) != 2 {
+		t.Errorf("expected 2 affiliations, got %d", len(res.Affiliations))
+	}
+
+	// 2. 404 Not Found
+	r.authorErr = research.ErrNotFound
+	rec404 := httptest.NewRecorder()
+	srv.ServeHTTP(rec404, req)
+	if rec404.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", rec404.Code)
+	}
+	assertErrorEnvelope(t, rec404, CodeNotFound)
+}
+
+func TestListAuthorPapers(t *testing.T) {
+	authorID := uuid.MustParse("01918a20-0000-7000-8000-000000000010")
+	p1 := summary("01918a20-0000-7000-8000-000000000001")
+	p2 := summary("01918a20-0000-7000-8000-000000000002")
+
+	r := &fakeReader{
+		authorPapers: []research.PaperSummary{p1, p2},
+		authorTotal:  2,
+	}
+	srv := newResearchServer(r)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/authors/"+authorID.String()+"/papers?sort=citations&limit=10", nil)
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+	}
+
+	var res authorWorksResponseDTO
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Total != 2 || len(res.Items) != 2 {
+		t.Fatalf("expected total 2 and 2 items, got total %d, items %d", res.Total, len(res.Items))
+	}
+	if res.Items[0].ID != p1.ID {
+		t.Errorf("expected first paper %s, got %s", p1.ID, res.Items[0].ID)
 	}
 }
 

@@ -47,6 +47,27 @@ type venueDTO struct {
 	Type string `json:"type,omitempty"`
 }
 
+type authorDetailDTO struct {
+	ID             uuid.UUID      `json:"id"`
+	DisplayName    string         `json:"display_name"`
+	NameNormalized string         `json:"name_normalized"`
+	ORCID          string         `json:"orcid,omitempty"`
+	HIndex         *int           `json:"h_index,omitempty"`
+	Affiliations   []string       `json:"affiliations"`
+	PaperCount     int            `json:"paper_count"`
+	CitationCount  int            `json:"citation_count"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+}
+
+type authorWorksResponseDTO struct {
+	Items  []paperSummaryDTO `json:"items"`
+	Total  int               `json:"total"`
+	Limit  int               `json:"limit"`
+	Offset int               `json:"offset"`
+}
+
 func newSummaryDTO(s research.PaperSummary) paperSummaryDTO {
 	var abs *string
 	if s.Abstract != nil && strings.TrimSpace(*s.Abstract) != "" {
@@ -340,6 +361,92 @@ func (h *ResearchHandlers) Graph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	WriteJSON(w, http.StatusOK, graph)
+}
+
+// GetAuthor returns an author's profile with computed publication and citation metrics.
+// GET /api/v1/authors/{id}
+func (h *ResearchHandlers) GetAuthor(w http.ResponseWriter, r *http.Request) {
+	rawID := r.PathValue("id")
+	authorID, err := uuid.Parse(rawID)
+	if err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid author id")
+		return
+	}
+
+	author, err := h.Reader.GetAuthorByID(r.Context(), authorID)
+	if err != nil {
+		if errors.Is(err, research.ErrNotFound) {
+			WriteError(w, r, http.StatusNotFound, CodeNotFound, "author not found")
+			return
+		}
+		h.fail(w, r, err, "fetching author")
+		return
+	}
+
+	aff := author.Affiliations
+	if aff == nil {
+		aff = []string{}
+	}
+
+	WriteJSON(w, http.StatusOK, authorDetailDTO{
+		ID:             author.ID,
+		DisplayName:    author.DisplayName,
+		NameNormalized: author.NameNormalized,
+		ORCID:          author.ORCID,
+		HIndex:         author.HIndex,
+		Affiliations:   aff,
+		PaperCount:     author.PaperCount,
+		CitationCount:  author.CitationCount,
+		Metadata:       author.Metadata,
+		CreatedAt:      author.CreatedAt,
+		UpdatedAt:      author.UpdatedAt,
+	})
+}
+
+// ListAuthorPapers returns a paginated catalog of papers authored by the specified author.
+// GET /api/v1/authors/{id}/papers
+func (h *ResearchHandlers) ListAuthorPapers(w http.ResponseWriter, r *http.Request) {
+	rawID := r.PathValue("id")
+	authorID, err := uuid.Parse(rawID)
+	if err != nil {
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "invalid author id")
+		return
+	}
+
+	sort := r.URL.Query().Get("sort")
+	if sort == "" {
+		sort = "citations"
+	}
+
+	limit, okLimit := h.clampLimit(w, r, 20, 100)
+	if !okLimit {
+		return
+	}
+
+	offset := 0
+	if rawOffset := r.URL.Query().Get("offset"); rawOffset != "" {
+		if n, err := strconv.Atoi(rawOffset); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	papers, total, err := h.Reader.ListPapersByAuthor(r.Context(), authorID, sort, limit, offset)
+	if err != nil {
+		h.fail(w, r, err, "listing author papers")
+		return
+	}
+
+	items := make([]paperSummaryDTO, 0, len(papers))
+	for _, p := range papers {
+		items = append(items, newSummaryDTO(p))
+	}
+
+	WriteJSON(w, http.StatusOK, authorWorksResponseDTO{
+		Items:  items,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	})
 }
 
 // ---- helpers -----------------------------------------------------------------
