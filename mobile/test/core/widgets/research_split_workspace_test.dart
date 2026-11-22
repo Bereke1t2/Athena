@@ -55,6 +55,13 @@ class _FakeAnnotationRepository implements AnnotationRepository {
 
   @override
   Future<void> deleteAnnotation({required String id, required String paperId}) async {}
+
+  @override
+  Future<List<UserAnnotation>> listUserAnnotations({
+    String? color,
+    String? query,
+    int limit = 50,
+  }) async => [];
 }
 
 void main() {

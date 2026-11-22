@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 class FakeAnnotationRepository implements AnnotationRepository {
   final Map<String, List<Annotation>> _storage = {};
+  final List<UserAnnotation> userStorage = [];
 
   @override
   Future<List<Annotation>> listAnnotations(String paperId) async {
@@ -54,6 +55,27 @@ class FakeAnnotationRepository implements AnnotationRepository {
     final list = _storage[paperId] ?? [];
     list.removeWhere((a) => a.id == id);
     _storage[paperId] = list;
+    userStorage.removeWhere((a) => a.id == id);
+  }
+
+  @override
+  Future<List<UserAnnotation>> listUserAnnotations({
+    String? color,
+    String? query,
+    int limit = 50,
+  }) async {
+    var result = List.of(userStorage);
+    if (color != null && color.isNotEmpty) {
+      result = result.where((a) => a.color.code == color).toList();
+    }
+    if (query != null && query.isNotEmpty) {
+      final q = query.toLowerCase();
+      result = result.where((a) =>
+          a.selectedText.toLowerCase().contains(q) ||
+          a.note.toLowerCase().contains(q) ||
+          a.paperTitle.toLowerCase().contains(q)).toList();
+    }
+    return result;
   }
 }
 
@@ -186,6 +208,123 @@ void main() {
 
       state = container.read(paperAnnotationsProvider('paper-123'));
       expect(state.value, isEmpty);
+    });
+  });
+
+  group('UserAnnotation & UserAnnotationsNotifier', () {
+    late FakeAnnotationRepository fakeRepo;
+    late ProviderContainer container;
+
+    setUp(() {
+      fakeRepo = FakeAnnotationRepository();
+      fakeRepo.userStorage.addAll([
+        UserAnnotation(
+          id: 'ua-1',
+          userId: 'u1',
+          paperId: 'p1',
+          paperTitle: 'Attention Is All You Need',
+          paperYear: 2017,
+          paperVenue: 'NeurIPS',
+          pageNumber: 3,
+          sectionIndex: 1,
+          selectedText: 'The dominant sequence models are based on complex recurrent networks.',
+          note: 'Baseline comparison',
+          color: AnnotationColor.yellow,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+        UserAnnotation(
+          id: 'ua-2',
+          userId: 'u1',
+          paperId: 'p2',
+          paperTitle: 'Deep Residual Learning for Image Recognition',
+          paperYear: 2016,
+          paperVenue: 'CVPR',
+          pageNumber: 4,
+          sectionIndex: 2,
+          selectedText: 'Residual connections solve degradation problems in very deep networks.',
+          note: 'Key insight for ResNets',
+          color: AnnotationColor.coral,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      ]);
+
+      container = ProviderContainer(
+        overrides: [
+          annotationRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+      );
+    });
+
+    tearDown(() => container.dispose());
+
+    test('UserAnnotation JSON roundtrip preserves metadata', () {
+      final now = DateTime.utc(2026, 11, 22, 10, 0, 0);
+      final annot = UserAnnotation(
+        id: 'ua-100',
+        userId: 'u100',
+        paperId: 'p100',
+        paperTitle: 'Diffusion Models Beat GANs',
+        paperYear: 2021,
+        paperVenue: 'NeurIPS',
+        paperDoi: '10.1234/test',
+        pageNumber: 2,
+        sectionIndex: 0,
+        selectedText: 'Classifier guidance enhances image synthesis quality.',
+        note: 'Important guidance technique',
+        color: AnnotationColor.emerald,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      final json = annot.toJson();
+      expect(json['id'], equals('ua-100'));
+      expect(json['paper_title'], equals('Diffusion Models Beat GANs'));
+      expect(json['paper_year'], equals(2021));
+      expect(json['color'], equals('emerald'));
+
+      final restored = UserAnnotation.fromJson(json);
+      expect(restored.id, equals('ua-100'));
+      expect(restored.paperTitle, equals('Diffusion Models Beat GANs'));
+      expect(restored.paperVenue, equals('NeurIPS'));
+      expect(restored.paperDoi, equals('10.1234/test'));
+      expect(restored.color, equals(AnnotationColor.emerald));
+    });
+
+    test('UserAnnotationsNotifier loads items and applies color and text filters', () async {
+      final notifier = container.read(userAnnotationsProvider.notifier);
+      await pumpEventQueue();
+
+      var state = container.read(userAnnotationsProvider);
+      expect(state.items.length, equals(2));
+
+      // Filter by color 'coral'
+      notifier.setColorFilter('coral');
+      await pumpEventQueue();
+
+      state = container.read(userAnnotationsProvider);
+      expect(state.items.length, equals(1));
+      expect(state.items.first.paperTitle, contains('Deep Residual Learning'));
+      expect(state.selectedColor, equals('coral'));
+
+      // Clear color filter
+      notifier.setColorFilter(null);
+      await pumpEventQueue();
+      state = container.read(userAnnotationsProvider);
+      expect(state.items.length, equals(2));
+
+      // Filter by search query 'recurrent'
+      notifier.setSearchQuery('recurrent');
+      await pumpEventQueue();
+      state = container.read(userAnnotationsProvider);
+      expect(state.items.length, equals(1));
+      expect(state.items.first.paperTitle, contains('Attention Is All You Need'));
+
+      // Delete annotation
+      await notifier.deleteAnnotation('ua-1', 'p1');
+      state = container.read(userAnnotationsProvider);
+      expect(state.items, isEmpty);
     });
   });
 }

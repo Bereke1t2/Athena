@@ -286,8 +286,8 @@ POST /research/compare   { "paper_ids": ["…","…"], "question": null,
 ### Research Export & Citation Intelligence
 
 ```text
-GET  /research/papers/{id}/export?format=bibtex|ris|apa|mla|markdown
-POST /research/papers/export              { "paper_ids": ["..."], "format": "bibtex|ris|apa|mla|markdown" }
+GET  /research/papers/{id}/export?format=bibtex|ris|apa|mla|chicago|markdown
+POST /research/papers/export              { "paper_ids": ["..."], "format": "bibtex|ris|apa|mla|chicago|markdown" }
 GET  /research/papers/{id}/graph?depth=1|2&limit=25
 GET  /research/trends?window_days=30
 ```
@@ -350,7 +350,7 @@ PATCH  /collections/{id}                   { "title": "...", "description": "...
 DELETE /collections/{id}
 POST   /collections/{id}/papers            { "paper_id": "...", "notes": "..." }
 DELETE /collections/{id}/papers/{paper_id}
-GET    /collections/{id}/export?format=bibtex|ris|apa|mla|markdown
+GET    /collections/{id}/export?format=bibtex|ris|apa|mla|chicago|markdown
 GET    /papers/{id}/collections            # collection memberships for paper
 GET    /collections/{id}/collaborators     # list collaborators and roles
 POST   /collections/{id}/collaborators     { "user_id": "...", "role": "admin|editor|viewer" }
@@ -360,10 +360,18 @@ DELETE /collections/{id}/collaborators/{user_id}
 ### Paper Annotations & Highlights
 
 ```text
+GET    /me/annotations?color=&q=&limit=   # list user's annotations across all papers with paper metadata
 GET    /papers/{id}/annotations           # list annotations (guest gets [], auth gets personal)
 POST   /papers/{id}/annotations          { "page_number": 1, "section_index": 0, "selected_text": "...", "note": "...", "color": "yellow|coral|emerald|cyan|purple" }
 PATCH  /annotations/{id}                  { "note": "...", "color": "..." }
 DELETE /annotations/{id}                  # deletes annotation owned by user
+```
+
+### Authors & Works Catalog
+
+```text
+GET /authors/{id}                             # get author profile, affiliations, h-index, and publication/citation totals
+GET /authors/{id}/papers?sort=&limit=&offset= # paginated catalog of papers authored by author (sort: citations|recent|title)
 ```
 
 ### Admin / ingestion ops (Phase 1)

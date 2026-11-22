@@ -84,6 +84,17 @@ class FakePaperRepo implements PaperRepository {
         tags: const ['AI'],
         gradientThemeIndex: 0,
       );
+
+  @override
+  Future<AuthorDetail> getAuthorById(String id) async => AuthorDetail(
+        id: id,
+        displayName: 'Test Author',
+        nameNormalized: 'test author',
+      );
+
+  @override
+  Future<AuthorWorks> getAuthorPapers(String id, {String sort = 'citations', int limit = 20, int offset = 0}) async =>
+      const AuthorWorks(items: [], total: 0);
 }
 
 

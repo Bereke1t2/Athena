@@ -56,6 +56,13 @@ class _FakePaperRepo implements PaperRepository {
     String focus = 'general',
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<AuthorDetail> getAuthorById(String id) => throw UnimplementedError();
+
+  @override
+  Future<AuthorWorks> getAuthorPapers(String id, {String sort = 'citations', int limit = 20, int offset = 0}) =>
+      throw UnimplementedError();
 }
 
 void main() {

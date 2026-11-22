@@ -42,6 +42,13 @@ class _NoopPaperRepo implements PaperRepository {
   @override
   Future<AudioTrack> synthesizeAudio(String id, {String voice = 'Alloy', String length = 'standard', String focus = 'general'}) =>
       throw UnimplementedError();
+
+  @override
+  Future<AuthorDetail> getAuthorById(String id) => throw UnimplementedError();
+
+  @override
+  Future<AuthorWorks> getAuthorPapers(String id, {String sort = 'citations', int limit = 20, int offset = 0}) =>
+      throw UnimplementedError();
 }
 
 

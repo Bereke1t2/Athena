@@ -45,6 +45,13 @@ class _FakePaperRepository implements PaperRepository {
     String focus = 'general',
   }) async =>
       throw UnimplementedError();
+
+  @override
+  Future<AuthorDetail> getAuthorById(String id) async => throw UnimplementedError();
+
+  @override
+  Future<AuthorWorks> getAuthorPapers(String id, {String sort = 'citations', int limit = 20, int offset = 0}) async =>
+      const AuthorWorks(items: [], total: 0);
 }
 
 void main() {

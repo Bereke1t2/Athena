@@ -288,5 +288,27 @@ Acceptance:
       Unified gateway factory (`internal/infrastructure/ai/gateway`) wiring both API server and background River workers
       with typed configuration, provider normalization, exponential backoff retries, and comprehensive unit test coverage.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · Seminal Paper Authority Scoring ✅ · Multi-Model LLM Gateway ✅ · alternative engines
+- [x] Chicago Citation Style Export & Collection Pre-indexing Guard (2026-11-22):
+      Expanded academic citation formatter supporting Chicago Manual of Style (17th ed. Author-Date) across paper and
+      bulk collection exports (`GET /api/v1/research/papers/{id}/export?format=chicago`).
+      Hardened collection chat session creation (`internal/application/chat/service.go`) to fan out pre-indexing
+      across all collection member papers instead of skipping pre-indexing when no single paper is designated.
+
+- [x] Centralized User Annotations & Highlights Review Experience (2026-11-22):
+      End-to-end cross-paper review hub for saved highlights and margin notes.
+      Backend endpoint `GET /api/v1/me/annotations?color=&q=&limit=` joining annotations with papers table.
+      Mobile 4th tab in Library screen (`HighlightsTabView`) supporting resonant color filter chips,
+      real-time text keyword search, quote cards with colored accent borders and margin notes,
+      direct reader navigation, and one-tap Markdown export to clipboard.
+
+- [x] Author Profile & Works Catalog Engine (2026-11-22):
+      Dedicated scholarly author profile and publication catalog experience.
+      Backend query port `PaperReader` and PostgreSQL store providing `GetAuthorByID` and `ListPapersByAuthor`
+      aggregating total publication count, total citations across authored works, h-index, and distinct affiliations.
+      HTTP endpoints `GET /api/v1/authors/{id}` and `GET /api/v1/authors/{id}/papers?sort=citations|recent|title`.
+      Mobile `AuthorDetailScreen` (`/authors/:id`) with author avatar initials, affiliations, ORCID badge,
+      follow author button integration, scholarly impact metrics strip (Publications, Citations, H-Index),
+      interactive sort choice chips, and full works catalog with paper cards and bookmarks.
+
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · Seminal Paper Authority Scoring ✅ · Multi-Model LLM Gateway ✅ · Chicago Citation Style & Collection Chat Pre-indexing ✅ · Centralized Highlights Hub ✅ · Author Profiles & Works Catalog ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.
