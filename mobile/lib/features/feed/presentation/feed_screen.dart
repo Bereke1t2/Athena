@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_branding.dart';
 import '../../../core/widgets/dot_grid_background.dart';
 import '../../../core/widgets/paper_card.dart';
+import '../../auth/presentation/auth_notifier.dart';
 import '../../notifications/presentation/notifications_notifier.dart';
 import '../../papers/domain/audio_playback.dart';
 import '../../papers/domain/paper.dart';
@@ -80,7 +81,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.athenaColors;
     final isDark = theme.brightness == Brightness.dark;
+    final authState = ref.watch(authNotifierProvider);
+    final userName = authState.user?.displayName.isNotEmpty == true
+        ? authState.user!.displayName.split(' ').first
+        : 'Scholar';
     final async = ref.watch(feedNotifierProvider(_section));
     final items = async.valueOrNull?.items ?? [];
     final audioState = ref.watch(audioPlayerProvider);
@@ -88,7 +94,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
     final activeTopic = ref.watch(activeTopicFilterProvider);
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFFBFBFB),
+      backgroundColor: colors.canvas,
       body: SafeArea(
         child: DotGridBackground(
           child: Stack(
@@ -210,12 +216,12 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${_greeting()}, Agnes.',
+                                '${_greeting()}, $userName.',
                                 style: TextStyle(
                                   fontSize: 25,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: -0.6,
-                                  color: isDark ? Colors.white : const Color(0xFF111827),
+                                  color: colors.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 3),
@@ -225,7 +231,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                   fontSize: 25,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: -0.6,
-                                  color: isDark ? Colors.white : const Color(0xFF111827),
+                                  color: colors.textPrimary,
                                 ),
                               ),
                             ],
@@ -250,7 +256,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 1.0,
-                                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                  color: colors.textMuted,
                                 ),
                               ),
                               TextButton(
@@ -259,9 +265,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                   padding: EdgeInsets.zero,
                                   visualDensity: VisualDensity.compact,
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'Library',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFFF7675)),
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.coral),
                                 ),
                               ),
                             ],
@@ -310,7 +316,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1.0,
-                                color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                color: colors.textMuted,
                               ),
                             ),
                             TextButton(
@@ -319,9 +325,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
                                 padding: EdgeInsets.zero,
                                 visualDensity: VisualDensity.compact,
                               ),
-                              child: const Text(
+                              child: Text(
                                 'All topics',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFFF7675)),
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: colors.coral),
                               ),
                             ),
                           ],

@@ -39,6 +39,7 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
   final ScrollController _scrollController = ScrollController();
   final Map<int, GlobalKey> _sectionKeys = {};
   double _fontScale = 1.0; // 0.85 (Small), 1.0 (Normal), 1.15 (Large), 1.3 (XL)
+  ReaderThemeMode? _readerMode;
   double _lastReportedProgress = 0.0;
   final int _activeCarouselPage = 3;
   final Set<int> _collapsedSections = {};
@@ -69,10 +70,10 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.format_size_rounded),
-                  title: const Text('Adjust Text Size', style: TextStyle(fontWeight: FontWeight.w600)),
+                  title: const Text('Text Size & Reading Theme', style: TextStyle(fontWeight: FontWeight.w600)),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _showFontSizeSelector(context);
+                    _showReadingSettings(context);
                   },
                 ),
                 if (article != null && article.sections.isNotEmpty)
@@ -242,63 +243,87 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
     );
   }
 
-  void _showFontSizeSelector(BuildContext context) {
+  void _showReadingSettings(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
+
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: isDark ? const Color(0xFF161922) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'TEXT SIZE',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                    color:
-                        isDark ? AppTheme.coral : const Color(0xFF141416),
-                  ),
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final currentMode = _readerMode ?? (isDark ? ReaderThemeMode.obsidian : ReaderThemeMode.light);
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'READING SETTINGS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                        color: AppTheme.coral,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('Text Scale', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _fontOption(context, 'Small', 0.85, isDark, setSheetState),
+                          const SizedBox(width: 8),
+                          _fontOption(context, 'Normal', 1.0, isDark, setSheetState),
+                          const SizedBox(width: 8),
+                          _fontOption(context, 'Large', 1.15, isDark, setSheetState),
+                          const SizedBox(width: 8),
+                          _fontOption(context, 'Extra', 1.3, isDark, setSheetState),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text('Surface Palette', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _themeOption('Light', ReaderThemeMode.light, currentMode, isDark, setSheetState),
+                          const SizedBox(width: 8),
+                          _themeOption('Sepia', ReaderThemeMode.sepia, currentMode, isDark, setSheetState),
+                          const SizedBox(width: 8),
+                          _themeOption('Slate', ReaderThemeMode.slate, currentMode, isDark, setSheetState),
+                          const SizedBox(width: 8),
+                          _themeOption('Obsidian', ReaderThemeMode.obsidian, currentMode, isDark, setSheetState),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _fontOption(context, 'Small', 0.85, isDark),
-                      const SizedBox(width: 8),
-                      _fontOption(context, 'Normal', 1.0, isDark),
-                      const SizedBox(width: 8),
-                      _fontOption(context, 'Large', 1.15, isDark),
-                      const SizedBox(width: 8),
-                      _fontOption(context, 'Extra', 1.3, isDark),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
   }
 
   Widget _fontOption(
-      BuildContext context, String label, double scale, bool isDark) {
+      BuildContext context, String label, double scale, bool isDark, StateSetter setSheetState) {
     final isSelected = (_fontScale == scale);
     return InkWell(
       onTap: () {
         setState(() => _fontScale = scale);
-        Navigator.pop(context);
+        setSheetState(() {});
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -323,14 +348,63 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
     );
   }
 
+  Widget _themeOption(
+      String label, ReaderThemeMode mode, ReaderThemeMode currentMode, bool isDark, StateSetter setSheetState) {
+    final isSelected = (mode == currentMode);
+    final theme = ReaderTheme.of(mode);
+
+    return InkWell(
+      onTap: () {
+        setState(() => _readerMode = mode);
+        setSheetState(() {});
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: theme.background,
+          border: Border.all(
+            color: isSelected ? AppTheme.coral : theme.border,
+            width: isSelected ? 2.0 : 1.0,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: theme.text,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: theme.text,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeMode = _readerMode ?? (isDark ? ReaderThemeMode.obsidian : ReaderThemeMode.light);
+    final readerTheme = ReaderTheme.of(activeMode);
     final articleAsync = ref.watch(articleContentProvider(widget.paperId));
-    final borderColor = isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB);
+    final borderColor = readerTheme.border;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF101216) : const Color(0xFFFBFBFB),
+      backgroundColor: readerTheme.background,
       appBar: AppBar(
         centerTitle: true,
         leading: Center(
@@ -497,7 +571,7 @@ class _ArticleReaderScreenState extends ConsumerState<ArticleReaderScreen> {
                     // Main Research Report Card Container matching the Resarc design
                     Container(
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF181A20) : Colors.white,
+                        color: readerTheme.background,
                         borderRadius: BorderRadius.circular(22),
                         border: Border.all(color: borderColor, width: 1.0),
                         boxShadow: [
