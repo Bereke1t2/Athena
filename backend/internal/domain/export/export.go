@@ -22,6 +22,7 @@ const (
 	FormatRIS      Format = "ris"
 	FormatAPA      Format = "apa"
 	FormatMLA      Format = "mla"
+	FormatChicago  Format = "chicago"
 	FormatMarkdown Format = "markdown"
 )
 
@@ -50,6 +51,8 @@ func FormatPaper(p research.PaperDetail, format Format) (string, error) {
 		return toAPA(p), nil
 	case FormatMLA:
 		return toMLA(p), nil
+	case FormatChicago:
+		return toChicago(p), nil
 	case FormatMarkdown:
 		return toMarkdown(p), nil
 	default:
@@ -194,6 +197,36 @@ func toMLA(p research.PaperDetail) string {
 		venue = fmt.Sprintf(" %s,", p.Summary.VenueName)
 	}
 	return fmt.Sprintf("%s \"%s.\"%s %s.", authors, p.Summary.Title, venue, year)
+}
+
+func toChicago(p research.PaperDetail) string {
+	authors := "Anonymous"
+	if len(p.Authors) > 0 {
+		names := make([]string, 0, len(p.Authors))
+		for _, a := range p.Authors {
+			names = append(names, a.Name)
+		}
+		if len(names) == 1 {
+			authors = names[0]
+		} else if len(names) == 2 {
+			authors = names[0] + ", and " + names[1]
+		} else {
+			authors = names[0] + ", et al."
+		}
+	}
+	year := "n.d."
+	if p.Summary.Year > 0 {
+		year = fmt.Sprintf("%d", p.Summary.Year)
+	}
+	venue := ""
+	if p.Summary.VenueName != "" {
+		venue = fmt.Sprintf(" %s.", p.Summary.VenueName)
+	}
+	doi := ""
+	if p.DOI != "" {
+		doi = fmt.Sprintf(" https://doi.org/%s", p.DOI)
+	}
+	return fmt.Sprintf("%s. %s. \"%s.\"%s%s", authors, year, p.Summary.Title, venue, doi)
 }
 
 func toMarkdown(p research.PaperDetail) string {

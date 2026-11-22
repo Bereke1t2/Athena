@@ -73,6 +73,19 @@ func TestExportHTTP(t *testing.T) {
 		t.Fatalf("expected bibtex raw body, got: %s", w2.Body.String())
 	}
 
+	// Single export (Chicago)
+	rChicago := httptest.NewRequest(http.MethodGet, "/api/v1/research/papers/"+paperID.String()+"/export?format=chicago", nil)
+	rChicago.SetPathValue("id", paperID.String())
+	wChicago := httptest.NewRecorder()
+	h.ExportPaper(wChicago, rChicago)
+	if wChicago.Code != http.StatusOK {
+		t.Fatalf("chicago export status: %d: %s", wChicago.Code, wChicago.Body.String())
+	}
+	var chicagoResp exportResponseDTO
+	if err := json.Unmarshal(wChicago.Body.Bytes(), &chicagoResp); err != nil || !strings.Contains(chicagoResp.Content, "Kaiming He. 2016.") {
+		t.Fatalf("unexpected chicago export response: %+v", chicagoResp)
+	}
+
 	// Bulk export
 	body := `{"paper_ids":["` + paperID.String() + `"],"format":"markdown"}`
 	r3 := httptest.NewRequest(http.MethodPost, "/api/v1/research/papers/export", strings.NewReader(body))

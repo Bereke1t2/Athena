@@ -69,6 +69,15 @@ func TestExportFormats(t *testing.T) {
 		t.Fatalf("unexpected MLA output:\n%s", mla)
 	}
 
+	// Chicago
+	chicago, err := domainexport.FormatPaper(p, domainexport.FormatChicago)
+	if err != nil {
+		t.Fatalf("Format Chicago failed: %v", err)
+	}
+	if !strings.Contains(chicago, "Ashish Vaswani, and Noam Shazeer. 2017. \"Attention Is All You Need.\" NeurIPS. https://doi.org/10.1145/3132847.3132886") {
+		t.Fatalf("unexpected Chicago output:\n%s", chicago)
+	}
+
 	// Markdown
 	md, err := domainexport.FormatPaper(p, domainexport.FormatMarkdown)
 	if err != nil {

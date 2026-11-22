@@ -56,7 +56,7 @@ func (h *ExportHandlers) ExportPaper(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, research.ErrNotFound):
 		WriteError(w, r, http.StatusNotFound, CodeNotFound, "paper not found")
 	case errors.Is(err, domainexport.ErrUnsupportedFormat):
-		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "unsupported format (supported: bibtex, ris, apa, mla, markdown)")
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "unsupported format (supported: bibtex, ris, apa, mla, chicago, markdown)")
 	case err != nil:
 		h.Logger.Error("export paper failed", "error", err, "request_id", RequestIDFrom(r.Context()))
 		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
@@ -110,7 +110,7 @@ func (h *ExportHandlers) BulkExport(w http.ResponseWriter, r *http.Request) {
 	content, contentType, err := h.Svc.ExportPapersBulk(r.Context(), paperUUIDs, format)
 	switch {
 	case errors.Is(err, domainexport.ErrUnsupportedFormat):
-		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "unsupported format (supported: bibtex, ris, apa, mla, markdown)")
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "unsupported format (supported: bibtex, ris, apa, mla, chicago, markdown)")
 	case err != nil:
 		h.Logger.Error("bulk export failed", "error", err, "request_id", RequestIDFrom(r.Context()))
 		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")

@@ -388,7 +388,7 @@ func (h *CollectionsHandlers) Export(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, domaincollection.ErrUnauthorized):
 		WriteError(w, r, http.StatusForbidden, CodeForbidden, "access denied")
 	case errors.Is(err, domainexport.ErrUnsupportedFormat):
-		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "unsupported format (supported: bibtex, ris, apa, mla, markdown)")
+		WriteError(w, r, http.StatusBadRequest, CodeInvalidRequest, "unsupported format (supported: bibtex, ris, apa, mla, chicago, markdown)")
 	case err != nil:
 		h.Logger.Error("export collection failed", "error", err, "request_id", RequestIDFrom(r.Context()))
 		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
