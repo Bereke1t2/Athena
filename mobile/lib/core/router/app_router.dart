@@ -13,6 +13,7 @@ import '../../features/library/presentation/saved_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/papers/presentation/article_reader_screen.dart';
+import '../../features/papers/presentation/author_detail_screen.dart';
 import '../../features/papers/presentation/paper_audio_player_screen.dart';
 import '../../features/papers/presentation/paper_detail_screen.dart';
 import '../../features/papers/presentation/pdf_viewer_screen.dart';
@@ -98,6 +99,15 @@ GoRouter buildAppRouter() {
         name: 'topic-detail',
         builder: (context, state) =>
             TopicDetailScreen(slug: state.pathParameters['slug']!),
+      ),
+      GoRoute(
+        path: '/authors/:id',
+        name: 'author-detail',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => AuthorDetailScreen(
+          id: state.pathParameters['id']!,
+          initialName: state.uri.queryParameters['name'],
+        ),
       ),
       GoRoute(
         path: '/papers/:id',
