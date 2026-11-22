@@ -16,6 +16,7 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final colors = context.athenaColors;
     final isDark = theme.brightness == Brightness.dark;
     final authState = ref.watch(authNotifierProvider);
     final followsState = ref.watch(followsNotifierProvider);
@@ -23,7 +24,7 @@ class ProfileScreen extends ConsumerWidget {
     final followedTopics = followsState.followedTopics;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      backgroundColor: colors.canvas,
       appBar: const AthenaTopBar(
         title: 'Profile & Settings',
       ),
@@ -35,10 +36,10 @@ class ProfileScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF161922) : Colors.white,
+              color: colors.surfaceBase,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB),
+                color: colors.borderSubtle,
               ),
             ),
             child: authState.isAuthenticated && user != null

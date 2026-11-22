@@ -44,11 +44,12 @@ class StorageScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.athenaColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final state = ref.watch(storageNotifierProvider);
     final notifier = ref.read(storageNotifierProvider.notifier);
-    final borderColor = isDark ? const Color(0xFF262B38) : const Color(0xFFE5E7EB);
-    final cardBg = isDark ? const Color(0xFF161922) : Colors.white;
+    final borderColor = colors.borderSubtle;
+    final cardBg = colors.surfaceBase;
 
     // Listen to messages or errors
     ref.listen<StorageState>(storageNotifierProvider, (_, next) {
@@ -73,7 +74,7 @@ class StorageScreen extends ConsumerWidget {
     final b = state.breakdown;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      backgroundColor: colors.canvas,
       appBar: AthenaTopBar(
         title: 'Downloads & Storage',
         actions: [

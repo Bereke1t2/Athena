@@ -6,6 +6,7 @@ import '../../../core/prefs/saved_papers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/athena_top_bar.dart';
 import '../../../core/widgets/dot_grid_background.dart';
+import '../../annotations/presentation/widgets/highlights_tab_view.dart';
 import '../../collections/presentation/widgets/collections_tab_view.dart';
 import '../../history/presentation/history_notifier.dart';
 import '../../papers/presentation/paper_audio_player_screen.dart';
@@ -17,26 +18,28 @@ class SavedScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final colors = context.athenaColors;
     final isDark = theme.brightness == Brightness.dark;
     final saved = ref.watch(savedPapersProvider);
     final historyState = ref.watch(historyNotifierProvider);
 
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
-        backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+        backgroundColor: colors.canvas,
         appBar: AthenaTopBar(
           title: 'Library',
           showLeading: false,
           bottom: TabBar(
-            indicatorColor: AppTheme.coral,
-            labelColor: isDark ? Colors.white : const Color(0xFF111827),
-            unselectedLabelColor: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+            indicatorColor: colors.coral,
+            labelColor: colors.textPrimary,
+            unselectedLabelColor: colors.textMuted,
             labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
             tabs: [
               Tab(text: 'Saved (${saved.length})'),
               const Tab(text: 'Collections'),
               const Tab(text: 'History'),
+              const Tab(text: 'Highlights'),
             ],
           ),
         ),
@@ -343,6 +346,9 @@ class SavedScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
+
+            // Tab 4: User Highlights & Margin Notes
+            const HighlightsTabView(),
           ],
         ),
       ),

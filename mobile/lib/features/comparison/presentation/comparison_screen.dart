@@ -75,10 +75,10 @@ class _ComparisonScreenState extends ConsumerState<ComparisonScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.athenaColors;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      backgroundColor: colors.canvas,
       appBar: AthenaTopBar(
         title: 'PAPER COMPARISON',
         centerTitle: true,

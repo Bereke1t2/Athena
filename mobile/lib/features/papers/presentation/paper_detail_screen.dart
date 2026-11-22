@@ -47,12 +47,13 @@ class PaperDetailScreen extends ConsumerWidget {
     final async = ref.watch(paperDetailControllerProvider(id));
     final tray = ref.watch(comparisonTrayProvider);
     final theme = Theme.of(context);
+    final colors = context.athenaColors;
     final isDark = theme.brightness == Brightness.dark;
     final paper = async.valueOrNull;
     final isInTray = paper != null && tray.containsPaper(paper.summary.id);
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      backgroundColor: colors.canvas,
       appBar: AthenaTopBar(
         title: 'PAPER DETAILS',
         centerTitle: true,
@@ -256,7 +257,7 @@ class PaperDetailScreen extends ConsumerWidget {
                         height: 1.25,
                         fontSize: 22,
                         letterSpacing: -0.5,
-                        color: isDark ? Colors.white : const Color(0xFF141416),
+                        color: colors.textPrimary,
                       ),
                     ),
                   ),
@@ -277,7 +278,7 @@ class PaperDetailScreen extends ConsumerWidget {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF1E222D) : const Color(0xFFEFF2F6),
+                                  color: colors.surfaceLowest,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
@@ -286,7 +287,7 @@ class PaperDetailScreen extends ConsumerWidget {
                                     Icon(
                                       Icons.person_outline_rounded,
                                       size: 13,
-                                      color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                      color: colors.textMuted,
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
@@ -294,7 +295,7 @@ class PaperDetailScreen extends ConsumerWidget {
                                       style: TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w700,
-                                        color: isDark ? const Color(0xFFE5E7EB) : const Color(0xFF374151),
+                                        color: colors.textPrimary,
                                       ),
                                     ),
                                   ],
@@ -320,28 +321,28 @@ class PaperDetailScreen extends ConsumerWidget {
                             key: const Key('detail-seminal-badge'),
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
+                              color: colors.seminalAmber.withValues(alpha: 0.16),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: const Color(0xFFF59E0B).withValues(alpha: 0.45),
+                                color: colors.seminalAmber.withValues(alpha: 0.45),
                                 width: 1,
                               ),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   Icons.auto_awesome,
                                   size: 12,
-                                  color: Color(0xFFD97706),
+                                  color: colors.seminalAmber,
                                 ),
-                                SizedBox(width: 4),
+                                const SizedBox(width: 4),
                                 Text(
                                   'Seminal Work',
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w800,
-                                    color: Color(0xFFD97706),
+                                    color: colors.seminalAmber,
                                     letterSpacing: 0.2,
                                   ),
                                 ),
@@ -352,15 +353,15 @@ class PaperDetailScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppTheme.coral.withValues(alpha: 0.15),
+                            color: colors.coral.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             paper.summary.venueName.isNotEmpty ? paper.summary.venueName : 'arXiv',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              color: AppTheme.coral,
+                              color: colors.coral,
                             ),
                           ),
                         ),
@@ -368,7 +369,7 @@ class PaperDetailScreen extends ConsumerWidget {
                           '${paper.summary.year > 0 ? paper.summary.year : "Recent"} · ${paper.summary.publicationType.replaceAll('_', ' ')}',
                           style: TextStyle(
                             fontSize: 11.5,
-                            color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                            color: colors.textMuted,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -384,10 +385,10 @@ class PaperDetailScreen extends ConsumerWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF161922) : Colors.white,
+                        color: colors.surfaceBase,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? const Color(0xFF282D3B) : const Color(0xFFE5E7EB),
+                          color: colors.borderSubtle,
                         ),
                       ),
                       child: Row(
@@ -949,42 +950,53 @@ class PaperDetailScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: AppTheme.coral,
-                          child: Text(
-                            author.name.isNotEmpty ? author.name[0].toUpperCase() : 'A',
-                            style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF141416), fontSize: 20),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        if (author.id.isNotEmpty && author.id != '00000000-0000-0000-0000-000000000000') {
+                          Navigator.pop(ctx);
+                          context.push('/authors/${author.id}?name=${Uri.encodeComponent(author.name)}');
+                        }
+                      },
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: AppTheme.coral,
+                            child: Text(
+                              author.name.isNotEmpty ? author.name[0].toUpperCase() : 'A',
+                              style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF141416), fontSize: 20),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                author.name,
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                              ),
-                              if (author.affiliations.isNotEmpty)
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Text(
-                                  author.affiliations.join(' · '),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                  author.name,
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                                ),
+                                if (author.affiliations.isNotEmpty)
+                                  Text(
+                                    author.affiliations.join(' · '),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                    ),
                                   ),
-                                ),
-                              if (author.orcid != null && author.orcid!.isNotEmpty)
-                                Text(
-                                  'ORCID: ${author.orcid}',
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFFA6C8E0)),
-                                ),
-                            ],
+                                if (author.orcid != null && author.orcid!.isNotEmpty)
+                                  Text(
+                                    'ORCID: ${author.orcid}',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFFA6C8E0)),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                          if (author.id.isNotEmpty && author.id != '00000000-0000-0000-0000-000000000000')
+                            const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Row(
@@ -998,10 +1010,14 @@ class PaperDetailScreen extends ConsumerWidget {
                             ),
                             onPressed: () {
                               Navigator.pop(ctx);
-                              context.push('/search?q=${Uri.encodeComponent(author.name)}');
+                              if (author.id.isNotEmpty && author.id != '00000000-0000-0000-0000-000000000000') {
+                                context.push('/authors/${author.id}?name=${Uri.encodeComponent(author.name)}');
+                              } else {
+                                context.push('/search?q=${Uri.encodeComponent(author.name)}');
+                              }
                             },
-                            icon: const Icon(Icons.search_rounded, size: 16),
-                            label: const Text('Find Papers', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                            icon: const Icon(Icons.person_outline_rounded, size: 16),
+                            label: const Text('View Profile', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
                           ),
                         ),
                         const SizedBox(width: 10),

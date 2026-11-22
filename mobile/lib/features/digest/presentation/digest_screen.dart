@@ -18,13 +18,14 @@ class DigestScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final colors = context.athenaColors;
     final isDark = theme.brightness == Brightness.dark;
     final state = ref.watch(digestNotifierProvider);
     final notifier = ref.read(digestNotifierProvider.notifier);
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.deepDark : AppTheme.lightBg,
+      backgroundColor: colors.canvas,
       appBar: AthenaTopBar(
         title: 'Research Digest',
         showLeading: false,

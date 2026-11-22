@@ -57,6 +57,7 @@ class _DigestPodcastCardState extends ConsumerState<DigestPodcastCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.athenaColors;
     final isDark = theme.brightness == Brightness.dark;
     final digestState = ref.watch(digestNotifierProvider);
     final audioState = ref.watch(audioPlayerProvider);
@@ -76,21 +77,19 @@ class _DigestPodcastCardState extends ConsumerState<DigestPodcastCard> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark
-              ? [const Color(0xFF1E2230), const Color(0xFF131620)]
-              : [Colors.white, const Color(0xFFF8FAFC)],
+              ? [colors.surfaceRaised, colors.surfaceBase]
+              : [colors.surfaceBase, colors.surfaceLowest],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDark
-              ? AppTheme.coral.withValues(alpha: 0.35)
-              : AppTheme.coral.withValues(alpha: 0.25),
+          color: colors.coral.withValues(alpha: isDark ? 0.35 : 0.25),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.coral.withValues(alpha: isDark ? 0.08 : 0.05),
+            color: colors.coral.withValues(alpha: isDark ? 0.08 : 0.05),
             blurRadius: 18,
             offset: const Offset(0, 4),
           ),
