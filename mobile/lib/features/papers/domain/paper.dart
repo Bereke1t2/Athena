@@ -13,6 +13,8 @@ class PaperSummary {
     required this.oaStatus,
     required this.isOpenAccess,
     required this.citedByCount,
+    this.authorityScore = 0.0,
+    this.isSeminal = false,
   });
 
   final String id;
@@ -25,6 +27,8 @@ class PaperSummary {
   final String oaStatus;
   final bool isOpenAccess;
   final int citedByCount;
+  final double authorityScore;
+  final bool isSeminal;
 }
 
 class AuthorLine {

@@ -127,6 +127,7 @@ func (s *HistoryStore) ListHistory(ctx context.Context, userID uuid.UUID, cursor
 		SELECT p.id, p.title, p.abstract, p.publication_date, p.publication_year,
 			COALESCE(p.venue_name,''), p.publication_type::text, p.oa_status::text,
 			p.is_open_access, p.cited_by_count,
+			COALESCE(p.authority_score, 0.0), COALESCE(p.is_seminal, false),
 			rp.progress_percent, rp.completed, rp.last_read_at, rp.paper_id
 		FROM reading_progress rp
 		JOIN papers p ON p.id = rp.paper_id AND p.deleted_at IS NULL
@@ -149,6 +150,7 @@ func (s *HistoryStore) ListHistory(ctx context.Context, userID uuid.UUID, cursor
 		err := rows.Scan(
 			&sum.ID, &sum.Title, &sum.Abstract, &sum.PublishedOn, &sum.Year,
 			&sum.VenueName, &pubType, &oaStatus, &sum.IsOpenAccess, &sum.CitedByCount,
+			&sum.AuthorityScore, &sum.IsSeminal,
 			&entry.ProgressPercent, &entry.Completed, &entry.LastReadAt, &paperID,
 		)
 		if err != nil {

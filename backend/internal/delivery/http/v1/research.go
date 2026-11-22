@@ -38,6 +38,8 @@ type paperSummaryDTO struct {
 	OAStatus        string     `json:"oa_status"`
 	IsOpenAccess    bool       `json:"is_open_access"`
 	CitedByCount    int        `json:"cited_by_count"`
+	AuthorityScore  float64    `json:"authority_score"`
+	IsSeminal       bool       `json:"is_seminal"`
 }
 
 type venueDTO struct {
@@ -61,6 +63,8 @@ func newSummaryDTO(s research.PaperSummary) paperSummaryDTO {
 		OAStatus:        string(s.OAStatus),
 		IsOpenAccess:    s.IsOpenAccess,
 		CitedByCount:    s.CitedByCount,
+		AuthorityScore:  s.AuthorityScore,
+		IsSeminal:       s.IsSeminal,
 	}
 }
 

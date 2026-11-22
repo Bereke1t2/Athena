@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"athena/backend/internal/application/ingestion"
+	appresearch "athena/backend/internal/application/research"
 	"athena/backend/internal/domain/research"
 )
 
@@ -459,6 +460,63 @@ func TestListIngestionJobsParams(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil || len(resp.Items) != 1 || resp.Items[0].Kind != "sync_provider_window" {
 		t.Fatalf("bad response: %s (%v)", rec.Body.String(), err)
 	}
+}
+
+type fakeAuthorityStore struct {
+	edges []research.GraphEdge
+	nodes []uuid.UUID
+}
+
+func (f *fakeAuthorityStore) GetCitationEdgesForScoring(ctx context.Context) ([]research.GraphEdge, []uuid.UUID, error) {
+	return f.edges, f.nodes, nil
+}
+
+func (f *fakeAuthorityStore) UpdatePaperAuthorityScores(ctx context.Context, scores map[uuid.UUID]float64, seminalIDs map[uuid.UUID]bool) (int, error) {
+	return len(scores), nil
+}
+
+func TestComputeAuthorityEndpoint(t *testing.T) {
+	node1 := uuid.New()
+	node2 := uuid.New()
+	edges := []research.GraphEdge{
+		{Source: node2, Target: node1, IsInfluential: true, Stance: research.StanceSupports},
+	}
+	store := &fakeAuthorityStore{nodes: []uuid.UUID{node1, node2}, edges: edges}
+	authSvc := appresearch.NewAuthorityService(store, nil, discardLogger())
+
+	h := NewAdminHandlers("sekrit", discardLogger()).WithAuthority(authSvc)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/v1/admin/graph/compute-authority", h.ComputeAuthority)
+
+	t.Run("unauthorized", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/graph/compute-authority", nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401, got %d", rec.Code)
+		}
+	})
+
+	t.Run("authorized happy path", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/graph/compute-authority", nil)
+		req.Header.Set("Authorization", "Bearer sekrit")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+
+		var res appresearch.ComputeResult
+		if err := json.NewDecoder(rec.Body).Decode(&res); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if res.PapersScored != 2 {
+			t.Errorf("expected 2 papers scored, got %d", res.PapersScored)
+		}
+		if res.SeminalPapersIdentified != 1 {
+			t.Errorf("expected 1 seminal paper, got %d", res.SeminalPapersIdentified)
+		}
+	})
 }
 
 // ---- helpers -------------------------------------------------------------------

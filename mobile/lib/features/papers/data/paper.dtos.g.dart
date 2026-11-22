@@ -25,6 +25,8 @@ PaperSummaryDto _$PaperSummaryDtoFromJson(Map<String, dynamic> json) =>
       oaStatus: json['oa_status'] as String,
       isOpenAccess: json['is_open_access'] as bool,
       citedByCount: (json['cited_by_count'] as num).toInt(),
+      authorityScore: (json['authority_score'] as num?)?.toDouble() ?? 0.0,
+      isSeminal: json['is_seminal'] as bool? ?? false,
     );
 
 AuthorLineDto _$AuthorLineDtoFromJson(Map<String, dynamic> json) =>

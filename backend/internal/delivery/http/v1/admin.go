@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"athena/backend/internal/application/ingestion"
+	appresearch "athena/backend/internal/application/research"
 )
 
 // AdminHandlers expose ingestion operations guarded by the admin token
@@ -22,6 +23,9 @@ type AdminHandlers struct {
 
 	// RagQueue optionally enables POST /admin/rag/index (nil when AI off).
 	RagQueue RagIndexQueue
+
+	// Authority computes PageRank graph authority and seminal paper status.
+	Authority *appresearch.AuthorityService
 }
 
 // RagIndexQueue enqueues bulk full-text RAG indexing jobs.
@@ -31,6 +35,11 @@ type RagIndexQueue interface {
 
 func NewAdminHandlers(adminToken string, log *slog.Logger) *AdminHandlers {
 	return &AdminHandlers{AdminToken: adminToken, Logger: log}
+}
+
+func (h *AdminHandlers) WithAuthority(auth *appresearch.AuthorityService) *AdminHandlers {
+	h.Authority = auth
+	return h
 }
 
 // parseRFC3339 parses a required timestamp; empty input returns the zero time.
@@ -196,4 +205,24 @@ func (h *AdminHandlers) ListIngestionJobs(w http.ResponseWriter, r *http.Request
 		jobs = []ingestion.JobInfo{}
 	}
 	WriteJSON(w, http.StatusOK, map[string]any{"items": jobs, "meta": map[string]int{"limit": limit}})
+}
+
+// ComputeAuthority handles POST /api/v1/admin/graph/compute-authority.
+func (h *AdminHandlers) ComputeAuthority(w http.ResponseWriter, r *http.Request) {
+	if !h.requireAdmin(w, r) {
+		return
+	}
+	if h.Authority == nil {
+		WriteError(w, r, http.StatusServiceUnavailable, CodeInternal, "authority service unavailable")
+		return
+	}
+
+	res, err := h.Authority.ComputeAndStore(r.Context())
+	if err != nil {
+		h.Logger.Error("compute authority failed", "error", err)
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "failed to compute graph authority")
+		return
+	}
+
+	WriteJSON(w, http.StatusOK, res)
 }

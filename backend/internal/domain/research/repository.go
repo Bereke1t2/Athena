@@ -61,6 +61,8 @@ type PaperSummary struct {
 	OAStatus        OAStatus
 	IsOpenAccess    bool
 	CitedByCount    int
+	AuthorityScore  float64
+	IsSeminal       bool
 }
 
 // AuthorLine is display data for a paper's ordered authorship.
@@ -177,4 +179,10 @@ type PaperReader interface {
 	RelatedBySharedTopics(ctx context.Context, paperID uuid.UUID, limit int) ([]PaperSummary, error)
 	GetCitationGraph(ctx context.Context, paperID uuid.UUID, maxDepth int, limitPerLevel int) (CitationGraph, error)
 	GetResearchTrends(ctx context.Context, windowDays int, limit int) (TrendReport, error)
+}
+
+// AuthorityStore manages citation network edges and persistent authority scores.
+type AuthorityStore interface {
+	GetCitationEdgesForScoring(ctx context.Context) ([]GraphEdge, []uuid.UUID, error)
+	UpdatePaperAuthorityScores(ctx context.Context, scores map[uuid.UUID]float64, seminalIDs map[uuid.UUID]bool) (int, error)
 }
