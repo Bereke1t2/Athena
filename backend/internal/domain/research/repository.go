@@ -168,6 +168,21 @@ type TrendReport struct {
 	BreakthroughPapers []PaperSummary  `json:"breakthrough_papers"`
 }
 
+// AuthorDetail is the full public projection of an author profile.
+type AuthorDetail struct {
+	ID             uuid.UUID      `json:"id"`
+	DisplayName    string         `json:"display_name"`
+	NameNormalized string         `json:"name_normalized"`
+	ORCID          string         `json:"orcid,omitempty"`
+	HIndex         *int           `json:"h_index,omitempty"`
+	Affiliations   []string       `json:"affiliations"`
+	PaperCount     int            `json:"paper_count"`
+	CitationCount  int            `json:"citation_count"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+}
+
 // PaperReader is the query-side port used by application services and HTTP
 // handlers. Cursor semantics are owned by the implementation.
 type PaperReader interface {
@@ -179,6 +194,8 @@ type PaperReader interface {
 	RelatedBySharedTopics(ctx context.Context, paperID uuid.UUID, limit int) ([]PaperSummary, error)
 	GetCitationGraph(ctx context.Context, paperID uuid.UUID, maxDepth int, limitPerLevel int) (CitationGraph, error)
 	GetResearchTrends(ctx context.Context, windowDays int, limit int) (TrendReport, error)
+	GetAuthorByID(ctx context.Context, id uuid.UUID) (AuthorDetail, error)
+	ListPapersByAuthor(ctx context.Context, authorID uuid.UUID, sort string, limit int, offset int) ([]PaperSummary, int, error)
 }
 
 // AuthorityStore manages citation network edges and persistent authority scores.

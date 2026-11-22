@@ -894,3 +894,121 @@ func (s *PaperStore) GetCitationGraph(ctx context.Context, paperID uuid.UUID, ma
 		TotalEdges: len(edges),
 	}, nil
 }
+
+// GetAuthorByID returns an author's profile with computed publication and citation metrics.
+func (s *PaperStore) GetAuthorByID(ctx context.Context, id uuid.UUID) (research.AuthorDetail, error) {
+	var a research.AuthorDetail
+	var metaBytes []byte
+	var orcid *string
+
+	err := s.pool.QueryRow(ctx, `
+		SELECT
+			a.id, a.display_name, a.name_normalized, a.orcid, a.h_index,
+			a.metadata, a.created_at, a.updated_at,
+			COUNT(DISTINCT pa.paper_id)::int as paper_count,
+			COALESCE(SUM(p.cited_by_count), 0)::int as citation_count
+		FROM authors a
+		LEFT JOIN paper_authors pa ON pa.author_id = a.id
+		LEFT JOIN papers p ON p.id = pa.paper_id
+		WHERE a.id = $1
+		GROUP BY a.id, a.display_name, a.name_normalized, a.orcid, a.h_index, a.metadata, a.created_at, a.updated_at`,
+		id,
+	).Scan(
+		&a.ID, &a.DisplayName, &a.NameNormalized, &orcid, &a.HIndex,
+		&metaBytes, &a.CreatedAt, &a.UpdatedAt,
+		&a.PaperCount, &a.CitationCount,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return a, research.ErrNotFound
+	}
+	if err != nil {
+		return a, fmt.Errorf("author detail: %w", err)
+	}
+	if orcid != nil {
+		a.ORCID = *orcid
+	}
+	if len(metaBytes) > 0 {
+		_ = json.Unmarshal(metaBytes, &a.Metadata)
+	}
+
+	// Distinct affiliations from paper_authors
+	rows, err := s.pool.Query(ctx, `
+		SELECT DISTINCT unnest(affiliation)
+		FROM paper_authors
+		WHERE author_id = $1 AND array_length(affiliation, 1) > 0
+		LIMIT 10`, id)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var aff string
+			if err := rows.Scan(&aff); err == nil && aff != "" {
+				a.Affiliations = append(a.Affiliations, aff)
+			}
+		}
+	}
+	if a.Affiliations == nil {
+		a.Affiliations = []string{}
+	}
+
+	return a, nil
+}
+
+// ListPapersByAuthor returns papers authored by the specified author with sorting and pagination.
+func (s *PaperStore) ListPapersByAuthor(ctx context.Context, authorID uuid.UUID, sort string, limit int, offset int) ([]research.PaperSummary, int, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	var total int
+	err := s.pool.QueryRow(ctx, `
+		SELECT COUNT(DISTINCT paper_id)
+		FROM paper_authors
+		WHERE author_id = $1`, authorID).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count author papers: %w", err)
+	}
+
+	orderClause := "p.cited_by_count DESC, p.publication_date DESC NULLS LAST"
+	switch sort {
+	case "recent":
+		orderClause = "p.publication_date DESC NULLS LAST, p.created_at DESC"
+	case "title":
+		orderClause = "p.title ASC"
+	case "citations":
+		orderClause = "p.cited_by_count DESC, p.publication_date DESC NULLS LAST"
+	}
+
+	q := fmt.Sprintf(`
+		SELECT `+summaryCols+`
+		FROM paper_authors pa
+		JOIN papers p ON p.id = pa.paper_id
+		WHERE pa.author_id = $1
+		ORDER BY %s
+		LIMIT $2 OFFSET $3`, orderClause)
+
+	rows, err := s.pool.Query(ctx, q, authorID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list author papers: %w", err)
+	}
+	defer rows.Close()
+
+	var papers []research.PaperSummary
+	for rows.Next() {
+		s, err := scanSummary(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		papers = append(papers, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	if papers == nil {
+		papers = []research.PaperSummary{}
+	}
+
+	return papers, total, nil
+}
