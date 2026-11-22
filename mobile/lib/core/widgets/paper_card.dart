@@ -18,12 +18,11 @@ class PaperCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.athenaColors;
     final abstractText = paper.abstract;
     final venue = paper.venueName.isEmpty
         ? paper.publicationType.replaceAll('_', ' ')
         : paper.venueName;
-
-    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       elevation: 0,
@@ -31,11 +30,11 @@ class PaperCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
-          color: isDark ? const Color(0xFF282D3B) : const Color(0xFFE5E7EB),
+          color: colors.borderSubtle,
           width: 1.2,
         ),
       ),
-      color: isDark ? const Color(0xFF161922) : Colors.white,
+      color: colors.surfaceBase,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -54,7 +53,7 @@ class PaperCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF222736) : const Color(0xFFF1F3F7),
+                          color: colors.surfaceLowest,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -62,7 +61,7 @@ class PaperCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: isDark ? const Color(0xFFD1D5DB) : const Color(0xFF374151),
+                            color: colors.textSecondary,
                             fontWeight: FontWeight.w800,
                             fontSize: 11,
                           ),
@@ -76,26 +75,26 @@ class PaperCard extends StatelessWidget {
                       key: const Key('seminal-paper-badge'),
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
+                        color: colors.seminalAmber.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.45),
+                          color: colors.seminalAmber.withValues(alpha: 0.45),
                           width: 1,
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.auto_awesome,
                             size: 11,
-                            color: Color(0xFFD97706),
+                            color: colors.seminalAmber,
                           ),
-                          SizedBox(width: 3.5),
+                          const SizedBox(width: 3.5),
                           Text(
                             'Seminal',
                             style: TextStyle(
-                              color: Color(0xFFD97706),
+                              color: colors.seminalAmber,
                               fontWeight: FontWeight.w900,
                               fontSize: 9.5,
                               letterSpacing: 0.2,
@@ -110,13 +109,13 @@ class PaperCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF7675).withValues(alpha: 0.15),
+                        color: colors.openAccessEmerald.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Text(
+                      child: Text(
                         'OA',
                         style: TextStyle(
-                          color: Color(0xFFFF7675),
+                          color: colors.openAccessEmerald,
                           fontWeight: FontWeight.w900,
                           fontSize: 9.5,
                         ),
@@ -143,7 +142,7 @@ class PaperCard extends StatelessWidget {
                   height: 1.25,
                   letterSpacing: -0.3,
                   fontSize: 15.5,
-                  color: isDark ? Colors.white : const Color(0xFF141416),
+                  color: colors.textPrimary,
                 ),
               ),
 
@@ -154,7 +153,7 @@ class PaperCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                    color: colors.textSecondary,
                     height: 1.4,
                     fontSize: 12,
                   ),
@@ -173,7 +172,7 @@ class PaperCard extends StatelessWidget {
                         Icon(
                           Icons.auto_stories_rounded,
                           size: 13,
-                          color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                          color: colors.textMuted,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -184,7 +183,7 @@ class PaperCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                              color: colors.textMuted,
                             ),
                           ),
                         ),
@@ -198,7 +197,7 @@ class PaperCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF222736) : const Color(0xFFF1F3F7),
+                        color: colors.surfaceLowest,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -209,14 +208,14 @@ class PaperCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
-                              color: isDark ? AppTheme.coral : const Color(0xFF141416),
+                              color: colors.coral,
                             ),
                           ),
                           const SizedBox(width: 4),
                           Icon(
                             Icons.arrow_forward_rounded,
                             size: 12,
-                            color: isDark ? AppTheme.coral : const Color(0xFF141416),
+                            color: colors.coral,
                           ),
                         ],
                       ),

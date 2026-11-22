@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../theme/app_theme.dart';
+
 bool _safeCanPop(BuildContext context) {
   try {
     return Navigator.of(context).canPop();
@@ -52,10 +54,10 @@ class AthenaCircularIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final border = borderColor ?? (isDark ? const Color(0xFF282C38) : const Color(0xFFE5E7EB));
-    final bg = backgroundColor ?? (isDark ? const Color(0xFF181A20) : Colors.white);
-    final fg = iconColor ?? (isDark ? Colors.white : const Color(0xFF111827));
+    final colors = context.athenaColors;
+    final border = borderColor ?? colors.borderSubtle;
+    final bg = backgroundColor ?? colors.surfaceBase;
+    final fg = iconColor ?? colors.textPrimary;
 
     Widget button = InkWell(
       onTap: onPressed,
@@ -116,7 +118,7 @@ class AthenaTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.athenaColors;
 
     final shouldShowLeading = showLeading ?? (onLeadingTap != null || _safeCanPop(context));
 
@@ -143,7 +145,7 @@ class AthenaTopBar extends StatelessWidget implements PreferredSizeWidget {
           fontSize: 16,
           fontWeight: FontWeight.w800,
           letterSpacing: -0.2,
-          color: isDark ? Colors.white : const Color(0xFF111827),
+          color: colors.textPrimary,
         ),
       );
     }

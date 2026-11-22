@@ -48,18 +48,19 @@ class AdaptiveAppShell extends StatelessWidget {
   }
 
   Widget _buildWideLayout(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.athenaColors;
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       body: Row(
         children: [
           Container(
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF111216) : Colors.white,
+              color: colors.surfaceBase,
               border: Border(
                 right: BorderSide(
-                  color: isDark ? const Color(0xFF222632) : const Color(0xFFE5E7EB),
+                  color: colors.borderSubtle,
                   width: 1.0,
                 ),
               ),
@@ -192,6 +193,7 @@ class AdaptiveAppShell extends StatelessWidget {
   }
 
   Widget _buildMobileLayout(BuildContext context) {
+    final colors = context.athenaColors;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -203,10 +205,10 @@ class AdaptiveAppShell extends StatelessWidget {
           const MiniAudioPlayer(),
           Container(
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF111216) : Colors.white,
+              color: colors.surfaceBase,
               border: Border(
                 top: BorderSide(
-                  color: isDark ? const Color(0xFF222632) : const Color(0xFFE5E7EB),
+                  color: colors.borderSubtle,
                   width: 1.0,
                 ),
               ),
