@@ -13,4 +13,11 @@ abstract class AnnotationRepository {
 
   /// Deletes an annotation by ID.
   Future<void> deleteAnnotation({required String id, required String paperId});
+
+  /// Lists all annotations for the current authenticated user across all papers.
+  Future<List<UserAnnotation>> listUserAnnotations({
+    String? color,
+    String? query,
+    int limit = 50,
+  });
 }

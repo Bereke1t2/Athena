@@ -109,6 +109,83 @@ class Annotation {
   }
 }
 
+/// Domain model for user highlights enriched with paper metadata for cross-paper review.
+class UserAnnotation {
+  const UserAnnotation({
+    required this.id,
+    required this.userId,
+    required this.paperId,
+    required this.paperTitle,
+    this.paperYear,
+    this.paperVenue = '',
+    this.paperDoi = '',
+    required this.pageNumber,
+    required this.sectionIndex,
+    required this.selectedText,
+    required this.note,
+    required this.color,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String userId;
+  final String paperId;
+  final String paperTitle;
+  final int? paperYear;
+  final String paperVenue;
+  final String paperDoi;
+  final int pageNumber;
+  final int sectionIndex;
+  final String selectedText;
+  final String note;
+  final AnnotationColor color;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'paper_id': paperId,
+      'paper_title': paperTitle,
+      if (paperYear != null) 'paper_year': paperYear,
+      'paper_venue': paperVenue,
+      'paper_doi': paperDoi,
+      'page_number': pageNumber,
+      'section_index': sectionIndex,
+      'selected_text': selectedText,
+      'note': note,
+      'color': color.code,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+
+  factory UserAnnotation.fromJson(Map<String, dynamic> json) {
+    return UserAnnotation(
+      id: json['id'] as String? ?? '',
+      userId: json['user_id'] as String? ?? '',
+      paperId: json['paper_id'] as String? ?? '',
+      paperTitle: json['paper_title'] as String? ?? '',
+      paperYear: (json['paper_year'] as num?)?.toInt(),
+      paperVenue: json['paper_venue'] as String? ?? '',
+      paperDoi: json['paper_doi'] as String? ?? '',
+      pageNumber: (json['page_number'] as num?)?.toInt() ?? 1,
+      sectionIndex: (json['section_index'] as num?)?.toInt() ?? 0,
+      selectedText: json['selected_text'] as String? ?? '',
+      note: json['note'] as String? ?? '',
+      color: AnnotationColor.fromCode(json['color'] as String?),
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'] as String) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+}
+
 class CreateAnnotationParams {
   const CreateAnnotationParams({
     required this.paperId,

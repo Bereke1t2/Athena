@@ -139,6 +139,40 @@ class AnnotationRepositoryImpl implements AnnotationRepository {
     await _saveLocalCache(paperId, updated);
   }
 
+  @override
+  Future<List<UserAnnotation>> listUserAnnotations({
+    String? color,
+    String? query,
+    int limit = 50,
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{'limit': limit};
+      if (color != null && color.isNotEmpty) {
+        queryParams['color'] = color;
+      }
+      if (query != null && query.isNotEmpty) {
+        queryParams['q'] = query;
+      }
+
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/me/annotations',
+        queryParameters: queryParams,
+      );
+      final data = res.data;
+      if (data != null && data['items'] is List) {
+        final itemsRaw = data['items'] as List<dynamic>;
+        return itemsRaw.map((raw) {
+          final dto = UserAnnotationDto.fromJson((raw as Map).cast<String, dynamic>());
+          return dto.toDomain();
+        }).toList();
+      }
+    } catch (_) {
+      // Fallback: return empty or offline notes
+    }
+
+    return const [];
+  }
+
   List<Annotation> _loadLocalCache(String paperId) {
     final raw = _prefs.getPaperAnnotations(paperId);
     if (raw == null || raw.isEmpty) return const [];

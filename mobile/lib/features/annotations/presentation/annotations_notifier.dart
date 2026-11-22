@@ -76,3 +76,102 @@ final paperAnnotationsProvider = StateNotifierProvider.family<
   final repo = ref.watch(annotationRepositoryProvider);
   return PaperAnnotationsNotifier(repo, paperId);
 });
+
+class UserAnnotationsState {
+  const UserAnnotationsState({
+    this.items = const [],
+    this.isLoading = false,
+    this.error,
+    this.selectedColor,
+    this.searchQuery = '',
+  });
+
+  final List<UserAnnotation> items;
+  final bool isLoading;
+  final String? error;
+  final String? selectedColor;
+  final String searchQuery;
+
+  UserAnnotationsState copyWith({
+    List<UserAnnotation>? items,
+    bool? isLoading,
+    String? error,
+    String? selectedColor,
+    bool clearSelectedColor = false,
+    String? searchQuery,
+  }) {
+    return UserAnnotationsState(
+      items: items ?? this.items,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+      selectedColor: clearSelectedColor ? null : (selectedColor ?? this.selectedColor),
+      searchQuery: searchQuery ?? this.searchQuery,
+    );
+  }
+}
+
+class UserAnnotationsNotifier extends StateNotifier<UserAnnotationsState> {
+  UserAnnotationsNotifier(this._repo) : super(const UserAnnotationsState()) {
+    load();
+  }
+
+  final AnnotationRepository _repo;
+
+  Future<void> load({String? color, String? query}) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final activeColor = color != null ? (color.isEmpty ? null : color) : state.selectedColor;
+      final activeQuery = query ?? (state.searchQuery.isNotEmpty ? state.searchQuery : null);
+      final items = await _repo.listUserAnnotations(
+        color: activeColor,
+        query: activeQuery,
+      );
+      state = state.copyWith(
+        items: items,
+        isLoading: false,
+        selectedColor: activeColor,
+        clearSelectedColor: activeColor == null,
+        searchQuery: activeQuery ?? '',
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  void setColorFilter(String? color) {
+    if (color == null || color.isEmpty || state.selectedColor == color) {
+      state = state.copyWith(clearSelectedColor: true);
+      load(color: '');
+    } else {
+      state = state.copyWith(selectedColor: color);
+      load(color: color);
+    }
+  }
+
+  void setSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
+    load(query: query);
+  }
+
+  Future<void> deleteAnnotation(String id, String paperId) async {
+    await _repo.deleteAnnotation(id: id, paperId: paperId);
+    final updated = state.items.where((a) => a.id != id).toList();
+    state = state.copyWith(items: updated);
+  }
+
+  Future<void> refresh() async {
+    await load(
+      color: state.selectedColor,
+      query: state.searchQuery.isNotEmpty ? state.searchQuery : null,
+    );
+  }
+}
+
+final userAnnotationsProvider =
+    StateNotifierProvider<UserAnnotationsNotifier, UserAnnotationsState>((ref) {
+  final repo = ref.watch(annotationRepositoryProvider);
+  return UserAnnotationsNotifier(repo);
+});
