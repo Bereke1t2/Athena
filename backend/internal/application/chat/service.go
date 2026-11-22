@@ -86,7 +86,7 @@ func (s *Service) CreateSession(ctx context.Context, in domainai.NewSessionInput
 	if err != nil {
 		return domainai.Session{}, err
 	}
-	if s.Indexer != nil {
+	if s.Indexer != nil && in.PaperID != uuid.Nil {
 		paperID := in.PaperID
 		go func() {
 			ictx, cancel := context.WithTimeout(context.Background(), s.indexTimeout)
@@ -97,6 +97,18 @@ func (s *Service) CreateSession(ctx context.Context, in domainai.NewSessionInput
 				}
 			} else if s.Logger != nil {
 				s.Logger.Info("background chat pre-indexing completed", "paper_id", paperID)
+			}
+		}()
+	} else if s.Indexer != nil && in.CollectionID != uuid.Nil && s.Collections != nil {
+		collID := in.CollectionID
+		go func() {
+			ictx, cancel := context.WithTimeout(context.Background(), s.indexTimeout*2)
+			defer cancel()
+			papers, perr := s.Collections.ListPapers(ictx, collID)
+			if perr == nil {
+				for _, cp := range papers {
+					_, _ = s.Indexer.IngestPaper(ictx, cp.PaperID)
+				}
 			}
 		}()
 	}
