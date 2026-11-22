@@ -116,6 +116,38 @@ class PaperRepositoryImpl implements PaperRepository {
       throw failureFromDio(e);
     }
   }
+
+  @override
+  Future<AuthorDetail> getAuthorById(String id) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>('/authors/$id');
+      return AuthorDetailDto.fromJson(res.data!).toDomain();
+    } catch (e) {
+      throw failureFromDio(e);
+    }
+  }
+
+  @override
+  Future<AuthorWorks> getAuthorPapers(
+    String id, {
+    String sort = 'citations',
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/authors/$id/papers',
+        queryParameters: {
+          'sort': sort,
+          'limit': limit,
+          'offset': offset,
+        },
+      );
+      return AuthorWorksDto.fromJson(res.data!).toDomain();
+    } catch (e) {
+      throw failureFromDio(e);
+    }
+  }
 }
 
 

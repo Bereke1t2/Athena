@@ -190,3 +190,88 @@ class PaperDetailDto {
         sources: sources ?? const [],
       );
 }
+
+class AuthorDetailDto {
+  const AuthorDetailDto({
+    required this.id,
+    required this.displayName,
+    required this.nameNormalized,
+    this.orcid,
+    this.hIndex,
+    this.affiliations = const [],
+    this.paperCount = 0,
+    this.citationCount = 0,
+    this.metadata = const {},
+  });
+
+  final String id;
+  final String displayName;
+  final String nameNormalized;
+  final String? orcid;
+  final int? hIndex;
+  final List<String> affiliations;
+  final int paperCount;
+  final int citationCount;
+  final Map<String, dynamic> metadata;
+
+  factory AuthorDetailDto.fromJson(Map<String, dynamic> json) {
+    return AuthorDetailDto(
+      id: json['id'] as String? ?? '',
+      displayName: json['display_name'] as String? ?? '',
+      nameNormalized: json['name_normalized'] as String? ?? '',
+      orcid: json['orcid'] as String?,
+      hIndex: (json['h_index'] as num?)?.toInt(),
+      affiliations: (json['affiliations'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      paperCount: (json['paper_count'] as num?)?.toInt() ?? 0,
+      citationCount: (json['citation_count'] as num?)?.toInt() ?? 0,
+      metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
+    );
+  }
+
+  AuthorDetail toDomain() {
+    return AuthorDetail(
+      id: id,
+      displayName: displayName,
+      nameNormalized: nameNormalized,
+      orcid: orcid,
+      hIndex: hIndex,
+      affiliations: affiliations,
+      paperCount: paperCount,
+      citationCount: citationCount,
+      metadata: metadata,
+    );
+  }
+}
+
+class AuthorWorksDto {
+  const AuthorWorksDto({
+    required this.items,
+    required this.total,
+    required this.limit,
+    required this.offset,
+  });
+
+  final List<PaperSummaryDto> items;
+  final int total;
+  final int limit;
+  final int offset;
+
+  factory AuthorWorksDto.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'] as List<dynamic>? ?? [];
+    return AuthorWorksDto(
+      items: rawItems.map((e) => PaperSummaryDto.fromJson((e as Map).cast<String, dynamic>())).toList(),
+      total: (json['total'] as num?)?.toInt() ?? 0,
+      limit: (json['limit'] as num?)?.toInt() ?? 20,
+      offset: (json['offset'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  AuthorWorks toDomain() {
+    return AuthorWorks(
+      items: items.map((e) => e.toDomain()).toList(),
+      total: total,
+      limit: limit,
+      offset: offset,
+    );
+  }
+}

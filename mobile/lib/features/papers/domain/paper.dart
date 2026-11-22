@@ -40,6 +40,46 @@ class AuthorLine {
   final List<String> affiliations;
 }
 
+/// Full projection of an author's profile and scholarly impact metrics.
+class AuthorDetail {
+  const AuthorDetail({
+    required this.id,
+    required this.displayName,
+    required this.nameNormalized,
+    this.orcid,
+    this.hIndex,
+    this.affiliations = const [],
+    this.paperCount = 0,
+    this.citationCount = 0,
+    this.metadata = const {},
+  });
+
+  final String id;
+  final String displayName;
+  final String nameNormalized;
+  final String? orcid;
+  final int? hIndex;
+  final List<String> affiliations;
+  final int paperCount;
+  final int citationCount;
+  final Map<String, dynamic> metadata;
+}
+
+/// Paginated works catalog authored by a researcher.
+class AuthorWorks {
+  const AuthorWorks({
+    required this.items,
+    required this.total,
+    this.limit = 20,
+    this.offset = 0,
+  });
+
+  final List<PaperSummary> items;
+  final int total;
+  final int limit;
+  final int offset;
+}
+
 class TopicLine {
   const TopicLine({
     required this.slug,

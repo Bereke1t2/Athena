@@ -12,5 +12,7 @@ abstract interface class PaperRepository {
   Future<List<PaperSummary>> getRelated(String id, {int limit = 10});
   Future<CitationGraph> getCitationGraph(String id, {int depth = 1, int limit = 25});
   Future<AudioTrack> synthesizeAudio(String id, {String voice = 'Alloy', String length = 'standard', String focus = 'general'});
+  Future<AuthorDetail> getAuthorById(String id);
+  Future<AuthorWorks> getAuthorPapers(String id, {String sort = 'citations', int limit = 20, int offset = 0});
 }
 
