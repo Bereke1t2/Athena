@@ -145,6 +145,10 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/related", deps.Research.Related)
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/graph", deps.Research.Graph)
 		mux.HandleFunc("GET /api/v1/research/trends", deps.Research.Trends)
+		mux.HandleFunc("GET /api/v1/authors/{id}", deps.Research.GetAuthor)
+		mux.HandleFunc("GET /api/v1/authors/{id}/papers", deps.Research.ListAuthorPapers)
+		mux.HandleFunc("GET /api/v1/research/authors/{id}", deps.Research.GetAuthor)
+		mux.HandleFunc("GET /api/v1/research/authors/{id}/papers", deps.Research.ListAuthorPapers)
 	}
 	if deps.Export != nil {
 		mux.HandleFunc("GET /api/v1/research/papers/{id}/export", deps.Export.ExportPaper)
@@ -252,6 +256,7 @@ func registerAPI(mux *http.ServeMux, deps Deps) {
 
 	if deps.Annotations != nil {
 		mux.HandleFunc("GET /api/v1/papers/{id}/annotations", deps.Annotations.List)
+		mux.Handle("GET /api/v1/me/annotations", v1.RequireAuth(deps.Annotations.ListMe))
 		mux.Handle("POST /api/v1/papers/{id}/annotations", v1.RequireAuth(deps.Annotations.Create))
 		mux.Handle("PATCH /api/v1/annotations/{id}", v1.RequireAuth(deps.Annotations.Update))
 		mux.Handle("DELETE /api/v1/annotations/{id}", v1.RequireAuth(deps.Annotations.Delete))

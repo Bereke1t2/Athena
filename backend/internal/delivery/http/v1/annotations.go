@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/google/uuid"
 
@@ -36,6 +37,14 @@ type annotationDTO struct {
 	UpdatedAt    string `json:"updated_at"`
 }
 
+type userAnnotationDTO struct {
+	annotationDTO
+	PaperTitle string `json:"paper_title"`
+	PaperYear  int    `json:"paper_year"`
+	PaperVenue string `json:"paper_venue,omitempty"`
+	PaperDOI   string `json:"paper_doi,omitempty"`
+}
+
 type createAnnotationRequestDTO struct {
 	PageNumber   int    `json:"page_number"`
 	SectionIndex int    `json:"section_index"`
@@ -64,7 +73,56 @@ func toAnnotationDTO(a domainannotation.Annotation) annotationDTO {
 	}
 }
 
+func toUserAnnotationDTO(a domainannotation.UserAnnotation) userAnnotationDTO {
+	return userAnnotationDTO{
+		annotationDTO: toAnnotationDTO(a.Annotation),
+		PaperTitle:    a.PaperTitle,
+		PaperYear:     a.PaperYear,
+		PaperVenue:    a.PaperVenue,
+		PaperDOI:      a.PaperDOI,
+	}
+}
+
 // ---- Endpoints --------------------------------------------------------------
+
+// ListMe: GET /api/v1/me/annotations
+// Returns all annotations created by the authenticated user across papers with optional color and query filtering.
+func (h *AnnotationsHandlers) ListMe(w http.ResponseWriter, r *http.Request) {
+	user, ok := UserFromContext(r.Context())
+	if !ok {
+		WriteError(w, r, http.StatusUnauthorized, CodeUnauthorized, "authentication required")
+		return
+	}
+
+	color := r.URL.Query().Get("color")
+	q := r.URL.Query().Get("q")
+	limit := 50
+	if lStr := r.URL.Query().Get("limit"); lStr != "" {
+		if l, err := strconv.Atoi(lStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	filter := domainannotation.ListUserAnnotationsFilter{
+		UserID: user.ID,
+		Color:  color,
+		Query:  q,
+		Limit:  limit,
+	}
+
+	items, err := h.Svc.ListUserAnnotations(r.Context(), filter)
+	if err != nil {
+		h.Logger.Error("list user annotations failed", "error", err, "request_id", RequestIDFrom(r.Context()))
+		WriteError(w, r, http.StatusInternalServerError, CodeInternal, "internal error")
+		return
+	}
+
+	dtos := make([]userAnnotationDTO, len(items))
+	for i, it := range items {
+		dtos[i] = toUserAnnotationDTO(it)
+	}
+	WriteJSON(w, http.StatusOK, map[string]any{"items": dtos})
+}
 
 // List: GET /api/v1/papers/{id}/annotations
 // Authenticated users get their personal annotations; guest users get an empty list.

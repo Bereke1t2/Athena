@@ -74,6 +74,26 @@ func (f *fakeHttpAnnotationStore) ListByPaperAndUser(_ context.Context, paperID,
 	return list, nil
 }
 
+func (f *fakeHttpAnnotationStore) ListByUser(_ context.Context, filter domainannotation.ListUserAnnotationsFilter) ([]domainannotation.UserAnnotation, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var list []domainannotation.UserAnnotation
+	for _, a := range f.annotations {
+		if a.UserID == filter.UserID {
+			if filter.Color != "" && a.Color != filter.Color {
+				continue
+			}
+			list = append(list, domainannotation.UserAnnotation{
+				Annotation: a,
+				PaperTitle: "Attention Is All You Need",
+				PaperYear:  2017,
+			})
+		}
+	}
+	return list, nil
+}
+
 func (f *fakeHttpAnnotationStore) Update(_ context.Context, in domainannotation.UpdateAnnotationInput) (domainannotation.Annotation, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -259,4 +279,60 @@ func TestAnnotationsLifecycle(t *testing.T) {
 	w = httptest.NewRecorder()
 	h.Delete(w, r)
 	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestListMeAnnotations(t *testing.T) {
+	h, store := setupAnnotationsTestHandlers()
+	userID := uuid.New()
+	paperID := uuid.New()
+
+	// Seed annotations
+	_, _ = store.Create(context.Background(), domainannotation.CreateAnnotationInput{
+		UserID:       userID,
+		PaperID:      paperID,
+		PageNumber:   1,
+		SelectedText: "Transformers excel at sequence tasks",
+		Color:        domainannotation.ColorCoral,
+	})
+	_, _ = store.Create(context.Background(), domainannotation.CreateAnnotationInput{
+		UserID:       userID,
+		PaperID:      paperID,
+		PageNumber:   2,
+		SelectedText: "Self-attention mechanism",
+		Color:        domainannotation.ColorEmerald,
+	})
+
+	// 1. Unauthorized
+	reqNoAuth := httptest.NewRequest(http.MethodGet, "/api/v1/me/annotations", nil)
+	wNoAuth := httptest.NewRecorder()
+	h.ListMe(wNoAuth, reqNoAuth)
+	assert.Equal(t, http.StatusUnauthorized, wNoAuth.Code)
+
+	// 2. Authorized - all
+	reqAuth := withUserContext(httptest.NewRequest(http.MethodGet, "/api/v1/me/annotations", nil), userID)
+	wAuth := httptest.NewRecorder()
+	h.ListMe(wAuth, reqAuth)
+	assert.Equal(t, http.StatusOK, wAuth.Code)
+
+	var resp struct {
+		Items []userAnnotationDTO `json:"items"`
+	}
+	err := json.Unmarshal(wAuth.Body.Bytes(), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(resp.Items))
+	assert.Equal(t, "Attention Is All You Need", resp.Items[0].PaperTitle)
+
+	// 3. Filter by color
+	reqFilter := withUserContext(httptest.NewRequest(http.MethodGet, "/api/v1/me/annotations?color=coral", nil), userID)
+	wFilter := httptest.NewRecorder()
+	h.ListMe(wFilter, reqFilter)
+	assert.Equal(t, http.StatusOK, wFilter.Code)
+
+	var filterResp struct {
+		Items []userAnnotationDTO `json:"items"`
+	}
+	err = json.Unmarshal(wFilter.Body.Bytes(), &filterResp)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(filterResp.Items))
+	assert.Equal(t, "coral", filterResp.Items[0].Color)
 }
