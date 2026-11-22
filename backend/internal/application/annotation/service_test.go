@@ -53,6 +53,23 @@ func (m *mockStore) ListByPaperAndUser(_ context.Context, paperID, userID uuid.U
 	return list, nil
 }
 
+func (m *mockStore) ListByUser(_ context.Context, filter domainannotation.ListUserAnnotationsFilter) ([]domainannotation.UserAnnotation, error) {
+	var list []domainannotation.UserAnnotation
+	for _, a := range m.annotations {
+		if a.UserID == filter.UserID {
+			if filter.Color != "" && a.Color != filter.Color {
+				continue
+			}
+			list = append(list, domainannotation.UserAnnotation{
+				Annotation: a,
+				PaperTitle: "Test Paper",
+				PaperYear:  2024,
+			})
+		}
+	}
+	return list, nil
+}
+
 func (m *mockStore) Update(_ context.Context, in domainannotation.UpdateAnnotationInput) (domainannotation.Annotation, error) {
 	a, ok := m.annotations[in.ID]
 	if !ok || a.UserID != in.UserID {
@@ -127,6 +144,21 @@ func TestAnnotationService(t *testing.T) {
 		}
 		if list[0].SelectedText != in.SelectedText {
 			t.Errorf("expected text %q, got %q", in.SelectedText, list[0].SelectedText)
+		}
+
+		// List user annotations across papers
+		userAnnots, err := svc.ListUserAnnotations(ctx, domainannotation.ListUserAnnotationsFilter{
+			UserID: userID,
+			Color:  domainannotation.ColorCoral,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error on list user annotations: %v", err)
+		}
+		if len(userAnnots) != 1 {
+			t.Fatalf("expected 1 user annotation, got %d", len(userAnnots))
+		}
+		if userAnnots[0].PaperTitle != "Test Paper" {
+			t.Errorf("expected paper title 'Test Paper', got %q", userAnnots[0].PaperTitle)
 		}
 
 		// Update annotation

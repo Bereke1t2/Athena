@@ -14,6 +14,7 @@ type Store interface {
 	Create(ctx context.Context, in domainannotation.CreateAnnotationInput) (domainannotation.Annotation, error)
 	GetByID(ctx context.Context, id uuid.UUID) (domainannotation.Annotation, error)
 	ListByPaperAndUser(ctx context.Context, paperID, userID uuid.UUID) ([]domainannotation.Annotation, error)
+	ListByUser(ctx context.Context, filter domainannotation.ListUserAnnotationsFilter) ([]domainannotation.UserAnnotation, error)
 	Update(ctx context.Context, in domainannotation.UpdateAnnotationInput) (domainannotation.Annotation, error)
 	Delete(ctx context.Context, id, userID uuid.UUID) error
 }
@@ -38,6 +39,20 @@ func (s *Service) ListAnnotations(ctx context.Context, paperID, userID uuid.UUID
 		return []domainannotation.Annotation{}, nil
 	}
 	return s.store.ListByPaperAndUser(ctx, paperID, userID)
+}
+
+// ListUserAnnotations returns all annotations created by the user across papers, with optional color and text filtering.
+func (s *Service) ListUserAnnotations(ctx context.Context, filter domainannotation.ListUserAnnotationsFilter) ([]domainannotation.UserAnnotation, error) {
+	if filter.UserID == uuid.Nil {
+		return []domainannotation.UserAnnotation{}, nil
+	}
+	if filter.Limit <= 0 {
+		filter.Limit = 50
+	}
+	if filter.Limit > 100 {
+		filter.Limit = 100
+	}
+	return s.store.ListByUser(ctx, filter)
 }
 
 // CreateAnnotation creates a new reader highlight or margin note.

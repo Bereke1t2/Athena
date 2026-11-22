@@ -48,6 +48,23 @@ type Annotation struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// UserAnnotation extends Annotation with joined paper metadata for multi-paper overview.
+type UserAnnotation struct {
+	Annotation
+	PaperTitle string `json:"paper_title"`
+	PaperYear  int    `json:"paper_year"`
+	PaperVenue string `json:"paper_venue,omitempty"`
+	PaperDOI   string `json:"paper_doi,omitempty"`
+}
+
+// ListUserAnnotationsFilter provides search and filtering parameters for a user's annotations.
+type ListUserAnnotationsFilter struct {
+	UserID uuid.UUID
+	Color  string
+	Query  string
+	Limit  int
+}
+
 // CreateAnnotationInput parameters for creating an annotation.
 type CreateAnnotationInput struct {
 	UserID       uuid.UUID

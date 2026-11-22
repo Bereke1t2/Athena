@@ -106,6 +106,72 @@ func (s *AnnotationStore) ListByPaperAndUser(ctx context.Context, paperID, userI
 	return annotations, nil
 }
 
+// ListByUser loads all annotations created by a user across papers with optional color and keyword filtering.
+func (s *AnnotationStore) ListByUser(ctx context.Context, filter domainannotation.ListUserAnnotationsFilter) ([]domainannotation.UserAnnotation, error) {
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+
+	whereClauses := []string{"a.user_id = $1"}
+	args := []any{filter.UserID}
+
+	if filter.Color != "" {
+		args = append(args, filter.Color)
+		whereClauses = append(whereClauses, fmt.Sprintf("a.color = $%d", len(args)))
+	}
+
+	if filter.Query != "" {
+		args = append(args, "%"+filter.Query+"%")
+		pos := len(args)
+		whereClauses = append(whereClauses, fmt.Sprintf("(a.selected_text ILIKE $%d OR a.note ILIKE $%d OR p.title ILIKE $%d)", pos, pos, pos))
+	}
+
+	args = append(args, limit)
+	limitPos := len(args)
+
+	query := fmt.Sprintf(`
+		SELECT a.id, a.user_id, a.paper_id, a.page_number, a.section_index,
+			a.selected_text, a.note, a.color, a.created_at, a.updated_at,
+			COALESCE(p.title, '') AS paper_title,
+			COALESCE(p.publication_year, 0) AS paper_year,
+			COALESCE(p.venue_name, '') AS paper_venue,
+			COALESCE(p.doi::text, '') AS paper_doi
+		FROM paper_annotations a
+		JOIN papers p ON p.id = a.paper_id
+		WHERE %s
+		ORDER BY a.created_at DESC
+		LIMIT $%d`,
+		strings.Join(whereClauses, " AND "),
+		limitPos,
+	)
+
+	rows, err := s.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list user annotations: %w", err)
+	}
+	defer rows.Close()
+
+	var results []domainannotation.UserAnnotation
+	for rows.Next() {
+		var ua domainannotation.UserAnnotation
+		if err := rows.Scan(
+			&ua.ID, &ua.UserID, &ua.PaperID, &ua.PageNumber, &ua.SectionIndex,
+			&ua.SelectedText, &ua.Note, &ua.Color, &ua.CreatedAt, &ua.UpdatedAt,
+			&ua.PaperTitle, &ua.PaperYear, &ua.PaperVenue, &ua.PaperDOI,
+		); err != nil {
+			return nil, fmt.Errorf("scan user annotation: %w", err)
+		}
+		results = append(results, ua)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user annotations: %w", err)
+	}
+
+	return results, nil
+}
+
 // Update updates an annotation's note and/or color.
 func (s *AnnotationStore) Update(ctx context.Context, in domainannotation.UpdateAnnotationInput) (domainannotation.Annotation, error) {
 	if err := in.Validate(); err != nil {
