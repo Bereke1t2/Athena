@@ -15,6 +15,8 @@ class PaperSummary {
     required this.citedByCount,
     this.authorityScore = 0.0,
     this.isSeminal = false,
+    this.hasCode = false,
+    this.primaryCodeUrl,
   });
 
   final String id;
@@ -29,6 +31,8 @@ class PaperSummary {
   final int citedByCount;
   final double authorityScore;
   final bool isSeminal;
+  final bool hasCode;
+  final String? primaryCodeUrl;
 }
 
 class AuthorLine {
@@ -102,6 +106,45 @@ class VersionLine {
   final bool isPreprint;
 }
 
+/// Open source code repository linked to an academic paper.
+class CodeRepository {
+  const CodeRepository({
+    required this.url,
+    required this.platform,
+    required this.owner,
+    required this.repoName,
+    this.description,
+    this.isOfficial = true,
+    this.starsCount = 0,
+  });
+
+  final String url;
+  final String platform;
+  final String owner;
+  final String repoName;
+  final String? description;
+  final bool isOfficial;
+  final int starsCount;
+
+  String get displayName =>
+      owner.isNotEmpty && repoName.isNotEmpty ? '$owner/$repoName' : repoName;
+}
+
+/// Open dataset or artifact reference linked to an academic paper.
+class DatasetReference {
+  const DatasetReference({
+    required this.url,
+    required this.platform,
+    required this.name,
+    this.description,
+  });
+
+  final String url;
+  final String platform;
+  final String name;
+  final String? description;
+}
+
 /// Full detail served by GET /research/papers/{id}.
 class PaperDetail {
   const PaperDetail({
@@ -116,6 +159,8 @@ class PaperDetail {
     required this.versions,
     required this.referenceCount,
     required this.sources,
+    this.codeRepositories = const [],
+    this.datasets = const [],
   });
 
   final PaperSummary summary;
@@ -129,6 +174,8 @@ class PaperDetail {
   final List<VersionLine> versions;
   final int referenceCount;
   final List<String> sources;
+  final List<CodeRepository> codeRepositories;
+  final List<DatasetReference> datasets;
 
   String get title => summary.title;
 }
