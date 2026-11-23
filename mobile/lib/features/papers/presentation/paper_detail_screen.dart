@@ -626,6 +626,40 @@ class PaperDetailScreen extends ConsumerWidget {
                             ),
                           ),
                         ),
+                        if (paper.codeRepositories.isNotEmpty || paper.summary.hasCode) ...[
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              key: const Key('quick-view-code-button'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: isDark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED),
+                                side: BorderSide(
+                                  color: isDark ? const Color(0xFF6D28D9).withValues(alpha: 0.6) : const Color(0xFFDDD6FE),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () {
+                                final url = paper.codeRepositories.isNotEmpty
+                                    ? paper.codeRepositories.first.url
+                                    : (paper.summary.primaryCodeUrl ?? '');
+                                if (url.isNotEmpty) {
+                                  _openWeb(context, url);
+                                }
+                              },
+                              icon: const Icon(Icons.code_rounded, size: 16),
+                              label: Text(
+                                paper.codeRepositories.isNotEmpty
+                                    ? 'View Repository (${paper.codeRepositories.first.displayName})'
+                                    : 'View Code Repository',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -736,6 +770,13 @@ class PaperDetailScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 20),
                   ],
+
+                  // Code & Open Artifacts Explorer
+                  _CodeArtifactsCard(
+                    paper: paper,
+                    onOpenUrl: (url) => _openWeb(context, url),
+                  ),
+                  const SizedBox(height: 18),
 
                   // Real Publication Identifiers & Sources
                   _SectionCard(
@@ -1486,6 +1527,322 @@ class _RelatedPapersCard extends ConsumerWidget {
                 );
               },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CodeArtifactsCard extends StatelessWidget {
+  const _CodeArtifactsCard({
+    required this.paper,
+    required this.onOpenUrl,
+  });
+
+  final PaperDetail paper;
+  final void Function(String url) onOpenUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final colors = context.athenaColors;
+    final repos = paper.codeRepositories;
+    final datasets = paper.datasets;
+    final hasCodeOrData = repos.isNotEmpty || datasets.isNotEmpty;
+
+    return Card(
+      key: const Key('code-artifacts-card'),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.code_rounded,
+                  size: 16,
+                  color: colors.aiViolet,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Code & Datasets',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const Spacer(),
+                if (repos.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: colors.aiViolet.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${repos.length} REPO${repos.length > 1 ? "S" : ""}',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w900,
+                        color: colors.aiViolet,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (hasCodeOrData) ...[
+              if (repos.isNotEmpty) ...[
+                for (final repo in repos) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF161922) : const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF282F3E) : const Color(0xFFE5E7EB),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: colors.aiViolet.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.terminal_rounded,
+                                size: 14,
+                                color: colors.aiViolet,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    repo.displayName,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    repo.platform.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: colors.textMuted,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (repo.isOfficial)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: colors.openAccessEmerald.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Official',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: colors.openAccessEmerald,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if ((repo.description ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            repo.description!,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                onPressed: () => onOpenUrl(repo.url),
+                                icon: const Icon(Icons.open_in_new_rounded, size: 13),
+                                label: const Text(
+                                  'Open Repo',
+                                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: 'git clone ${repo.url}.git'));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Clone command copied to clipboard'),
+                                    duration: Duration(seconds: 2),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.copy_rounded, size: 13),
+                              label: const Text(
+                                'Clone',
+                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+              if (datasets.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'DATASETS & BENCHMARKS',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: colors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                for (final ds in datasets)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF161922) : const Color(0xFFF9FAFB),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF282F3E) : const Color(0xFFE5E7EB),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.dataset_rounded,
+                          size: 14,
+                          color: colors.coral,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            ds.name,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => onOpenUrl(ds.url),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 14,
+                              color: colors.textMuted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ] else ...[
+              // Fallback: search for paper implementation on GitHub
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF161922) : const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF282F3E) : const Color(0xFFE5E7EB),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.search_rounded,
+                      size: 16,
+                      color: colors.textMuted,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'No repository explicitly linked',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            'Search GitHub for community reproductions',
+                            style: TextStyle(fontSize: 10.5, color: colors.textMuted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () {
+                        final query = Uri.encodeComponent(paper.title);
+                        onOpenUrl('https://github.com/search?q=$query&type=repositories');
+                      },
+                      child: Text(
+                        'Search GitHub',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: colors.coral,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

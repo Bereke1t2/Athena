@@ -123,6 +123,41 @@ class PaperCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                   ],
+                  if (paper.hasCode) ...[
+                    Container(
+                      key: const Key('code-available-badge'),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: colors.aiViolet.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: colors.aiViolet.withValues(alpha: 0.35),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.code_rounded,
+                            size: 11,
+                            color: colors.aiViolet,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Code',
+                            style: TextStyle(
+                              color: colors.aiViolet,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 9.5,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   _Meta(
                     icon: Icons.format_quote_rounded,
                     label: _count(paper.citedByCount),
