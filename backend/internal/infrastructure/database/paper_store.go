@@ -272,6 +272,7 @@ func (s *PaperStore) insertNew(ctx context.Context, tx pgx.Tx, p research.Paper)
 	if err := s.upsertVersions(ctx, tx, id, p.Versions); err != nil {
 		return research.UpsertResult{}, err
 	}
+	_ = s.upsertArtifacts(ctx, tx, id, p.Abstract, p.Versions)
 	srcID, err := s.sourceIDBySlug(ctx, tx, p.Provenance.ProviderSlug)
 	if err != nil {
 		return research.UpsertResult{}, err
@@ -367,6 +368,7 @@ func (s *PaperStore) mergeInto(ctx context.Context, tx pgx.Tx, target uuid.UUID,
 	if err := s.upsertVersions(ctx, tx, target, p.Versions); err != nil {
 		return research.UpsertResult{}, err
 	}
+	_ = s.upsertArtifacts(ctx, tx, target, p.Abstract, p.Versions)
 	if haveProv {
 		if _, err := tx.Exec(ctx, `
 			UPDATE paper_sources
@@ -692,3 +694,37 @@ func (s *PaperStore) ResolveCitationEdges(ctx context.Context, citingPaperID uui
 	}
 	return int(tag.RowsAffected()), nil
 }
+
+func (s *PaperStore) upsertArtifacts(ctx context.Context, tx pgx.Tx, paperID uuid.UUID, abstract string, versions []research.VersionRef) error {
+	var versionURLs []string
+	for _, v := range versions {
+		if strings.TrimSpace(v.URL) != "" {
+			versionURLs = append(versionURLs, v.URL)
+		}
+	}
+	repos, datasets := research.ExtractArtifacts(abstract, versionURLs)
+	if len(repos) > 0 {
+		for _, repo := range repos {
+			_, _ = tx.Exec(ctx, `
+				INSERT INTO paper_code_repositories (paper_id, url, platform, owner, repo_name, is_official)
+				VALUES ($1, $2, $3, $4, $5, $6)
+				ON CONFLICT (paper_id, url) DO NOTHING`,
+				paperID, repo.URL, string(repo.Platform), repo.Owner, repo.RepoName, repo.IsOfficial)
+		}
+		_, _ = tx.Exec(ctx, `
+			UPDATE papers SET has_code = true,
+				primary_code_url = CASE WHEN primary_code_url = '' THEN $2 ELSE primary_code_url END
+			WHERE id = $1`, paperID, repos[0].URL)
+	}
+	if len(datasets) > 0 {
+		for _, ds := range datasets {
+			_, _ = tx.Exec(ctx, `
+				INSERT INTO paper_datasets (paper_id, url, platform, name, description)
+				VALUES ($1, $2, $3, $4, $5)
+				ON CONFLICT (paper_id, url) DO NOTHING`,
+				paperID, ds.URL, string(ds.Platform), ds.Name, ds.Description)
+		}
+	}
+	return nil
+}
+
