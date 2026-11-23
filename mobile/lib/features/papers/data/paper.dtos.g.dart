@@ -27,6 +27,8 @@ PaperSummaryDto _$PaperSummaryDtoFromJson(Map<String, dynamic> json) =>
       citedByCount: (json['cited_by_count'] as num).toInt(),
       authorityScore: (json['authority_score'] as num?)?.toDouble() ?? 0.0,
       isSeminal: json['is_seminal'] as bool? ?? false,
+      hasCode: json['has_code'] as bool? ?? false,
+      primaryCodeUrl: json['primary_code_url'] as String?,
     );
 
 AuthorLineDto _$AuthorLineDtoFromJson(Map<String, dynamic> json) =>
@@ -53,6 +55,25 @@ VersionLineDto _$VersionLineDtoFromJson(Map<String, dynamic> json) =>
       isPreprint: json['is_preprint'] as bool? ?? false,
     );
 
+CodeRepositoryDto _$CodeRepositoryDtoFromJson(Map<String, dynamic> json) =>
+    CodeRepositoryDto(
+      url: json['url'] as String,
+      platform: json['platform'] as String,
+      owner: json['owner'] as String,
+      repoName: json['repo_name'] as String,
+      description: json['description'] as String?,
+      isOfficial: json['is_official'] as bool? ?? true,
+      starsCount: (json['stars_count'] as num?)?.toInt() ?? 0,
+    );
+
+DatasetReferenceDto _$DatasetReferenceDtoFromJson(Map<String, dynamic> json) =>
+    DatasetReferenceDto(
+      url: json['url'] as String,
+      platform: json['platform'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+    );
+
 PaperDetailDto _$PaperDetailDtoFromJson(Map<String, dynamic> json) =>
     PaperDetailDto(
       id: json['id'] as String,
@@ -67,6 +88,10 @@ PaperDetailDto _$PaperDetailDtoFromJson(Map<String, dynamic> json) =>
       oaStatus: json['oa_status'] as String,
       isOpenAccess: json['is_open_access'] as bool,
       citedByCount: (json['cited_by_count'] as num).toInt(),
+      authorityScore: (json['authority_score'] as num?)?.toDouble() ?? 0.0,
+      isSeminal: json['is_seminal'] as bool? ?? false,
+      hasCode: json['has_code'] as bool? ?? false,
+      primaryCodeUrl: json['primary_code_url'] as String?,
       language: json['language'] as String?,
       license: json['license'] as String?,
       bestOaUrl: json['best_oa_url'] as String?,
@@ -82,6 +107,12 @@ PaperDetailDto _$PaperDetailDtoFromJson(Map<String, dynamic> json) =>
           const [],
       versions: (json['versions'] as List<dynamic>?)
           ?.map((e) => VersionLineDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      codeRepositories: (json['code_repositories'] as List<dynamic>?)
+          ?.map((e) => CodeRepositoryDto.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      datasets: (json['datasets'] as List<dynamic>?)
+          ?.map((e) => DatasetReferenceDto.fromJson(e as Map<String, dynamic>))
           .toList(),
       referenceCount: (json['reference_count'] as num).toInt(),
       sources: (json['sources'] as List<dynamic>?)

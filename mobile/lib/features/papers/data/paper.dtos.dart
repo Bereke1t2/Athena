@@ -31,6 +31,8 @@ class PaperSummaryDto {
     required this.citedByCount,
     this.authorityScore = 0.0,
     this.isSeminal = false,
+    this.hasCode = false,
+    this.primaryCodeUrl,
   });
 
   final String id;
@@ -45,6 +47,8 @@ class PaperSummaryDto {
   final int citedByCount;
   final double authorityScore;
   final bool isSeminal;
+  final bool hasCode;
+  final String? primaryCodeUrl;
 
   factory PaperSummaryDto.fromJson(Map<String, dynamic> json) => _$PaperSummaryDtoFromJson(json);
 
@@ -61,6 +65,8 @@ class PaperSummaryDto {
         citedByCount: citedByCount,
         authorityScore: authorityScore,
         isSeminal: isSeminal,
+        hasCode: hasCode,
+        primaryCodeUrl: primaryCodeUrl,
       );
 }
 
@@ -118,6 +124,65 @@ class VersionLineDto {
 }
 
 @JsonSerializable(createToJson: false, fieldRename: FieldRename.snake)
+class CodeRepositoryDto {
+  const CodeRepositoryDto({
+    required this.url,
+    required this.platform,
+    required this.owner,
+    required this.repoName,
+    this.description,
+    this.isOfficial = true,
+    this.starsCount = 0,
+  });
+
+  final String url;
+  final String platform;
+  final String owner;
+  final String repoName;
+  final String? description;
+  final bool isOfficial;
+  final int starsCount;
+
+  factory CodeRepositoryDto.fromJson(Map<String, dynamic> json) =>
+      _$CodeRepositoryDtoFromJson(json);
+
+  CodeRepository toDomain() => CodeRepository(
+        url: url,
+        platform: platform,
+        owner: owner,
+        repoName: repoName,
+        description: description,
+        isOfficial: isOfficial,
+        starsCount: starsCount,
+      );
+}
+
+@JsonSerializable(createToJson: false, fieldRename: FieldRename.snake)
+class DatasetReferenceDto {
+  const DatasetReferenceDto({
+    required this.url,
+    required this.platform,
+    required this.name,
+    this.description,
+  });
+
+  final String url;
+  final String platform;
+  final String name;
+  final String? description;
+
+  factory DatasetReferenceDto.fromJson(Map<String, dynamic> json) =>
+      _$DatasetReferenceDtoFromJson(json);
+
+  DatasetReference toDomain() => DatasetReference(
+        url: url,
+        platform: platform,
+        name: name,
+        description: description,
+      );
+}
+
+@JsonSerializable(createToJson: false, fieldRename: FieldRename.snake)
 class PaperDetailDto {
   const PaperDetailDto({
     required this.id,
@@ -130,6 +195,10 @@ class PaperDetailDto {
     required this.oaStatus,
     required this.isOpenAccess,
     required this.citedByCount,
+    this.authorityScore = 0.0,
+    this.isSeminal = false,
+    this.hasCode = false,
+    this.primaryCodeUrl,
     this.language,
     this.license,
     this.bestOaUrl,
@@ -138,6 +207,8 @@ class PaperDetailDto {
     this.authors = const [],
     this.topics = const [],
     this.versions,
+    this.codeRepositories,
+    this.datasets,
     required this.referenceCount,
     this.sources = const [],
   });
@@ -152,6 +223,10 @@ class PaperDetailDto {
   final String oaStatus;
   final bool isOpenAccess;
   final int citedByCount;
+  final double authorityScore;
+  final bool isSeminal;
+  final bool hasCode;
+  final String? primaryCodeUrl;
   final String? language;
   final String? license;
   final String? bestOaUrl;
@@ -160,6 +235,8 @@ class PaperDetailDto {
   final List<AuthorLineDto>? authors;
   final List<TopicLineDto>? topics;
   final List<VersionLineDto>? versions;
+  final List<CodeRepositoryDto>? codeRepositories;
+  final List<DatasetReferenceDto>? datasets;
   final int referenceCount;
   final List<String>? sources;
 
@@ -177,6 +254,10 @@ class PaperDetailDto {
           oaStatus: oaStatus,
           isOpenAccess: isOpenAccess,
           citedByCount: citedByCount,
+          authorityScore: authorityScore,
+          isSeminal: isSeminal,
+          hasCode: hasCode,
+          primaryCodeUrl: primaryCodeUrl,
         ),
         language: language ?? '',
         license: license ?? '',
@@ -186,6 +267,9 @@ class PaperDetailDto {
         authors: (authors ?? const []).map((a) => a.toDomain()).toList(),
         topics: (topics ?? const []).map((t) => t.toDomain()).toList(),
         versions: (versions ?? const []).map((v) => v.toDomain()).toList(),
+        codeRepositories:
+            (codeRepositories ?? const []).map((c) => c.toDomain()).toList(),
+        datasets: (datasets ?? const []).map((d) => d.toDomain()).toList(),
         referenceCount: referenceCount,
         sources: sources ?? const [],
       );

@@ -258,7 +258,7 @@ final collectionRepositoryProvider =
 // ignore: unused_element
 typedef CollectionRepositoryRef = AutoDisposeProviderRef<CollectionRepository>;
 String _$annotationRepositoryHash() =>
-    r'839df30a84e2671239bf028163f58a719c927311';
+    r'990f01ee571b03d21b7aceb4d198d2881224aead';
 
 /// See also [annotationRepository].
 @ProviderFor(annotationRepository)
@@ -276,8 +276,7 @@ final annotationRepositoryProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef AnnotationRepositoryRef = AutoDisposeProviderRef<AnnotationRepository>;
-String _$storageRepositoryHash() =>
-    r'947eb10b98214f8263bf028163f58a719c927322';
+String _$storageRepositoryHash() => r'8d226f84fb429a656bc879fbf9b63b9271806979';
 
 /// See also [storageRepository].
 @ProviderFor(storageRepository)
