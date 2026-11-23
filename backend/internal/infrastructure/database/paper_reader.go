@@ -17,14 +17,15 @@ import (
 
 const summaryCols = `p.id, p.title, p.abstract, p.publication_date, p.publication_year,
 	COALESCE(p.venue_name, ''), p.publication_type::text, p.oa_status::text, p.is_open_access,
-	p.cited_by_count, COALESCE(p.authority_score, 0.0), COALESCE(p.is_seminal, false)`
+	p.cited_by_count, COALESCE(p.authority_score, 0.0), COALESCE(p.is_seminal, false),
+	COALESCE(p.has_code, false), COALESCE(p.primary_code_url, '')`
 
 func scanSummary(row pgx.Row) (research.PaperSummary, error) {
 	var s research.PaperSummary
 	var pubType, oaStatus string
 	err := row.Scan(&s.ID, &s.Title, &s.Abstract, &s.PublishedOn, &s.Year,
 		&s.VenueName, &pubType, &oaStatus, &s.IsOpenAccess, &s.CitedByCount,
-		&s.AuthorityScore, &s.IsSeminal)
+		&s.AuthorityScore, &s.IsSeminal, &s.HasCode, &s.PrimaryCodeURL)
 	if err != nil {
 		return s, err
 	}
@@ -46,6 +47,7 @@ func (s *PaperStore) GetDetailByID(ctx context.Context, id uuid.UUID) (research.
 	err := row.Scan(&d.Summary.ID, &d.Summary.Title, &d.Summary.Abstract,
 		&d.Summary.PublishedOn, &d.Summary.Year, &d.Summary.VenueName,
 		&pubType, &oaStatus, &d.Summary.IsOpenAccess, &d.Summary.CitedByCount,
+		&d.Summary.AuthorityScore, &d.Summary.IsSeminal, &d.Summary.HasCode, &d.Summary.PrimaryCodeURL,
 		&d.Language, &d.License, &d.BestOAURL, &d.DOI, &d.ArxivID,
 		&d.ReferenceCount, &d.CreatedAt, &d.UpdatedAt)
 	switch {
@@ -135,8 +137,83 @@ func (s *PaperStore) GetDetailByID(ctx context.Context, id uuid.UUID) (research.
 		}
 		d.SourceSlugs = append(d.SourceSlugs, slug)
 	}
-	err = rows.Err()
-	return d, err
+	if err := rows.Err(); err != nil {
+		return d, err
+	}
+
+	// 1. Load persisted code repositories if table exists
+	codeRows, err := s.pool.Query(ctx, `
+		SELECT url, platform, owner, repo_name, description, is_official, stars_count
+		FROM paper_code_repositories WHERE paper_id = $1
+		ORDER BY is_official DESC, stars_count DESC, created_at`, id)
+	if err == nil {
+		defer codeRows.Close()
+		for codeRows.Next() {
+			var repo research.CodeRepository
+			var platform string
+			if err := codeRows.Scan(&repo.URL, &platform, &repo.Owner, &repo.RepoName,
+				&repo.Description, &repo.IsOfficial, &repo.StarsCount); err == nil {
+				repo.Platform = research.CodePlatform(platform)
+				d.CodeRepositories = append(d.CodeRepositories, repo)
+			}
+		}
+	}
+
+	// 2. Load persisted datasets if table exists
+	dsRows, err := s.pool.Query(ctx, `
+		SELECT url, platform, name, description
+		FROM paper_datasets WHERE paper_id = $1
+		ORDER BY created_at`, id)
+	if err == nil {
+		defer dsRows.Close()
+		for dsRows.Next() {
+			var ds research.DatasetReference
+			var platform string
+			if err := dsRows.Scan(&ds.URL, &platform, &ds.Name, &ds.Description); err == nil {
+				ds.Platform = research.DatasetPlatform(platform)
+				d.Datasets = append(d.Datasets, ds)
+			}
+		}
+	}
+
+	// 3. Automated Artifact Intelligence Fallback:
+	// If no explicit DB records exist, dynamically extract open code repositories
+	// and dataset links from the paper's abstract and version URLs.
+	if len(d.CodeRepositories) == 0 && len(d.Datasets) == 0 {
+		var versionURLs []string
+		for _, v := range d.Versions {
+			versionURLs = append(versionURLs, v.URL)
+		}
+		abs := ""
+		if d.Summary.Abstract != nil {
+			abs = *d.Summary.Abstract
+		}
+		extractedRepos, extractedDatasets := research.ExtractArtifacts(abs, versionURLs)
+		if len(d.CodeRepositories) == 0 && len(extractedRepos) > 0 {
+			d.CodeRepositories = extractedRepos
+			d.Summary.HasCode = true
+			if d.Summary.PrimaryCodeURL == "" {
+				d.Summary.PrimaryCodeURL = extractedRepos[0].URL
+			}
+		}
+		if len(d.Datasets) == 0 && len(extractedDatasets) > 0 {
+			d.Datasets = extractedDatasets
+		}
+	} else if len(d.CodeRepositories) > 0 {
+		d.Summary.HasCode = true
+		if d.Summary.PrimaryCodeURL == "" {
+			d.Summary.PrimaryCodeURL = d.CodeRepositories[0].URL
+		}
+	}
+
+	if d.CodeRepositories == nil {
+		d.CodeRepositories = []research.CodeRepository{}
+	}
+	if d.Datasets == nil {
+		d.Datasets = []research.DatasetReference{}
+	}
+
+	return d, nil
 }
 
 // FindIDByIdentifier resolves an external identifier to a stored paper ID.
