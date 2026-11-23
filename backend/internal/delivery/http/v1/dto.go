@@ -32,20 +32,39 @@ type citationItemDTO struct {
 	Context       string                  `json:"context,omitempty"`
 }
 
+type codeRepositoryDTO struct {
+	URL         string `json:"url"`
+	Platform    string `json:"platform"`
+	Owner       string `json:"owner"`
+	RepoName    string `json:"repo_name"`
+	Description string `json:"description,omitempty"`
+	IsOfficial  bool   `json:"is_official"`
+	StarsCount  int    `json:"stars_count,omitempty"`
+}
+
+type datasetReferenceDTO struct {
+	URL         string `json:"url"`
+	Platform    string `json:"platform"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
 type paperDetailDTO struct {
 	paperSummaryDTO
-	Language       string           `json:"language,omitempty"`
-	License        string           `json:"license,omitempty"`
-	BestOAURL      string           `json:"best_oa_url,omitempty"`
-	DOI            string           `json:"doi,omitempty"`
-	ArxivID        string           `json:"arxiv_id,omitempty"`
-	Authors        []authorLineDTO  `json:"authors"`
-	Topics         []topicLineDTO   `json:"topics"`
-	Versions       []versionLineDTO `json:"versions,omitempty"`
-	ReferenceCount int              `json:"reference_count"`
-	SourceSlugs    []string         `json:"sources"`
-	CreatedAt      string           `json:"created_at"`
-	UpdatedAt      string           `json:"updated_at"`
+	Language         string                `json:"language,omitempty"`
+	License          string                `json:"license,omitempty"`
+	BestOAURL        string                `json:"best_oa_url,omitempty"`
+	DOI              string                `json:"doi,omitempty"`
+	ArxivID          string                `json:"arxiv_id,omitempty"`
+	Authors          []authorLineDTO       `json:"authors"`
+	Topics           []topicLineDTO        `json:"topics"`
+	Versions         []versionLineDTO      `json:"versions,omitempty"`
+	ReferenceCount   int                   `json:"reference_count"`
+	SourceSlugs      []string              `json:"sources"`
+	CodeRepositories []codeRepositoryDTO   `json:"code_repositories"`
+	Datasets         []datasetReferenceDTO `json:"datasets"`
+	CreatedAt        string                `json:"created_at"`
+	UpdatedAt        string                `json:"updated_at"`
 }
 
 func newDetailDTO(d research.PaperDetail) paperDetailDTO {
@@ -86,6 +105,30 @@ func newDetailDTO(d research.PaperDetail) paperDetailDTO {
 			Kind: string(v.Kind), URL: v.URL, IsPreprint: v.IsPreprint || v.Kind == research.VersionPreprint,
 		})
 	}
+
+	out.CodeRepositories = make([]codeRepositoryDTO, 0, len(d.CodeRepositories))
+	for _, cr := range d.CodeRepositories {
+		out.CodeRepositories = append(out.CodeRepositories, codeRepositoryDTO{
+			URL:         cr.URL,
+			Platform:    string(cr.Platform),
+			Owner:       cr.Owner,
+			RepoName:    cr.RepoName,
+			Description: cr.Description,
+			IsOfficial:  cr.IsOfficial,
+			StarsCount:  cr.StarsCount,
+		})
+	}
+
+	out.Datasets = make([]datasetReferenceDTO, 0, len(d.Datasets))
+	for _, ds := range d.Datasets {
+		out.Datasets = append(out.Datasets, datasetReferenceDTO{
+			URL:         ds.URL,
+			Platform:    string(ds.Platform),
+			Name:        ds.Name,
+			Description: ds.Description,
+		})
+	}
+
 	return out
 }
 

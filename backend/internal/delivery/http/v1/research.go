@@ -40,6 +40,8 @@ type paperSummaryDTO struct {
 	CitedByCount    int        `json:"cited_by_count"`
 	AuthorityScore  float64    `json:"authority_score"`
 	IsSeminal       bool       `json:"is_seminal"`
+	HasCode         bool       `json:"has_code"`
+	PrimaryCodeURL  string     `json:"primary_code_url,omitempty"`
 }
 
 type venueDTO struct {
@@ -86,6 +88,8 @@ func newSummaryDTO(s research.PaperSummary) paperSummaryDTO {
 		CitedByCount:    s.CitedByCount,
 		AuthorityScore:  s.AuthorityScore,
 		IsSeminal:       s.IsSeminal,
+		HasCode:         s.HasCode,
+		PrimaryCodeURL:  s.PrimaryCodeURL,
 	}
 }
 
