@@ -310,5 +310,19 @@ Acceptance:
       follow author button integration, scholarly impact metrics strip (Publications, Citations, H-Index),
       interactive sort choice chips, and full works catalog with paper cards and bookmarks.
 
-Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · Seminal Paper Authority Scoring ✅ · Multi-Model LLM Gateway ✅ · Chicago Citation Style & Collection Chat Pre-indexing ✅ · Centralized Highlights Hub ✅ · Author Profiles & Works Catalog ✅ · alternative engines
+- [x] Paper Code & Dataset Repository Intelligence Engine ("Code & Artifact Badges") (2026-11-23):
+      Automated identification, dynamic extraction, database persistence, and mobile visualization of open source
+      code repositories and open datasets associated with academic literature.
+      PostgreSQL schema migration (`000026_paper_code_and_datasets.up.sql`) adding `has_code` and `primary_code_url`
+      to `papers` alongside dedicated relational tables `paper_code_repositories` and `paper_datasets`.
+      Domain extraction engine (`internal/domain/research/artifacts.go`) scanning abstracts and preprint version URLs
+      for GitHub, GitLab, Hugging Face models, Hugging Face datasets, Zenodo records, and Kaggle benchmarks with
+      robust URL canonicalization and punctuation stripping.
+      PostgreSQL persistence in `paper_store.go` and fallback extraction in `paper_reader.go` ensuring all papers immediately
+      yield code intelligence.
+      Mobile domain and DTO serialization, resonant violet "Code" badge on `PaperCard`, quick "View Repository" action button
+      in paper action strip, and interactive `_CodeArtifactsCard` with 1-tap "Open Repo", "Clone" clipboard command,
+      dataset links, and community GitHub search fallback.
+
+Providers: PubMed/Europe PMC ✅, Crossref ✅ · Email Digests ✅ · Collections & Reading Lists ✅ · Collaborative Groups ✅ · Web & Adaptive Shell ✅ · Platform Hardening & Multi-Replica Safety ✅ · Collection Chat ✅ · Annotations & Highlights ✅ · Offline Storage & Flight Packs ✅ · Comparison Tray ✅ · Desktop Two-Pane Workspace & Command Palette ✅ · Weekly Audio Digest Podcast ✅ · Seminal Paper Authority Scoring ✅ · Multi-Model LLM Gateway ✅ · Chicago Citation Style & Collection Chat Pre-indexing ✅ · Centralized Highlights Hub ✅ · Author Profiles & Works Catalog ✅ · Code & Datasets Intelligence ✅ · alternative engines
 if ADR-0005 triggers fire · multi-language UIs · institutional features.

@@ -91,6 +91,14 @@ Paper detail response (abridged):
   "citation_stats": {"cited_by": 12, "references": 64},
   "versions": [{"kind": "preprint", "url": "https://arxiv.org/abs/…"}],
   "sources": ["semanticscholar", "openalex"],
+  "has_code": true,
+  "primary_code_url": "https://github.com/google-research/vision-transformer",
+  "code_repositories": [
+    {"url": "https://github.com/google-research/vision-transformer", "platform": "github", "owner": "google-research", "repo_name": "vision-transformer", "is_official": true, "stars_count": 15400}
+  ],
+  "datasets": [
+    {"url": "https://huggingface.co/datasets/imagenet-1k", "platform": "huggingface", "name": "ImageNet-1K"}
+  ],
   "ai": {"tldr": "…", "summary_levels_available": ["beginner"]},
   "created_at": "2026-08-01T10:00:00Z",
   "updated_at": "2026-08-20T18:22:00Z"

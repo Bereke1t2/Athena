@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  PaperSummary createPaper({required bool isSeminal, double authorityScore = 0.0}) {
+  PaperSummary createPaper({
+    required bool isSeminal,
+    double authorityScore = 0.0,
+    bool hasCode = false,
+  }) {
     return PaperSummary(
       id: '0197c0de-0000-7000-8000-000000000001',
       title: 'Attention Is All You Need',
@@ -18,6 +22,7 @@ void main() {
       citedByCount: 120000,
       authorityScore: authorityScore,
       isSeminal: isSeminal,
+      hasCode: hasCode,
     );
   }
 
@@ -50,5 +55,36 @@ void main() {
 
     expect(find.byKey(const Key('seminal-paper-badge')), findsNothing);
     expect(find.text('Seminal'), findsNothing);
+  });
+
+  testWidgets('renders Code badge when paper.hasCode is true', (tester) async {
+    final paper = createPaper(isSeminal: false, hasCode: true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PaperCard(paper: paper),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('code-available-badge')), findsOneWidget);
+    expect(find.text('Code'), findsOneWidget);
+    expect(find.byIcon(Icons.code_rounded), findsOneWidget);
+  });
+
+  testWidgets('does not render Code badge when paper.hasCode is false', (tester) async {
+    final paper = createPaper(isSeminal: false, hasCode: false);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PaperCard(paper: paper),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('code-available-badge')), findsNothing);
+    expect(find.text('Code'), findsNothing);
   });
 }

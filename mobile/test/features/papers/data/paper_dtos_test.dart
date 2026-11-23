@@ -91,5 +91,56 @@ void main() {
     final paper = dto.toDomain();
     expect(paper.authorityScore, 0.0);
     expect(paper.isSeminal, isFalse);
+    expect(paper.hasCode, isFalse);
+    expect(paper.primaryCodeUrl, isNull);
+  });
+
+  test('summary DTO parses has_code and primary_code_url when present', () {
+    final dto = PaperSummaryDto.fromJson({
+      ...summaryJson,
+      'has_code': true,
+      'primary_code_url': 'https://github.com/google-deepmind/vision-transformer',
+    });
+    final paper = dto.toDomain();
+    expect(paper.hasCode, isTrue);
+    expect(paper.primaryCodeUrl, 'https://github.com/google-deepmind/vision-transformer');
+  });
+
+  test('detail DTO parses code_repositories and datasets', () {
+    final dto = PaperDetailDto.fromJson({
+      ...summaryJson,
+      'has_code': true,
+      'primary_code_url': 'https://github.com/google-deepmind/vision-transformer',
+      'reference_count': 42,
+      'code_repositories': [
+        {
+          'url': 'https://github.com/google-deepmind/vision-transformer',
+          'platform': 'github',
+          'owner': 'google-deepmind',
+          'repo_name': 'vision-transformer',
+          'is_official': true,
+          'stars_count': 1250,
+        }
+      ],
+      'datasets': [
+        {
+          'url': 'https://huggingface.co/datasets/glue',
+          'platform': 'huggingface',
+          'name': 'glue',
+          'description': 'GLUE Benchmark',
+        }
+      ],
+    });
+
+    final detail = dto.toDomain();
+    expect(detail.summary.hasCode, isTrue);
+    expect(detail.summary.primaryCodeUrl, 'https://github.com/google-deepmind/vision-transformer');
+    expect(detail.codeRepositories.length, 1);
+    expect(detail.codeRepositories.first.displayName, 'google-deepmind/vision-transformer');
+    expect(detail.codeRepositories.first.isOfficial, isTrue);
+    expect(detail.codeRepositories.first.starsCount, 1250);
+    expect(detail.datasets.length, 1);
+    expect(detail.datasets.first.name, 'glue');
+    expect(detail.datasets.first.platform, 'huggingface');
   });
 }
