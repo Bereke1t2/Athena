@@ -63,6 +63,8 @@ type PaperSummary struct {
 	CitedByCount    int
 	AuthorityScore  float64
 	IsSeminal       bool
+	HasCode         bool
+	PrimaryCodeURL  string
 }
 
 // AuthorLine is display data for a paper's ordered authorship.
@@ -99,10 +101,12 @@ type PaperDetail struct {
 	Authors         []AuthorLine
 	Topics          []TopicLine
 	Versions        []VersionLine
-	ReferenceCount  int
-	SourceSlugs     []string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ReferenceCount   int
+	SourceSlugs      []string
+	CodeRepositories []CodeRepository
+	Datasets         []DatasetReference
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // GraphNode represents a paper in the citation traversal network.
