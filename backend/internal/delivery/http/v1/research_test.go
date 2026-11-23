@@ -267,6 +267,50 @@ func TestGetByIDentifierVariants(t *testing.T) {
 	}
 }
 
+func TestGetPaperDetail_CodeAndDatasetArtifacts(t *testing.T) {
+	fixture := detailFixture()
+	fixture.Summary.HasCode = true
+	fixture.Summary.PrimaryCodeURL = "https://github.com/athena/discovery"
+	r := &fakeReader{detail: fixture}
+	srv := newResearchServer(r)
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/research/papers/"+paperUUID, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	if hasCode, ok := body["has_code"].(bool); !ok || !hasCode {
+		t.Errorf("expected has_code = true, got %v", body["has_code"])
+	}
+	if primaryURL, ok := body["primary_code_url"].(string); !ok || primaryURL != "https://github.com/athena/discovery" {
+		t.Errorf("expected primary_code_url, got %v", body["primary_code_url"])
+	}
+
+	repos, ok := body["code_repositories"].([]any)
+	if !ok || len(repos) != 1 {
+		t.Fatalf("expected 1 code repository, got %v", body["code_repositories"])
+	}
+	repo0 := repos[0].(map[string]any)
+	if repo0["platform"] != "github" || repo0["owner"] != "athena" || repo0["repo_name"] != "discovery" {
+		t.Errorf("unexpected repo fields: %v", repo0)
+	}
+
+	datasets, ok := body["datasets"].([]any)
+	if !ok || len(datasets) != 1 {
+		t.Fatalf("expected 1 dataset reference, got %v", body["datasets"])
+	}
+	ds0 := datasets[0].(map[string]any)
+	if ds0["platform"] != "huggingface" || ds0["name"] != "athena/benchmarks" {
+		t.Errorf("unexpected dataset fields: %v", ds0)
+	}
+}
+
 func TestGetNotFound(t *testing.T) {
 	srv := newResearchServer(&fakeReader{}) // find returns ErrNotFound; detail not reached
 	rec := httptest.NewRecorder()
@@ -585,6 +629,23 @@ func detailFixture() research.PaperDetail {
 		Topics:      []research.TopicLine{{Slug: "information-retrieval", Name: "Information Retrieval", Score: 1, IsPrimary: true}},
 		Versions:    []research.VersionLine{{Kind: research.VersionPreprint, URL: "https://arxiv.org/abs/2401.01234", IsPreprint: true}},
 		SourceSlugs: []string{"openalex"},
+		CodeRepositories: []research.CodeRepository{
+			{
+				URL:        "https://github.com/athena/discovery",
+				Platform:   research.PlatformGitHub,
+				Owner:      "athena",
+				RepoName:   "discovery",
+				IsOfficial: true,
+				StarsCount: 42,
+			},
+		},
+		Datasets: []research.DatasetReference{
+			{
+				URL:      "https://huggingface.co/datasets/athena/benchmarks",
+				Platform: research.DatasetPlatformHuggingFace,
+				Name:     "athena/benchmarks",
+			},
+		},
 	}
 }
 
